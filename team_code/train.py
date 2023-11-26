@@ -1,9 +1,9 @@
 '''
 Training script for training transFuser and related models.
 Usage:
-CUDA_VISIBLE_DEVICES=0,1 OMP_NUM_THREADS=16 OPENBLAS_NUM_THREADS=1
-torchrun --nnodes=1 --nproc_per_node=2 --max_restarts=0 --rdzv_id=1234576890 --rdzv_backend=c10d
-train.py --logdir /path/to/logdir --root_dir /path/to/dataset_root/ --id exp_000 --cpu_cores 8
+CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=16 OPENBLAS_NUM_THREADS=1
+torchrun --nnodes=1 --nproc_per_node=1 --max_restarts=0 --rdzv_id=1234576890 --rdzv_backend=c10d
+train.py --logdir /home/maximilian/Master/log_debugging --root_dir /home/maximilian/Master/train_debugging --id exp_000 --cpu_cores 8
 '''
 
 import argparse
