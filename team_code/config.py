@@ -14,14 +14,14 @@ class GlobalConfig:
   # Weather azimuths used for data collection
   # Defined outside of init because carla objects can't be pickled
   weathers = {
-      'Clear': carla.WeatherParameters.ClearNoon,
-      'Cloudy': carla.WeatherParameters.CloudySunset,
-      'Wet': carla.WeatherParameters.WetSunset,
-      'MidRain': carla.WeatherParameters.MidRainSunset,
-      'WetCloudy': carla.WeatherParameters.WetCloudySunset,
-      'HardRain': carla.WeatherParameters.HardRainNoon,
-      'SoftRain': carla.WeatherParameters.SoftRainSunset,
-  }
+     'Clear': carla.WeatherParameters.ClearNoon,
+     'Cloudy': carla.WeatherParameters.CloudySunset,
+     'Wet': carla.WeatherParameters.WetSunset,
+     'MidRain': carla.WeatherParameters.MidRainSunset,
+     'WetCloudy': carla.WeatherParameters.WetCloudySunset,
+     'HardRain': carla.WeatherParameters.HardRainNoon,
+     'SoftRain': carla.WeatherParameters.SoftRainSunset,
+ }
 
   def __init__(self):
     """ base architecture configurations """
@@ -109,10 +109,10 @@ class GlobalConfig:
     # Dataloader
     # -----------------------------------------------------------------------------
     self.carla_fps = 20  # Simulator Frames per second
-    self.seq_len = 1  # input timesteps
+    self.seq_len = 1  # length of the sequence loaded
     # use different seq len for image and lidar
-    self.img_seq_len = 1
-    self.lidar_seq_len = 1
+    self.img_seq_len = 5
+    self.lidar_seq_len = 2
     # Number of initial frames to skip during data loading
     self.skip_first = int(2.5 * self.carla_fps) // self.data_save_freq
     self.pred_len = int(2.0 * self.carla_fps) // self.data_save_freq  # number of future waypoints predicted
@@ -174,7 +174,7 @@ class GlobalConfig:
     self.logdir = ''  # Directory to log data to.
     self.load_file = None  # File to continue training from
     self.setting = 'all'  # Setting used for training
-    self.root_dir = ''  # Dataset root dir
+    self.root_dir = '/home/maximilian/Master/train_debugging/'  # Dataset root dir
     # When to reduce the learning rate for the first and second  time
     self.schedule_reduce_epoch_01 = 30
     self.schedule_reduce_epoch_02 = 40
@@ -237,7 +237,6 @@ class GlobalConfig:
         'loss_forcast': 0.2,
         'loss_selection': 0.0,
     }
-    self.root_dir = ''
     self.train_towns = []
     self.val_towns = []
     self.train_data = []

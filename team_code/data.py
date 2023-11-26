@@ -35,8 +35,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                shared_dict=None,
                rank=0):
     self.config = config
-    assert config.img_seq_len == 1
-
+    assert(self.config.seq_len==1)
     self.data_cache = shared_dict
     self.target_speed_bins = np.array(config.target_speed_bins)
     self.angle_bins = np.array(config.angle_bins)
@@ -59,6 +58,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
     self.temporal_lidars = []
     self.temporal_measurements = []
+    self.temporal_images=[]
 
     self.image_augmenter_func = image_augmenter(config.color_aug_prob, cutout=config.use_cutout)
     self.lidar_augmenter_func = lidar_augmenter(config.lidar_aug_prob, cutout=config.use_cutout)
@@ -70,15 +70,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     total_routes = 0
     perfect_routes = 0
     crashed_routes = 0
-
     for sub_root in tqdm(root, file=sys.stdout, disable=rank != 0):
-
       # list subdirectories in root
       routes = next(os.walk(sub_root))[1]
-
       for route in routes:
         route_dir = sub_root + '/' + route
-
         if not os.path.isfile(route_dir + '/results.json.gz'):
           total_routes += 1
           crashed_routes += 1
@@ -95,7 +91,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         perfect_routes += 1
 
         num_seq = len(os.listdir(route_dir + '/lidar'))
-
+        #seq=timestep; substract seq_len here, to iterate not too far, later we iterate over the last seq value into the "future"m hitting the latest datapoint avail.
         for seq in range(config.skip_first, num_seq - self.config.pred_len - self.config.seq_len):
           if seq % config.train_sampling_rate != 0:
             continue
@@ -159,9 +155,14 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 assert self.config.seq_len == 1  # Temporal LiDARs are only supported with seq len 1 right now
                 temporal_lidar.append(route_dir + '/lidar' + (f'/{(seq - idx):04}.laz'))
                 temporal_measurement.append(route_dir + '/measurements' + (f'/{(seq - idx):04}.json.gz'))
-
             self.temporal_lidars.append(temporal_lidar)
             self.temporal_measurements.append(temporal_measurement)
+          if self.config.img_seq_len>1:
+            temporal_images=[]
+            for idx in range(self.config.img_seq_len):
+              if not self.config.use_plant:
+                temporal_images.append(route_dir + '/rgb' + (f'/{(seq - idx):04}.jpg'))
+            self.temporal_images.append(temporal_images)
 
           self.images.append(image)
           self.images_augmented.append(image_augmented)
@@ -223,6 +224,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     self.measurements = np.array(self.measurements).astype(np.string_)
 
     self.temporal_lidars = np.array(self.temporal_lidars).astype(np.string_)
+    self.temporal_images = np.array(self.temporal_images).astype(np.string_)
+    
     self.temporal_measurements = np.array(self.temporal_measurements).astype(np.string_)
     self.sample_start = np.array(self.sample_start)
     if rank == 0:
