@@ -346,7 +346,6 @@ def main():
     shared_dict = Cache(directory=tmp_folder, size_limit=int(768 * 1024**3))
   else:
     shared_dict = None
-
   # Use torchrun for starting because it has proper error handling. Local rank will be set automatically
   rank = int(os.environ['RANK'])  # Rank across all processes
   if args.local_rank == -999:  # For backwards compatibility
