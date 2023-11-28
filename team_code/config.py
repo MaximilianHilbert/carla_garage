@@ -109,7 +109,7 @@ class GlobalConfig:
     # Dataloader
     # -----------------------------------------------------------------------------
     self.carla_fps = 20  # Simulator Frames per second
-    self.seq_len = 1  # length of the sequence loaded
+    self.seq_len = 2  # length of the sequence loaded
     # use different seq len for image and lidar
     self.img_seq_len = 5
     self.lidar_seq_len = 2
@@ -183,7 +183,7 @@ class GlobalConfig:
     self.sync_batch_norm = 0  # Whether batch norm was synchronized between GPUs
     # Whether zero_redundancy_optimizer was used during training
     self.zero_redundancy_optimizer = 1
-    self.use_disk_cache = 0  # Whether disc cache was used during training
+    self.use_disk_cache = 1  # Whether disc cache was used during training
     self.detect_boxes = 1  # Whether to use the bounding box auxiliary task
     self.train_sampling_rate = 1  # We train on every n th sample on the route
     # Number of route points we use for prediction in TF or input in planT

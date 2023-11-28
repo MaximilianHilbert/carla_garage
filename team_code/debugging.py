@@ -19,9 +19,21 @@ sys.path.append(os.environ['SCENARIO_RUNNER_ROOT'])
 sys.path.append(os.environ['LEADERBOARD_ROOT'])
 from data import CARLA_Data
 from config import GlobalConfig
-
+from diskcache import Cache
 config=GlobalConfig()
 config.initialize(root_dir=config.root_dir)
 print(config.train_data)
-data=CARLA_Data(root=config.train_data,config=config)
-print(data.images)
+use_disk_cache=True
+if bool(use_disk_cache):
+# NOTE: This is specific to our cluster setup where the data is stored on slow storage.
+# During training, we cache the dataset on the fast storage of the local compute nodes.
+# Adapt to your cluster setup as needed. Important initialize the parallel threads from torch run to the
+# same folder (so they can share the cache).
+    tmp_folder = str(os.environ.get('SCRATCH', '/tmp'))
+    print('Tmp folder for dataset cache: ', tmp_folder)
+    tmp_folder = tmp_folder + '/dataset_cache'
+    shared_dict = Cache(directory=tmp_folder, size_limit=int(768 * 1024**3))
+else:
+    shared_dict = None
+data=CARLA_Data(root=config.train_data,config=config, shared_dict=shared_dict)
+lst_of_imgs=data.__getitem__(5)
