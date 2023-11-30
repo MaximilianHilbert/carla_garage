@@ -1,0 +1,5 @@
+{
+    "editor.defaultFormatter": "eeyore.yapf",
+    "python.formatting.provider": "yapf",
+    "editor.formatOnSave": true
+}

@@ -21,6 +21,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from center_net import angle2class
 from imgaug import augmenters as ia
 
+#TODO general; caching of temporal information; check transpose of temporal/non-temporal lidar values, also w, h dim., check all again and try different config values for debugging, let run through larger dataset;
 
 class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
   """
@@ -57,8 +58,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
     self.temporal_lidars = []
     self.temporal_measurements = []
-    self.temporal_images=[]
-    self.temporal_images_augmented=[]
+    self.temporal_images = []
+    self.temporal_images_augmented = []
 
     self.image_augmenter_func = image_augmenter(config.color_aug_prob, cutout=config.use_cutout)
     self.lidar_augmenter_func = lidar_augmenter(config.lidar_aug_prob, cutout=config.use_cutout)
@@ -146,28 +147,28 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             self.angle_distribution.append(angle_index)
             self.speed_distribution.append(target_speed_index)
 
-          if self.config.lidar_seq_len > 1 or self.config.img_seq_len>1:
+          if self.config.lidar_seq_len > 1 or self.config.img_seq_len > 1:
             # load input seq and pred seq jointly
             temporal_lidar = []
             temporal_measurement = []
-            for idx in range(1, self.config.lidar_seq_len+1):
+            for idx in range(1, self.config.lidar_seq_len + 1):
               if not self.config.use_plant:
                 #assert self.config.seq_len == 1  # Temporal LiDARs are only supported with seq len 1 right now
                 temporal_lidar.append(route_dir + '/lidar' + (f'/{(seq - idx):04}.laz'))
             self.temporal_lidars.append(temporal_lidar)
 
-            temporal_images=[]
-            temporal_images_augmented=[]
-            for idx in range(1, self.config.img_seq_len+1):
+            temporal_images = []
+            temporal_images_augmented = []
+            for idx in range(1, self.config.img_seq_len + 1):
               if not self.config.use_plant:
                 temporal_images.append(route_dir + '/rgb' + (f'/{(seq - idx):04}.jpg'))
                 temporal_images_augmented.append(route_dir + '/rgb_augmented' + (f'/{(seq - idx):04}.jpg'))
             self.temporal_images.append(temporal_images)
             self.temporal_images_augmented.append(temporal_images_augmented)
-            for idx in range(1, max(self.config.lidar_seq_len, self.config.img_seq_len)+1):
+            for idx in range(1, max(self.config.lidar_seq_len, self.config.img_seq_len) + 1):
               temporal_measurement.append(route_dir + '/measurements' + (f'/{(seq - idx):04}.json.gz'))
               self.temporal_measurements.append(temporal_measurement)
-          
+
           self.images.append(image)
           self.images_augmented.append(image_augmented)
           self.semantics.append(semantic)
@@ -263,14 +264,14 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     measurements = self.measurements[index]
     sample_start = self.sample_start[index]
 
-    if self.config.lidar_seq_len>1:
-        temporal_measurements = self.temporal_measurements[index]
+    if self.config.lidar_seq_len > 1:
+      temporal_measurements = self.temporal_measurements[index]
     if self.config.lidar_seq_len > 1:
       temporal_lidars = self.temporal_lidars[index]
-    if self.config.img_seq_len>1:
-      temporal_images=self.temporal_images[index]
-      temporal_images_augmented=self.temporal_images_augmented[index]
-    
+    if self.config.img_seq_len > 1:
+      temporal_images = self.temporal_images[index]
+      temporal_images_augmented = self.temporal_images_augmented[index]
+
     # load measurements
     loaded_images = []
     loaded_images_augmented = []
@@ -285,16 +286,27 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     loaded_future_boxes = []
     loaded_measurements = []
 
-    
     ##############################################################tests####################################
-    testing_list=[
-    loaded_images, loaded_images_augmented, loaded_semantics, loaded_semantics_augmented,
-    loaded_bev_semantics, loaded_bev_semantics_augmented, loaded_depth, loaded_depth_augmented,
-    loaded_lidars, loaded_boxes, loaded_future_boxes, loaded_measurements, 
+    testing_list = [
+        loaded_images,
+        loaded_images_augmented,
+        loaded_semantics,
+        loaded_semantics_augmented,
+        loaded_bev_semantics,
+        loaded_bev_semantics_augmented,
+        loaded_depth,
+        loaded_depth_augmented,
+        loaded_lidars,
+        loaded_boxes,
+        loaded_future_boxes,
+        loaded_measurements,
     ]
-    lists_dict = {f"loaded_{name.replace('_', '')}": data_list for name, data_list in zip(["images", "images_augmented", "semantics", "semantics_augmented",
-                                                                                           "bev_semantics", "bev_semantics_augmented", "depth", "depth_augmented",
-                                                                                           "lidars", "boxes", "future_boxes", "measurements"], testing_list)}
+    lists_dict = {
+        f"loaded_{name.replace('_', '')}": data_list for name, data_list in zip([
+            "images", "images_augmented", "semantics", "semantics_augmented", "bev_semantics",
+            "bev_semantics_augmented", "depth", "depth_augmented", "lidars", "boxes", "future_boxes", "measurements"
+        ], testing_list)
+    }
     ########################################################################################################
     # Because the strings are stored as numpy byte objects we need to
     # convert them back to utf-8 strings
@@ -337,7 +349,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         cache_key = str(boxes[i], encoding='utf-8')
       else:
         cache_key = str(images[i], encoding='utf-8')
-      
+
       # Retrieve preprocessed and compressed data from the disc cache
       if not self.data_cache is None and cache_key in self.data_cache:
         boxes_i, future_boxes_i, images_i, images_augmented_i, semantics_i, semantics_augmented_i, bev_semantics_i,\
@@ -406,7 +418,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             if self.config.use_depth:
               depth_augmented_i = cv2.imread(str(depth_augmented[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
 
-    
         # Store data inside disc cache
         if not self.data_cache is None:
           # We want to cache the images in jpg format instead of uncompressed, to reduce memory usage
@@ -435,16 +446,25 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 _, compressed_bev_semantic_augmented_i = cv2.imencode('.png', bev_semantics_augmented_i)
               if self.config.use_depth:
                 _, compressed_depth_augmented_i = cv2.imencode('.png', depth_augmented_i)
-            
-            compressed_lidar_i=compress_lidar_frame(self, lidars_i)
 
-          self.data_cache[cache_key] = (boxes_i, future_boxes_i, compressed_image_i, compressed_image_augmented_i,
-                                        compressed_semantic_i, compressed_semantic_augmented_i,
-                                        compressed_bev_semantic_i, compressed_bev_semantic_augmented_i,
-                                        compressed_depth_i, compressed_depth_augmented_i, compressed_lidar_i, )
+            compressed_lidar_i = compress_lidar_frame(self, lidars_i)
+
+          self.data_cache[cache_key] = (
+              boxes_i,
+              future_boxes_i,
+              compressed_image_i,
+              compressed_image_augmented_i,
+              compressed_semantic_i,
+              compressed_semantic_augmented_i,
+              compressed_bev_semantic_i,
+              compressed_bev_semantic_augmented_i,
+              compressed_depth_i,
+              compressed_depth_augmented_i,
+              compressed_lidar_i,
+          )
       loaded_images.append(images_i)
       loaded_images_augmented.append(images_augmented_i)
-    
+
       if self.config.use_semantic:
         loaded_semantics.append(semantics_i)
         loaded_semantics_augmented.append(semantics_augmented_i)
@@ -457,27 +477,34 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       loaded_lidars.append(lidars_i)
       loaded_boxes.append(boxes_i)
       loaded_future_boxes.append(future_boxes_i)
+
+
 ###################################### end of large for loop#######################################
 #TODO implement caching for temporal information!
     for key, value in lists_dict.items():
       assert len(value) == self.config.seq_len, f"Sequence length and len of {key} is not equal!"
 
-      
-    if self.config.lidar_seq_len>1:
-      temporal_lidars=change_axes_and_reverse(temporal_lidars)
-      temporal_lidars=compress_temporal_lidar_frames(self, temporal_lidars)
-    assert temporal_lidars.shape[-1]==self.config.lidar_seq_len, "Sequence length number of temporal lidars is not equal!"
-    assert temporal_images.shape[-1]==self.config.img_seq_len, "Sequence length and number of temporal images are not equal!"
-    
+    if self.config.lidar_seq_len > 1:
+      temporal_lidars = change_axes_and_reverse(temporal_lidars)
+      temporal_lidars = compress_temporal_lidar_frames(self, temporal_lidars)
+    assert temporal_lidars.shape[
+        -1] == self.config.lidar_seq_len, "Sequence length number of temporal lidars is not equal!"
+    assert temporal_images.shape[
+        -1] == self.config.img_seq_len, "Sequence length and number of temporal images are not equal!"
 
     loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
-    
-    assert len(loaded_temporal_measurements)==self.config.lidar_seq_len, "Length of Temporal Measurements and max of img_seq_len, lidar_seq_len is not equal!"
-    
-    loaded_temporal_images,loaded_temporal_images_augmented=self.load_temporal_images(temporal_images, temporal_images_augmented)
-    assert loaded_temporal_images.shape[0]==self.config.img_seq_len, "Length of loaded_temporal_images is not equal to img_seq_len!"
-    assert loaded_temporal_images_augmented.shape[0]==self.config.img_seq_len, "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
-    
+
+    assert len(
+        loaded_temporal_measurements
+    ) == self.config.lidar_seq_len, "Length of Temporal Measurements and max of img_seq_len, lidar_seq_len is not equal!"
+
+    loaded_temporal_images, loaded_temporal_images_augmented = self.load_temporal_images(
+        temporal_images, temporal_images_augmented)
+    assert loaded_temporal_images.shape[
+        0] == self.config.img_seq_len, "Length of loaded_temporal_images is not equal to img_seq_len!"
+    assert loaded_temporal_images_augmented.shape[
+        0] == self.config.img_seq_len, "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
+
     current_measurement = loaded_measurements[self.config.seq_len - 1]
 
     # Determine whether the augmented camera or the normal camera is used.
@@ -489,11 +516,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       augment_sample = False
       aug_rotation = 0.0
       aug_translation = 0.0
-#TODO adapt for history images; check for history lidar augmentations
     if not self.config.use_plant:
       if self.config.augment and augment_sample:
-        processed_images=self.augment_images(loaded_images_augmented)
-        processed_temporal_images=self.augment_images(loaded_temporal_images_augmented)
+        processed_images = self.augment_images(loaded_images_augmented)
+        processed_temporal_images = self.augment_images(loaded_temporal_images_augmented)
         if self.config.use_semantic:
           semantics_i = self.converter[loaded_semantics_augmented[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
         if self.config.use_bev_semantic:
@@ -503,8 +529,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           depth_i = loaded_depth_augmented[self.config.seq_len - 1].astype(np.float32) / 255.0  # pylint: disable=locally-disabled, unsubscriptable-object
 
       else:
-        processed_images=self.augment_images(loaded_images)
-        processed_temporal_images=self.augment_images(loaded_temporal_images)
+        processed_images = self.augment_images(loaded_images)
+        processed_temporal_images = self.augment_images(loaded_temporal_images)
 
         if self.config.use_semantic:
           semantics_i = self.converter[loaded_semantics[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
@@ -528,6 +554,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       # The transpose change the image into pytorch (C,H,W) format
       def transpose_image(image):
         return np.transpose(image, (2, 0, 1))
+
       data['rgb'] = np.array([transpose_image(image) for image in processed_images])
       data['temporal_rgb'] = np.array([transpose_image(image) for image in processed_temporal_images])
       #######asserts###########################################################################################
@@ -548,13 +575,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         lidars.append(lidar_bev)
 
       lidar_bev = np.concatenate(lidars, axis=0)
-      
 
       if self.config.lidar_seq_len > 1:
         temporal_lidars_lst = []
         for i in range(self.config.lidar_seq_len):
           # transform lidar to lidar seq-1
-          opened_file=laspy.read(temporal_lidars[i]).xyz
+          opened_file = laspy.read(temporal_lidars[i]).xyz
           if self.config.realign_lidar:
             temporal_lidar = self.align(opened_file,
                                         loaded_temporal_measurements[i],
@@ -663,7 +689,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
     if self.config.lidar_seq_len > 1 and not self.config.use_plant:
       temporal_lidar_bev = self.augment_lidars(temporal_lidar_bev)
-      data['temporal_lidar'] = np.array(temporal_lidar_bev)
+      data['temporal_lidar'] = temporal_lidar_bev
     #temporal lidar gets tensor of shape (lidar_seq, bev1, bev2) ####################################check x,y
 
     data['steer'] = current_measurement['steer']
@@ -710,41 +736,42 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     return data
 
   def augment_images(self, loaded_images_augmented):
-      if self.config.use_color_aug:
-        return np.array([self.image_augmenter_func(image=image_augmented) for image_augmented in loaded_images_augmented])
-      else:
-        return loaded_images_augmented
-      
+    if self.config.use_color_aug:
+      return np.array([self.image_augmenter_func(image=image_augmented) for image_augmented in loaded_images_augmented])
+    else:
+      return loaded_images_augmented
+#TODO Ask for clarification regarding transposing before augmenting; in my opinion no transpose is allowed, same for not temporal lidar values (N_seq, ...)
   def augment_lidars(self, lidars_bev):
-    return np.array([self.lidar_augmenter_func(image=lidar_bev) for lidar_bev in lidars_bev])
-  
-  def load_temporal_images(self, temporal_images, temporal_images_augmented):
-      loaded_temporal_images = []
-      loaded_temporal_images_augmented=[]
-      if self.config.img_seq_len > 1 and not self.config.use_plant:
-      #Temporal data just for images
-        for i in range(self.config.img_seq_len):
-            image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            loaded_temporal_images.append(image)
-          
-            image_augmented = cv2.imread(str(temporal_images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-            image_augmented = cv2.cvtColor(image_augmented, cv2.COLOR_BGR2RGB)
-            loaded_temporal_images_augmented.append(image_augmented)
+    return np.transpose(np.array(self.lidar_augmenter_func(image=np.transpose(lidars_bev, (1,2,0))) ), (2,0,1))
 
-        loaded_temporal_images.reverse()
-        loaded_temporal_images_augmented.reverse()
-      return np.array(loaded_temporal_images), np.array(loaded_temporal_images_augmented)
+  def load_temporal_images(self, temporal_images, temporal_images_augmented):
+    loaded_temporal_images = []
+    loaded_temporal_images_augmented = []
+    if self.config.img_seq_len > 1 and not self.config.use_plant:
+      #Temporal data just for images
+      for i in range(self.config.img_seq_len):
+        image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        loaded_temporal_images.append(image)
+
+        image_augmented = cv2.imread(str(temporal_images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
+        image_augmented = cv2.cvtColor(image_augmented, cv2.COLOR_BGR2RGB)
+        loaded_temporal_images_augmented.append(image_augmented)
+
+      loaded_temporal_images.reverse()
+      loaded_temporal_images_augmented.reverse()
+    return np.array(loaded_temporal_images), np.array(loaded_temporal_images_augmented)
+
   def load_temporal_measurements(self, temporal_measurements):
-      loaded_temporal_measurements = []
-      if self.config.lidar_seq_len > 1 and not self.config.use_plant:
+    loaded_temporal_measurements = []
+    if self.config.lidar_seq_len > 1 and not self.config.use_plant:
       #Temporal data just for LiDAR
-        for i in range(self.config.lidar_seq_len):
-          with gzip.open(temporal_measurements[i], 'rt', encoding='utf-8') as f1:
-            temporal_measurement = ujson.load(f1)
-          loaded_temporal_measurements.append(temporal_measurement)
-        loaded_temporal_measurements.reverse()
-      return loaded_temporal_measurements
+      for i in range(self.config.lidar_seq_len):
+        with gzip.open(temporal_measurements[i], 'rt', encoding='utf-8') as f1:
+          temporal_measurement = ujson.load(f1)
+        loaded_temporal_measurements.append(temporal_measurement)
+      loaded_temporal_measurements.reverse()
+    return loaded_temporal_measurements
 
   def get_targets(self, gt_bboxes, feat_h, feat_w):
     """
@@ -1218,36 +1245,33 @@ def lidar_augmenter(prob=0.2, cutout=False):
 
   return augmenter
 
+
 def compress_lidar_frame(self, lidars_i):
-    # LiDAR is hard to compress so we use a special purpose format.
-    lidars_i_copy=lidars_i.copy()
-    header = laspy.LasHeader(point_format=self.config.point_format)
-    header.offsets = np.min(lidars_i, axis=0)
-    header.scales = np.array(
-        [self.config.point_precision, self.config.point_precision, self.config.point_precision])
-    compressed_lidar_i = io.BytesIO()
-    with laspy.open(compressed_lidar_i, mode='w', header=header, do_compress=True, closefd=False) as writer:
-        point_record = laspy.ScaleAwarePointRecord.zeros(lidars_i_copy.shape[0], header=header)
-        point_record.x = lidars_i_copy[:, 0]
-        point_record.y = lidars_i_copy[:, 1]
-        point_record.z = lidars_i_copy[:, 2]
-        writer.write_points(point_record)
+  # LiDAR is hard to compress so we use a special purpose format.
+  lidars_i_copy = lidars_i.copy()
+  header = laspy.LasHeader(point_format=self.config.point_format)
+  header.offsets = np.min(lidars_i, axis=0)
+  header.scales = np.array([self.config.point_precision, self.config.point_precision, self.config.point_precision])
+  compressed_lidar_i = io.BytesIO()
+  with laspy.open(compressed_lidar_i, mode='w', header=header, do_compress=True, closefd=False) as writer:
+    point_record = laspy.ScaleAwarePointRecord.zeros(lidars_i_copy.shape[0], header=header)
+    point_record.x = lidars_i_copy[:, 0]
+    point_record.y = lidars_i_copy[:, 1]
+    point_record.z = lidars_i_copy[:, 2]
+    writer.write_points(point_record)
 
-    compressed_lidar_i.seek(0)  # Resets file handle to the start
+  compressed_lidar_i.seek(0)  # Resets file handle to the start
 
-    return compressed_lidar_i
+  return compressed_lidar_i
+
 
 def compress_temporal_lidar_frames(self, temporal_lidars):
-  compressed_temporal_lidars=[]
+  compressed_temporal_lidars = []
   for lidar_frame in temporal_lidars:
     compressed_temporal_lidars.append(compress_lidar_frame(self, lidar_frame))
   return np.array(compressed_temporal_lidars)
 
+
 def change_axes_and_reverse(temporal_lidars):
-  dummy_list=[]
-  for lidar in temporal_lidars:
-    las_object = laspy.read(str(lidar, encoding='utf-8'))
-    las_object = las_object.xyz
-    dummy_list.append(las_object)
-  dummy_list.reverse()
-  return np.array(dummy_list)
+    dummy_list = [laspy.read(str(lidar, encoding='utf-8')).xyz for lidar in temporal_lidars]
+    return np.array(dummy_list[::-1], dtype=object)
