@@ -1,5 +1,6 @@
 import sys
 import os
+import timeit
 
 # Set environment variables
 os.environ['CARLA_ROOT'] = '/home/maximilian/Master/carla_garage/carla'
@@ -36,4 +37,7 @@ if bool(use_disk_cache):
 else:
     shared_dict = None
 data=CARLA_Data(root=config.train_data,config=config, shared_dict=shared_dict)
-lst_of_imgs=data.__getitem__(5)
+callable_function=lambda: data.__getitem__(5)
+timer=timeit.Timer(callable_function)
+execution_time=timer.timeit(number=5)
+print(execution_time)
