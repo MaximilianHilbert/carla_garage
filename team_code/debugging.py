@@ -37,7 +37,7 @@ if bool(use_disk_cache):
 else:
     shared_dict = None
 data=CARLA_Data(root=config.train_data,config=config, shared_dict=shared_dict)
-callable_function=lambda: data.__getitem__(5)
+callable_function=lambda: data.__getitem__(0)
 timer=timeit.Timer(callable_function)
 execution_time=timer.timeit(number=5)
 print(execution_time)

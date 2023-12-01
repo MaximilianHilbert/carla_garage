@@ -93,6 +93,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         num_seq = len(os.listdir(route_dir + '/lidar'))
         #seq=timestep; substract seq_len here, to iterate not too far, later we iterate over the last seq value into the "future"m hitting the latest datapoint avail.
+        #skip first introduce config.skip_first
         for seq in range(config.skip_first, num_seq - self.config.pred_len - self.config.seq_len):
           if seq % config.train_sampling_rate != 0:
             continue
@@ -147,27 +148,27 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             self.angle_distribution.append(angle_index)
             self.speed_distribution.append(target_speed_index)
 
-          if self.config.lidar_seq_len > 1 or self.config.img_seq_len > 1:
+          if self.config.lidar_seq_len > 1:
             # load input seq and pred seq jointly
             temporal_lidar = []
             temporal_measurement = []
-            for idx in range(1, self.config.lidar_seq_len + 1):
-              if not self.config.use_plant:
-                #assert self.config.seq_len == 1  # Temporal LiDARs are only supported with seq len 1 right now
-                temporal_lidar.append(route_dir + '/lidar' + (f'/{(seq - idx):04}.laz'))
+            for idx in range(1, self.config.lidar_seq_len+1):
+              if seq-idx>=0:
+                if not self.config.use_plant:
+                  temporal_lidar.append(route_dir + '/lidar' + (f'/{(seq - idx):04}.laz'))
+                  temporal_measurement.append(route_dir + '/measurements' + (f'/{(seq - idx):04}.json.gz'))
             self.temporal_lidars.append(temporal_lidar)
-
+            self.temporal_measurements.append(temporal_measurement)
+          if self.config.img_seq_len > 1:
             temporal_images = []
             temporal_images_augmented = []
-            for idx in range(1, self.config.img_seq_len + 1):
-              if not self.config.use_plant:
-                temporal_images.append(route_dir + '/rgb' + (f'/{(seq - idx):04}.jpg'))
-                temporal_images_augmented.append(route_dir + '/rgb_augmented' + (f'/{(seq - idx):04}.jpg'))
+            for idx in range(1, self.config.img_seq_len+1):
+              if seq-idx>=0:
+                if not self.config.use_plant:
+                  temporal_images.append(route_dir + '/rgb' + (f'/{(seq - idx):04}.jpg'))
+                  temporal_images_augmented.append(route_dir + '/rgb_augmented' + (f'/{(seq - idx):04}.jpg'))
             self.temporal_images.append(temporal_images)
             self.temporal_images_augmented.append(temporal_images_augmented)
-            for idx in range(1, max(self.config.lidar_seq_len, self.config.img_seq_len) + 1):
-              temporal_measurement.append(route_dir + '/measurements' + (f'/{(seq - idx):04}.json.gz'))
-              self.temporal_measurements.append(temporal_measurement)
 
           self.images.append(image)
           self.images_augmented.append(image_augmented)
@@ -227,11 +228,14 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     self.boxes = np.array(self.boxes).astype(np.string_)
     self.future_boxes = np.array(self.future_boxes).astype(np.string_)
     self.measurements = np.array(self.measurements).astype(np.string_)
-
-    self.temporal_lidars = np.array(self.temporal_lidars).astype(np.string_)
-    self.temporal_images = np.array(self.temporal_images).astype(np.string_)
-    self.temporal_images_augmented = np.array(self.temporal_images_augmented).astype(np.string_)
-    self.temporal_measurements = np.array(self.temporal_measurements).astype(np.string_)
+    self.temporal_lidars = [list(map(str, sublist)) for sublist in self.temporal_lidars]
+    #self.temporal_lidars = np.array(self.temporal_lidars).astype(np.string_)
+    self.temporal_images = [list(map(str, sublist)) for sublist in self.temporal_images]
+    #self.temporal_images = np.array(self.temporal_images).astype(np.string_)
+    self.temporal_images_augmented = [list(map(str, sublist)) for sublist in self.temporal_images_augmented]
+    #self.temporal_images_augmented = np.array(self.temporal_images_augmented).astype(np.string_)
+    self.temporal_measurements = [list(map(str, sublist)) for sublist in self.temporal_measurements]
+    #self.temporal_measurements = np.array(self.temporal_measurements).astype(np.string_)
     self.sample_start = np.array(self.sample_start)
     if rank == 0:
       print(f'Loading {len(self.lidars)} lidars from {len(root)} folders')
