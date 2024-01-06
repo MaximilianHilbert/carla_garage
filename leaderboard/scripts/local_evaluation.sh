@@ -1,5 +1,5 @@
-export CARLA_ROOT=${1:-/home/jaeger/carla_9_10}
-export WORK_DIR=${2:-/home/jaeger/carla_garage}
+export CARLA_ROOT=${1:-/home/maximilian/Master/carla_garage/carla}
+export WORK_DIR=${2:-/home/maximilian/Master/carla_garage}
 
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
@@ -15,12 +15,12 @@ export REPETITIONS=1
 export CHALLENGE_TRACK_CODENAME=SENSORS
 export CHECKPOINT_ENDPOINT=${WORK_DIR}/results/transfuser_plus_plus_longest6.json
 export TEAM_AGENT=${WORK_DIR}/team_code/sensor_agent.py
-export TEAM_CONFIG=${WORK_DIR}/model_ckpt/transfuser
+export TEAM_CONFIG=${WORK_DIR}/pretrained_models/leaderboard/tfpp_wp_all_0
 export DEBUG_CHALLENGE=0
 export RESUME=1
 export DATAGEN=0
 export SAVE_PATH=${WORK_DIR}/results
-export UNCERTAINTY_THRESHOLD=0.33
+export DIRECT=0
 export BENCHMARK=longest6
 
 
