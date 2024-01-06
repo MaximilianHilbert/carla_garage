@@ -223,3 +223,29 @@ class ScenarioManager(object):
             global_result = '\033[91m'+'FAILURE'+'\033[0m'
 
         ResultOutputProvider(self, global_result)
+        
+
+    def get_nocrash_diagnostics(self):
+        
+        route_completion = None
+        lights_ran = None
+        duration = round(self.scenario_duration_game, 2)
+        if self.scenario_duration_game>self.scenario.timeout:
+            timeout=1
+        else:
+            timeout=0
+        for criterion in self.scenario.get_criteria():
+            actual_value = criterion.actual_value
+            name = criterion.name
+            
+            if name == 'RouteCompletionTest':
+                route_completion = float(actual_value)
+            elif name == 'RunningRedLightTest':
+                lights_ran = int(actual_value)
+            elif name=="CollisionTest":
+                if criterion.status.name=="FAILURE":
+                    collision=1
+                else:
+                    collision=0
+        
+        return route_completion, lights_ran, duration, timeout, collision
