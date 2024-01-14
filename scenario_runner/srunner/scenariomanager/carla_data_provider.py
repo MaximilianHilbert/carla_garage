@@ -407,6 +407,7 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
         """
         Generate spawn points for the current map
         """
+        #TODO change to without shuffle
         spawn_points = list(CarlaDataProvider.get_map(CarlaDataProvider._world).get_spawn_points())
         CarlaDataProvider._rng.shuffle(spawn_points)
         CarlaDataProvider._spawn_points = spawn_points

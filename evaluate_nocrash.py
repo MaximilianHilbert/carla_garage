@@ -46,6 +46,7 @@ if __name__ == '__main__':
                         help="Path to checkpoint used for saving statistics and resuming")
     parser.add_argument("--eval_id", default="id_000", help="Set this to be your evaluation id for the name of the log file")
     parser.add_argument("--log_path", required=True, help="Set this to be your path to the log file for evaluation")
+    parser.add_argument("--coil_checkpoint", help="Set this to be your path to the previously recorded checkpoint file of the coiltraine framework")
     
     
     args = parser.parse_args()
