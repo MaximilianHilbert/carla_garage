@@ -24,7 +24,8 @@ import pkg_resources
 import sys
 import carla
 import signal
-
+import torch
+from coil_config.coil_config import merge_with_yaml
 from srunner.scenariomanager.carla_data_provider import *
 from srunner.scenariomanager.timer import GameTime
 from srunner.scenariomanager.watchdog import Watchdog
@@ -237,7 +238,13 @@ class NoCrashEvaluator(object):
         try:
             self._agent_watchdog.start()
             agent_class_name = getattr(self.module_agent, 'get_entry_point')()
-            self.agent_instance = getattr(self.module_agent, agent_class_name)(args.agent_config)
+            if agent_class_name=="CoILAgent":
+                merge_with_yaml('/home/maximilian/Master/carla_garage/coil_config/retrain1.yaml')
+                loaded_checkpoint = torch.load(args.coil_checkpoint)
+                
+                self.agent_instance=getattr(self.module_agent, agent_class_name)(checkpoint=loaded_checkpoint, city_name=self.town)
+            else:
+                self.agent_instance = getattr(self.module_agent, agent_class_name)(args.agent_config)
 
             # Check and store the sensors
             if not self.sensors:
@@ -275,6 +282,7 @@ class NoCrashEvaluator(object):
 
         # Load the world and the scenario
         try:
+            
             self._load_and_wait_for_world(args)
             scenario = NoCrashEvalScenario(
                 world=self.world,
@@ -369,10 +377,10 @@ class NoCrashEvaluator(object):
         # Load routes
         with open(os.path.join(os.environ["SCENARIO_RUNNER_ROOT"],"suite",f"nocrash_{args.town}.txt"), 'r') as f:
             routes = [tuple(map(int, l.split())) for l in f.readlines()]
-
-        weathers = {'train': [1,3,6,8], 'test': [10,14]}.get(args.weather)
-        traffics = [0,1,2]
-
+        #weathers = {'train': [1,3,6,8], 'test': [10,14]}.get(args.weather)
+        weathers = {'train': [1], 'test': [1]}.get(args.weather)
+        #traffics = [0,1,2]
+        traffics = [0]
         for traffic, route, weather in itertools.product(traffics, routes, weathers):
             if self.statistics_manager.is_finished(self.town, route, weather, traffic):
                 continue

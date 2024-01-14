@@ -68,11 +68,11 @@ class AgentWrapper(object):
         """
         self._agent = agent
 
-    def __call__(self):
+    def __call__(self, end_route_waypoint):
         """
         Pass the call directly to the agent
         """
-        return self._agent()
+        return self._agent(end_route_waypoint)
 
     def setup_sensors(self, vehicle, debug_mode=False):
         """
