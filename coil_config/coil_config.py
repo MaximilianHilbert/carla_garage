@@ -101,7 +101,8 @@ _g_conf.IMAGE_CUT = [115, 510]  # How you should cut the input image that is rec
 _g_conf.USE_ORACLE = False
 _g_conf.USE_FULL_ORACLE = False
 _g_conf.AVOID_STOPPING = False
-
+_g_conf.PLANNER_MIN_DISTANCE=10
+_g_conf.PLANNER_MAX_DISTANCE=50
 
 def merge_with_yaml(yaml_filename):
     """Load a yaml config file and merge it into the global config object"""
