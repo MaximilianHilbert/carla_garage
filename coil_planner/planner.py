@@ -25,7 +25,12 @@ GO_STRAIGHT = 5.0
 TURN_RIGHT = 4.0
 TURN_LEFT = 3.0
 LANE_FOLLOW = 2.0
-
+# new definitions in carla >=0.9
+# REACH_GOAL = 0
+# GO_STRAIGHT = 3
+# TURN_RIGHT = 2
+# TURN_LEFT = 1
+# LANE_FOLLOW = 4
 
 # Auxiliary algebra function
 def angle_between(v1, v2):
