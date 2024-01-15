@@ -133,9 +133,8 @@ class ScenarioManager(object):
                 if snapshot:
                     timestamp = snapshot.timestamp
             if timestamp:
-                #TODO nav planner, target point
-                self._tick_scenario(timestamp,next(iter(self.scenario_class.route)))
-    def _tick_scenario(self, timestamp, next_end_point):
+                self._tick_scenario(timestamp)
+    def _tick_scenario(self, timestamp):
         """
         Run next tick of scenario and the agent and tick the world.
         """
@@ -148,7 +147,7 @@ class ScenarioManager(object):
             GameTime.on_carla_tick(timestamp)
             CarlaDataProvider.on_carla_tick()
             try:
-                ego_action = self._agent(next_end_point)
+                ego_action = self._agent()
             # Special exception inside the agent that isn't caused by the agent
             except SensorReceivedNoData as e:
                 raise RuntimeError(e)

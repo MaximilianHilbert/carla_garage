@@ -75,19 +75,26 @@ class RoutePlanner(object):
     # This converts from GPS -> CARLA (90° rotation)
     gps = np.array([gps[1], -gps[0]])
     return gps
-
-  def set_route(self, global_plan, gps=False):
+ 
+  def set_route(self, global_plan, gps=False,nocrash=False):
     self.route.clear()
-
+    if nocrash and gps:
+      raise "This is not allowed, because gps doesnt provide rotation values necessary for the planner"
     for pos, cmd in global_plan:
       if gps:
         pos = np.array([pos['lat'], pos['lon']])
         pos = self.convert_gps_to_carla(pos)
       else:
-        pos = np.array([pos.location.x, pos.location.y])
+        location=pos.location
+        rotation=pos.rotation
+        pos = np.array([location.x, location.y])
         pos -= self.mean
-
-      self.route.append((pos, cmd))
+        if nocrash:
+          rot=rotation.yaw
+      if nocrash:
+        self.route.append((pos, rot, cmd))
+      else:
+        self.route.append((pos, cmd))
 
     # We do the calculations in the beginning once so that we don't have
     # to do them every time in run_step
