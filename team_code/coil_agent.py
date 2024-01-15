@@ -24,7 +24,6 @@ from team_code.transfuser_utils import preprocess_compass, inverse_conversion_2d
 import carla
 
 
-
 def get_entry_point():
   return 'CoILAgent'
 
@@ -38,8 +37,6 @@ class CoILAgent(AutonomousAgent):
         self._policy = CoILModel("coil-policy", g_conf.MODEL_CONFIGURATION)
         self._mem_extract = CoILModel("coil-memory", g_conf.MEM_EXTRACT_MODEL_CONFIGURATION)
         self.first_iter = True
-
-
         #self.rgb_queue=deque(maxlen=g_conf.NUMBER_FRAMES_FUSION)
         self.rgb_queue=deque(maxlen=g_conf.NUMBER_FRAMES_FUSION)
 
@@ -63,7 +60,7 @@ class CoILAgent(AutonomousAgent):
         self._mem_extract.eval()
         self.latest_image = None
         self.latest_image_tensor = None
-
+        self.target_point_prev=0
     def sensors(self):
         return [{'type': 'sensor.camera.rgb', 'x': 2.0, 'y': 0.0, 'z': 1.4, 'roll': 0.0, 'pitch': -15.0, 'yaw': 0.0,
                       'width': 800, 'height': 600, 'fov': 100, 'id': 'CentralRGB', 'sensor_tick': g_conf.CARLA_FRAME_RATE},
@@ -79,12 +76,13 @@ class CoILAgent(AutonomousAgent):
         'id': 'imu'
     },
     ]
-    def __call__(self, end_route_waypoint):
+    def __call__(self):
         """
         Execute the agent call, e.g. agent()
         Returns the next vehicle controls
         """
         from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
+        
         self.vehicle = CarlaDataProvider.get_hero_actor()
         current_data = self.sensor_interface.get_data()
         timestamp = GameTime.get_time()
@@ -94,17 +92,17 @@ class CoILAgent(AutonomousAgent):
         wallclock = GameTime.get_wallclocktime()
         wallclock_diff = (wallclock - self.wallclock_t0).total_seconds()
 
-        control, current_image = self.run_step(current_data, list(self.rgb_queue), timestamp,end_route_waypoint)
+        control, current_image = self.run_step(current_data, list(self.rgb_queue), timestamp)
         control.manual_gear_shift = False
         self.rgb_queue.append(current_image)
         return control
     def yaw_to_orientation(self, yaw):
         # Calculate the orientation vector in old carla convention
-        x=np.cos(yaw)
+        x=np.cos(-yaw)
         y=np.sin(yaw)
         z=0
         return x, y, z
-    def run_step(self, sensor_data, original_image_list,timestamp,end_route_waypoint,avoid_stop=True, perturb_speed=False):
+    def run_step(self, sensor_data, original_image_list,timestamp,avoid_stop=True, perturb_speed=False):
         """
             Run a step on the benchmark simulation
         Args:
@@ -121,26 +119,38 @@ class CoILAgent(AutonomousAgent):
 
         """
         #retrieve location data from sensors and normalize/transform to ego vehicle system
+
         measurements=sensor_data.get("imu")
         current_location=self.vehicle.get_location()
         current_location=np.array([current_location.x, current_location.y])
+        waypoint_route=self._route_planner.run_step(current_location)
+        if len(waypoint_route) > 2:
+            target_point_location, end_point_yaw,high_level_command = waypoint_route[1]
+        elif len(waypoint_route) > 1:
+            target_point_location, end_point_yaw,high_level_command = waypoint_route[1]
+        else:
+            target_point_location, end_point_yaw,high_level_command = waypoint_route[0]
+        
+        if (target_point_location != self.target_point_prev).all():
+            self.target_point_prev=target_point_location
+        
         current_yaw=measurements[1][-1]
         current_yaw_ego_system=preprocess_compass(current_yaw)
         current_orientation_ego_system=np.array([*self.yaw_to_orientation(current_yaw_ego_system)])
 
         #do the same for the end_point position/orientation
-        end_route_waypoint=end_route_waypoint[0]
-        end_route_waypoint_location=np.array([end_route_waypoint.location.x, end_route_waypoint.location.y])
-        end_point_yaw=preprocess_compass(np.deg2rad(end_route_waypoint.rotation.yaw))
-        end_point_orientation_ego_system=np.array([*self.yaw_to_orientation(end_point_yaw)])
-        end_point_location_ego_system=inverse_conversion_2d(end_route_waypoint_location, current_location, current_yaw_ego_system)
+        end_point_yaw_ego_system=preprocess_compass(end_point_yaw)
+        end_point_orientation_ego_system=np.array([*self.yaw_to_orientation(end_point_yaw_ego_system)])
+        end_point_location_ego_system=inverse_conversion_2d(target_point_location, current_location, current_yaw_ego_system)
 
         #Conversion to old convention necessary in carla >=0.9, only take BGR Values without alpha channel and convert to RGB for the model
         current_image=sensor_data.get("CentralRGB")[1][...,:3]
         current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
 
-
-        directions = self._get_directions(current_location, current_orientation_ego_system, end_point_location_ego_system, end_point_orientation_ego_system)
+       
+        directions = self._get_directions(current_location, current_orientation_ego_system, target_point_location, end_point_orientation_ego_system)
+        
+        
         velocity_vector=self.vehicle.get_velocity()
         # Take the forward speed and normalize it for it to go from 0-1
         norm_speed=np.sqrt(np.square(velocity_vector.x)+np.square(velocity_vector.y))/g_conf.SPEED_FACTOR
@@ -173,6 +183,10 @@ class CoILAgent(AutonomousAgent):
 
        
         print(steer, throttle, brake, directions, norm_speed)
+        print("target")
+        print(target_point_location)
+        print("current location")
+        print(current_location)
         return control, current_image
 
     def get_attentions(self, layers=None):

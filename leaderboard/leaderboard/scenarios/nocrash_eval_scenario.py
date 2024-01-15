@@ -5,10 +5,10 @@ import numpy.random as random
 
 import carla
 import py_trees
-
+from coil_config.coil_config import g_conf
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
-
+from team_code.nav_planner import RoutePlanner
 from srunner.scenarioconfigs.scenario_configuration import ScenarioConfiguration, ActorConfigurationData
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from srunner.scenariomanager.weather_sim import WeatherBehavior
@@ -54,7 +54,10 @@ class NoCrashEvalScenario(RouteScenario):
 
         # Set route
         self._set_route()
+        self.agent._route_planner=RoutePlanner(min_distance=g_conf.PLANNER_MIN_DISTANCE, max_distance=g_conf.PLANNER_MAX_DISTANCE)
 
+        self.agent._route_planner.set_route(self.agent._global_plan_world_coord, nocrash=True, gps=False)
+        
         ego_vehicle = self._update_ego_vehicle()
         traffic_lvl = ['Empty', 'Regular', 'Dense'][traffic_idx]
         
@@ -191,7 +194,6 @@ class NoCrashEvalScenario(RouteScenario):
         completion_criterion = RouteCompletionTest(self.ego_vehicles[0], route=route)
 
         outsidelane_criterion = OutsideRouteLanesTest(self.ego_vehicles[0], route=route)
-
         red_light_criterion = RunningRedLightTest(self.ego_vehicles[0])
 
         stop_criterion = RunningStopTest(self.ego_vehicles[0])
