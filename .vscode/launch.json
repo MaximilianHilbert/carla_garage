@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "evaluation",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "/home/maximilian/Master/carla_garage/evaluate_nocrash_baselines.py",
             "args": [//"--scenarios", "/home/maximilian/Master/carla_garage/leaderboard/data/scenarios/eval_scenarios.json",
             //"--routes", "/home/maximilian/Master/carla_garage/leaderboard/data/longest6.xml",
             //"--repetitions","1",
@@ -14,6 +14,8 @@
             "--agent","/home/maximilian/Master/carla_garage/team_code/coil_agent.py",
             //"--agent","/home/maximilian/Master/carla_garage/team_code/sensor_agent.py",
             "--agent-config","/home/maximilian/Master/carla_garage/coil_config/coil_config.py",
+            "--agent-yaml","/home/maximilian/Master/carla_garage/coil_config/ARP/arp_vanilla.yaml",
+            
             "--coil_checkpoint", "/home/maximilian/Master/carla_garage/pretrained_models/arp/checkpoints/100000.pth",
             //"--agent-config","/home/maximilian/Master/carla_garage/pretrained_models/leaderboard/tfpp_wp_all_0",
             //"--debug","0",
@@ -23,6 +25,35 @@
             "--weather", "train",
             "--eval_id", "id_000",
             "--log_path", "/home/maximilian/Master/carla_garage/logs"],
+            
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "purpose": ["debug-in-terminal"],
+            "envFile": "${workspaceFolder}/dev.env"
+
+        },
+        {
+            "name": "train",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/maximilian/Master/carla_garage/train_nocrash_baselines.py",
+            "args": ["--dataset-root", "/home/maximilian/carla100",
+                    "--gpu", "0",
+                    "--agent", "/home/maximilian/Master/carla_garage/team_code/coil_agent.py",
+                    "--baseline-config", "/home/maximilian/Master/carla_garage/coil_config"],
+            
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "purpose": ["debug-in-terminal"],
+            "envFile": "${workspaceFolder}/dev.env"
+
+        },
+        {
+            "name": "debug_dataset",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/maximilian/Master/carla_garage/team_code/debug_dataset.py",
+            "args": [],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",

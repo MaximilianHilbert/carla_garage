@@ -1,7 +1,7 @@
 
 
 # Code referenced from https://gist.github.com/gyglim/1f8dfb1b5c82627ae3efcfbbadb9f514
-#import tensorflow as tf
+from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 from PIL import Image
 from io import BytesIO
@@ -14,12 +14,11 @@ class Logger(object):
         #from datetime import datetime
         #now = datetime.now()
         #log_dir = log_dir + now.strftime("%Y%m%d-%H%M%S")
-        self.writer = tf.summary.create_file_writer(log_dir)
+        self.writer = SummaryWriter(log_dir)
 
     def scalar_summary(self, tag, value, step):
         """Log a scalar variable."""
-        with self.writer.as_default():
-            tf.summary.scalar(tag, value.cpu(), step=step)
+        self.writer.add_scalar(tag, value.cpu(), global_step=step)
     def image_summary(self, tag, images, step):
         """Log a list of images."""
         

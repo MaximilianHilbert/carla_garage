@@ -21,6 +21,7 @@ if __name__ == '__main__':
     # Agent configs
     parser.add_argument('--agent', default='autoagents/image_agent')
     parser.add_argument('--agent-config', default='experiments/config_nocrash.yaml')
+    parser.add_argument('--agent-yaml', dest="agent_yaml",default='experiments/config_nocrash.yaml')
     
     # Benchmark configs
     parser.add_argument('--town', required=True, choices=['Town01', 'Town02'])
