@@ -86,12 +86,12 @@ def create_log_folder(exp_batch_name):
         os.mkdir(os.path.join(root_path, exp_batch_name))
 
 
-def create_exp_path(exp_batch_name, experiment_name):
+def create_exp_path(exp_batch_name, experiment_name, repetition):
     # This is hardcoded the logs always stay on the _logs folder
     root_path = '_logs'
 
-    if not os.path.exists(os.path.join(root_path, exp_batch_name, experiment_name)):
-        os.mkdir(os.path.join(root_path, exp_batch_name, experiment_name))
+    if not os.path.exists(os.path.join(root_path, exp_batch_name, experiment_name, str(repetition))):
+        os.makedirs(os.path.join(root_path, exp_batch_name, experiment_name, str(repetition)))
 
 
 def get_validation_datasets(exp_batch_name):

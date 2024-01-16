@@ -2,13 +2,13 @@ import os
 import re
 import numpy as np
 
-from logger import json_formatter
-from configs import g_conf
-from coilutils.general import sort_nicely
+from coil_logger import json_formatter
+from coil_config.coil_config import g_conf
+from coil_utils.general import sort_nicely
 
 
 from .carla_metrics_parser import get_averaged_metrics
-from plotter.data_reading import read_summary_csv
+from coil_plotter.data_reading import read_summary_csv
 
 # Check the log and also put it to tensorboard
 

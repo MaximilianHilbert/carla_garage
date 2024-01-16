@@ -1,10 +1,10 @@
 import os
 import time
 
-from configs import g_conf
-from logger import monitorer
+from coil_config.coil_config import g_conf
+from coil_logger import monitorer
 
-from coilutils.general import sort_nicely
+from coil_utils.general import sort_nicely
 
 
 def is_open(file_name):
@@ -48,13 +48,13 @@ def is_ready_to_save(iteration):
     else:
         return False
 
-def get_latest_saved_checkpoint():
+def get_latest_saved_checkpoint(repetition):
     """
         Returns the , latest checkpoint number that was saved
 
     """
     checkpoint_files = os.listdir(os.path.join('_logs', g_conf.EXPERIMENT_BATCH_NAME,
-                                               g_conf.EXPERIMENT_NAME, 'checkpoints'))
+                                               g_conf.EXPERIMENT_NAME,str(repetition), 'checkpoints'))
     if checkpoint_files == []:
         return None
     else:

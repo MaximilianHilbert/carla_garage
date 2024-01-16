@@ -22,7 +22,6 @@ _g_conf.immutable(False)
 _g_conf.NUMBER_OF_LOADING_WORKERS = 12
 _g_conf.FINISH_ON_VALIDATION_STALE = None
 
-
 """#### INPUT RELATED CONFIGURATION PARAMETERS ####"""
 _g_conf.SENSORS = {'rgb': (3, 88, 200)}
 _g_conf.MEASUREMENTS = {'float_data': (31)}
@@ -81,7 +80,7 @@ _g_conf.MEM_EXTRACT_MODEL_TYPE = None
 _g_conf.MEM_EXTRACT_MODEL_CONFIGURATION = {}
 
 _g_conf.PRE_TRAINED = False
-_g_conf.MAGICAL_SEED = None  # the random seed for pytorch training process (includeing weight initialize and optimize)
+_g_conf.MAGICAL_SEEDS = []  # the random seeds for pytorch training process (includeing weight initialize and optimize) which determines how often we want to retrain every baseline
 _g_conf.WEIGHT_INIT_SEED = None  # the random seed dedicated to weight initialization
 
 _g_conf.OPTIMIZER = 'Adam'
@@ -139,7 +138,7 @@ def get_names(folder):
     return experiments_in_folder
 
 
-def set_type_of_process(process_type, param=None):
+def set_type_of_process(process_type, args=None, training_rep=None, param=None):
     """
     This function is used to set which is the type of the current process, test, train or val
     and also the details of each since there could be many vals and tests for a single
@@ -165,20 +164,20 @@ def set_type_of_process(process_type, param=None):
         _g_conf.CITY_NAME = param.split('_')[-1]
         _g_conf.PROCESS_NAME = process_type + '_' + param
 
-    #else:  # FOr the test case we join with the name of the experimental suite.
-
-    create_log(_g_conf.EXPERIMENT_BATCH_NAME,
-               _g_conf.EXPERIMENT_NAME,
-               _g_conf.PROCESS_NAME,
-               _g_conf.LOG_SCALAR_WRITING_FREQUENCY,
-               _g_conf.LOG_IMAGE_WRITING_FREQUENCY)
+    #only log the first time of training the baseline
+    create_log(args.baseline_folder_name,
+            args.baseline_name,
+            training_rep,
+            _g_conf.PROCESS_NAME,
+            _g_conf.LOG_SCALAR_WRITING_FREQUENCY,
+            _g_conf.LOG_IMAGE_WRITING_FREQUENCY)
 
     if process_type == "train":
         if not os.path.exists(os.path.join('_logs', _g_conf.EXPERIMENT_BATCH_NAME,
-                                            _g_conf.EXPERIMENT_NAME,
+                                            _g_conf.EXPERIMENT_NAME,str(training_rep),
                                             'checkpoints') ):
                 os.mkdir(os.path.join('_logs', _g_conf.EXPERIMENT_BATCH_NAME,
-                                      _g_conf.EXPERIMENT_NAME,
+                                      _g_conf.EXPERIMENT_NAME,str(training_rep),
                                       'checkpoints'))
 
     if process_type == "validation" or process_type == 'drive':
@@ -284,7 +283,6 @@ def _check_and_coerce_cfg_value_type(value_a, value_b, key, full_key):
             'key: {}'.format(type_b, type_a, value_b, value_a, full_key)
         )
     return value_a
-
 
 g_conf = _g_conf
 

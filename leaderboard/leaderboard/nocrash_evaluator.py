@@ -239,7 +239,7 @@ class NoCrashEvaluator(object):
             self._agent_watchdog.start()
             agent_class_name = getattr(self.module_agent, 'get_entry_point')()
             if agent_class_name=="CoILAgent":
-                merge_with_yaml('/home/maximilian/Master/carla_garage/coil_config/retrain1.yaml')
+                merge_with_yaml(args.agent_yaml)
                 loaded_checkpoint = torch.load(args.coil_checkpoint)
                 
                 self.agent_instance=getattr(self.module_agent, agent_class_name)(checkpoint=loaded_checkpoint, city_name=self.town)
