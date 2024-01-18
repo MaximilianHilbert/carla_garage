@@ -52,7 +52,7 @@
             "name": "debug_dataset",
             "type": "python",
             "request": "launch",
-            "program": "/home/maximilian/Master/carla_garage/team_code/debug_dataset.py",
+            "program": "/home/maximilian/Master/carla_garage/debug_dataset.py",
             "args": [],
             
             "console": "integratedTerminal",
