@@ -1,24 +1,24 @@
 ### General Configuration Parameters ####
-SAVE_SCHEDULE: range(0, 100001, 100000) # The iterations where training checkpoints are going to be saved
+SAVE_SCHEDULE: range(0, 100001, 20000) # The iterations where training checkpoints are going to be saved
 NUMBER_OF_LOADING_WORKERS: 12   # Number of threads used in the data loader
 #length of MAGICAL_SEEDS list controls how many training repetitions are performed
-MAGICAL_SEEDS: [26957017, 269534543, 269354654]
+MAGICAL_SEEDS: [26957017]
 CARLA_FRAME_RATE: 10
 #### Input related parameters ####
 # A dictionary with all the sensors that are going to be used as input
 # this should match the train dataset
 SENSORS:
-  rgb: [3, 88, 200] # A RGB input sensor with three channels that is resized to 200x88
+  rgb: [3, 256, 1024] # A RGB input sensor with three channels that is resized to 200x88
 MEASUREMENTS:
   float_data: [31]  # Number of float data that must be read from the dataset
 BATCH_SIZE: 160
 NUMBER_ITERATIONS: 100000
-TARGETS: ['steer', 'throttle_brake']  # From the float data, the ones that the network should estimate
-INPUTS: ['speed_module'] # From the float data, the ones that are input to the neural network
+TARGETS: ['steer', 'throttle', "brake"]  # From the float data, the ones that the network should estimate
+INPUTS: ['speed'] # From the float data, the ones that are input to the neural network
 ALL_FRAMES_INCLUDING_BLANK: 10 # Number of all the frames, including the frames fused and blank frames
-NUMBER_FRAMES_FUSION: 7  # Number of frames fused
+IMAGE_SEQ_LEN: 7  #Watch out, this is equivalent to placing n+1 in the old baseline implementation. IMAGE_SEQ_LEN=1 meaning no historic information, just current frame
 NUMBER_IMAGES_SEQUENCE: 1  # Number of frames sent in sequence
-NUMBER_PREVIOUS_ACTIONS: 1  # Number of previous actions to prediction current action
+NUMBER_PREVIOUS_ACTIONS: 1 # Number of previous actions to prediction current action
 SEQUENCE_STRIDE: 1  # Number of frames skipped when reading the data
 AUGMENT_LATERAL_STEERINGS: 6  # Depending on this value there is a constant multiplying lateral steers
 SPEED_FACTOR: 12.0  # The constant that is divides the speed_module in order to make it from 0-1
@@ -90,7 +90,8 @@ BRANCH_LOSS_WEIGHT: [0.95, 0.95, 0.95, 0.95, 0.05] # how much each branch is wei
 LOSS_FUNCTION: 'L1' # The loss function used
 VARIABLE_WEIGHT: # how much each of the outputs specified on TARGETS are weighted for learning.
   Steer: 0.5
-  Gas_Brake: 0.5
+  Gas: 0.45
+  Brake: 0.05
 
 
 #### Simulation Related Parameters ####
