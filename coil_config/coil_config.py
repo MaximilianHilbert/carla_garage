@@ -4,7 +4,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from ast import literal_eval
-from coil_utils import AttributeDict
+from coil_utils.attribute_dict import AttributeDict
 import copy
 import numpy as np
 import os
@@ -25,7 +25,7 @@ _g_conf.FINISH_ON_VALIDATION_STALE = None
 """#### INPUT RELATED CONFIGURATION PARAMETERS ####"""
 _g_conf.SENSORS = {'rgb': (3, 88, 200)}
 _g_conf.MEASUREMENTS = {'float_data': (31)}
-_g_conf.TARGETS = ['steer', 'throttle_brake']
+_g_conf.TARGETS = ['steer', 'throttle', "brake"]
 _g_conf.INPUTS = ['speed_module']
 _g_conf.INTENTIONS = []
 _g_conf.BALANCE_DATA = True
@@ -52,7 +52,7 @@ _g_conf.PROCESS_NAME = "None"
 _g_conf.NUMBER_ITERATIONS = 20000
 _g_conf.SAVE_SCHEDULE = range(0, 2000, 200)
 _g_conf.ALL_FRAMES_INCLUDING_BLANK = None
-_g_conf.NUMBER_FRAMES_FUSION = 1
+_g_conf.IMAGE_SEQ_LEN = 1
 _g_conf.PREFRAME_PROCESS = "None"  # None, blackhole, inpaint, blackhole+randombox
 _g_conf.PREFRAME_PROCESS_NUM = 0
 _g_conf.PREFRAME_PROCESS_PROBABILITY = 1.0  # The probability to mask out the objects
@@ -116,7 +116,7 @@ def merge_with_yaml(yaml_filename):
     _merge_a_into_b(yaml_cfg, _g_conf)
 
     if _g_conf.ALL_FRAMES_INCLUDING_BLANK is None:
-        _g_conf.ALL_FRAMES_INCLUDING_BLANK = _g_conf.NUMBER_FRAMES_FUSION
+        _g_conf.ALL_FRAMES_INCLUDING_BLANK = _g_conf.IMAGE_SEQ_LEN
 
     path_parts = os.path.split(yaml_filename)
     _g_conf.EXPERIMENT_BATCH_NAME = os.path.split(path_parts[-2])[-1]
@@ -173,18 +173,18 @@ def set_type_of_process(process_type, args=None, training_rep=None, param=None):
             _g_conf.LOG_IMAGE_WRITING_FREQUENCY)
 
     if process_type == "train":
-        if not os.path.exists(os.path.join('_logs', _g_conf.EXPERIMENT_BATCH_NAME,
+        if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', _g_conf.EXPERIMENT_BATCH_NAME,
                                             _g_conf.EXPERIMENT_NAME,str(training_rep),
                                             'checkpoints') ):
-                os.mkdir(os.path.join('_logs', _g_conf.EXPERIMENT_BATCH_NAME,
+                os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', _g_conf.EXPERIMENT_BATCH_NAME,
                                       _g_conf.EXPERIMENT_NAME,str(training_rep),
                                       'checkpoints'))
 
     if process_type == "validation" or process_type == 'drive':
-        if not os.path.exists(os.path.join('_logs', _g_conf.EXPERIMENT_BATCH_NAME,
+        if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', _g_conf.EXPERIMENT_BATCH_NAME,
                                            _g_conf.EXPERIMENT_NAME,
                                            _g_conf.PROCESS_NAME + '_csv')):
-            os.mkdir(os.path.join('_logs', _g_conf.EXPERIMENT_BATCH_NAME,
+            os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', _g_conf.EXPERIMENT_BATCH_NAME,
                                           _g_conf.EXPERIMENT_NAME,
                                            _g_conf.PROCESS_NAME + '_csv'))
 
