@@ -14,11 +14,11 @@ import cv2
 import gzip
 import laspy
 import io
-import transfuser_utils as t_u
-import gaussian_target as g_t
+import team_code.transfuser_utils as t_u
+import team_code.gaussian_target as g_t
 import random
 from sklearn.utils.class_weight import compute_class_weight
-from center_net import angle2class
+from team_code.center_net import angle2class
 from imgaug import augmenters as ia
 
 #TODO general; caching of temporal information; check transpose of temporal/non-temporal lidar values, also w, h dim., check all again and try different config values for debugging, let run through larger dataset;
@@ -92,7 +92,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         perfect_routes += 1
 
         num_seq = len(os.listdir(route_dir + '/lidar'))
-        #seq=timestep; substract seq_len here, to iterate not too far, later we iterate over the last seq value into the "future"m hitting the latest datapoint avail.
+        #seq=timestep; substract seq_len here, to iterate not too far, later we iterate over the last seq value into the "future" hitting the latest datapoint avail.
         #skip first introduce config.skip_first
         for seq in range(config.skip_first, num_seq - self.config.pred_len - self.config.seq_len):
           if seq % config.train_sampling_rate != 0:
@@ -148,21 +148,30 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             self.angle_distribution.append(angle_index)
             self.speed_distribution.append(target_speed_index)
 
-          if self.config.lidar_seq_len > 1:
+          if self.config.lidar_seq_len > 1 or self.config.number_previous_actions>0:
+            #select what is the longest sequence where we need previous measurements for, so that we only collect them once
+            if self.config.lidar_seq_len>self.config.number_previous_actions:
+              number_of_required_measurements=self.config.lidar_seq_len-1
+              collect_lidar=True
+            else:
+              number_of_required_measurements=self.config.number_previous_actions-1
+              collect_lidar=False
             # load input seq and pred seq jointly
             temporal_lidar = []
             temporal_measurement = []
-            for idx in range(1, self.config.lidar_seq_len+1):
+            for idx in range(1, number_of_required_measurements+1):
               if seq-idx>=0:
                 if not self.config.use_plant:
-                  temporal_lidar.append(route_dir + '/lidar' + (f'/{(seq - idx):04}.laz'))
+                  if collect_lidar:
+                    temporal_lidar.append(route_dir + '/lidar' + (f'/{(seq - idx):04}.laz'))
                   temporal_measurement.append(route_dir + '/measurements' + (f'/{(seq - idx):04}.json.gz'))
-            self.temporal_lidars.append(temporal_lidar)
+            if collect_lidar:
+              self.temporal_lidars.append(temporal_lidar)
             self.temporal_measurements.append(temporal_measurement)
           if self.config.img_seq_len > 1:
             temporal_images = []
             temporal_images_augmented = []
-            for idx in range(1, self.config.img_seq_len+1):
+            for idx in range(1, self.config.img_seq_len):
               if seq-idx>=0:
                 if not self.config.use_plant:
                   temporal_images.append(route_dir + '/rgb' + (f'/{(seq - idx):04}.jpg'))
@@ -228,13 +237,13 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     self.boxes = np.array(self.boxes).astype(np.string_)
     self.future_boxes = np.array(self.future_boxes).astype(np.string_)
     self.measurements = np.array(self.measurements).astype(np.string_)
-    self.temporal_lidars = [list(map(str, sublist)) for sublist in self.temporal_lidars]
+    self.temporal_lidars = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_lidars])
     #self.temporal_lidars = np.array(self.temporal_lidars).astype(np.string_)
-    self.temporal_images = [list(map(str, sublist)) for sublist in self.temporal_images]
+    self.temporal_images = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_images])
     #self.temporal_images = np.array(self.temporal_images).astype(np.string_)
-    self.temporal_images_augmented = [list(map(str, sublist)) for sublist in self.temporal_images_augmented]
+    self.temporal_images_augmented = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_images_augmented])
     #self.temporal_images_augmented = np.array(self.temporal_images_augmented).astype(np.string_)
-    self.temporal_measurements = [list(map(str, sublist)) for sublist in self.temporal_measurements]
+    self.temporal_measurements = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_measurements])
     #self.temporal_measurements = np.array(self.temporal_measurements).astype(np.string_)
     self.sample_start = np.array(self.sample_start)
     if rank == 0:
@@ -268,7 +277,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     measurements = self.measurements[index]
     sample_start = self.sample_start[index]
 
-    if self.config.lidar_seq_len > 1:
+    if self.config.lidar_seq_len > 1 or self.config.number_previous_actions>0:
       temporal_measurements = self.temporal_measurements[index]
     if self.config.lidar_seq_len > 1:
       temporal_lidars = self.temporal_lidars[index]
@@ -491,23 +500,24 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     if self.config.lidar_seq_len > 1:
       temporal_lidars = change_axes_and_reverse(temporal_lidars)
       temporal_lidars = compress_temporal_lidar_frames(self, temporal_lidars)
-    assert temporal_lidars.shape[
-        -1] == self.config.lidar_seq_len, "Sequence length number of temporal lidars is not equal!"
+
+      assert temporal_lidars.shape[
+          -1] == self.config.lidar_seq_len-1, "Sequence length number of temporal lidars is not equal!"
     assert temporal_images.shape[
-        -1] == self.config.img_seq_len, "Sequence length and number of temporal images are not equal!"
+        -1] == self.config.img_seq_len-1, "Sequence length and number of temporal images are not equal!"
 
     loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
 
     assert len(
         loaded_temporal_measurements
-    ) == self.config.lidar_seq_len, "Length of Temporal Measurements and max of img_seq_len, lidar_seq_len is not equal!"
+    ) == max(self.config.number_previous_actions, self.config.lidar_seq_len-1), "Length of Temporal Measurements and max of img_seq_len, lidar_seq_len is not equal!"
 
     loaded_temporal_images, loaded_temporal_images_augmented = self.load_temporal_images(
         temporal_images, temporal_images_augmented)
     assert loaded_temporal_images.shape[
-        0] == self.config.img_seq_len, "Length of loaded_temporal_images is not equal to img_seq_len!"
+        0] == self.config.img_seq_len-1, "Length of loaded_temporal_images is not equal to img_seq_len!"
     assert loaded_temporal_images_augmented.shape[
-        0] == self.config.img_seq_len, "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
+        0] == self.config.img_seq_len-1, "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
 
     current_measurement = loaded_measurements[self.config.seq_len - 1]
 
@@ -579,16 +589,16 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         lidars.append(lidar_bev)
 
       lidar_bev = np.concatenate(lidars, axis=0)
-
+#TODO check before using it for lidar realignment is necessary to current frame not most recent past frame; currently only aligns for seq_len=1 correctly
       if self.config.lidar_seq_len > 1:
         temporal_lidars_lst = []
-        for i in range(self.config.lidar_seq_len):
+        for i in range(self.config.lidar_seq_len-1):
           # transform lidar to lidar seq-1
           opened_file = laspy.read(temporal_lidars[i]).xyz
           if self.config.realign_lidar:
             temporal_lidar = self.align(opened_file,
                                         loaded_temporal_measurements[i],
-                                        loaded_temporal_measurements[self.config.lidar_seq_len - 1],
+                                        loaded_measurements[0],
                                         y_augmentation=aug_translation,
                                         yaw_augmentation=aug_rotation)
           else:
@@ -671,6 +681,17 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                                                    angle=current_measurement['angle'])
 
     data['brake'] = brake
+    previous_throttle_list=[]
+    previous_brake_list=[]
+    previous_steer_list=[]
+    for temporal_measurement_dict in loaded_temporal_measurements:
+      previous_throttle_list.append(temporal_measurement_dict["throttle"])
+      previous_brake_list.append(temporal_measurement_dict["brake"])
+      previous_steer_list.append(temporal_measurement_dict["steer"])
+    data["previous_brakes"]=previous_brake_list
+    data["previous_steers"]=previous_steer_list
+    data["previous_throttles"]=previous_throttle_list
+    
     data['angle_index'] = angle_index
 
     if self.config.use_plant_labels:
@@ -694,7 +715,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     if self.config.lidar_seq_len > 1 and not self.config.use_plant:
       temporal_lidar_bev = self.augment_lidars(temporal_lidar_bev)
       data['temporal_lidar'] = temporal_lidar_bev
-    #temporal lidar gets tensor of shape (lidar_seq, bev1, bev2) ####################################check x,y
+    #temporal lidar gets tensor of shape (lidar_seq, bev1, bev2) ####################################check x,y #TODO watch out with shape!
 
     data['steer'] = current_measurement['steer']
     data['throttle'] = current_measurement['throttle']
@@ -753,7 +774,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     loaded_temporal_images_augmented = []
     if self.config.img_seq_len > 1 and not self.config.use_plant:
       #Temporal data just for images
-      for i in range(self.config.img_seq_len):
+      for i in range(self.config.img_seq_len-1):
         image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         loaded_temporal_images.append(image)
@@ -768,12 +789,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
   def load_temporal_measurements(self, temporal_measurements):
     loaded_temporal_measurements = []
-    if self.config.lidar_seq_len > 1 and not self.config.use_plant:
+    if not self.config.use_plant:
       #Temporal data just for LiDAR
-      for i in range(self.config.lidar_seq_len):
-        with gzip.open(temporal_measurements[i], 'rt', encoding='utf-8') as f1:
-          temporal_measurement = ujson.load(f1)
-        loaded_temporal_measurements.append(temporal_measurement)
+      for temporal_measurement in temporal_measurements:
+        with gzip.open(temporal_measurement, 'rt', encoding='utf-8') as f1:
+          loaded = ujson.load(f1)
+        loaded_temporal_measurements.append(loaded)
       loaded_temporal_measurements.reverse()
     return loaded_temporal_measurements
 
@@ -1095,7 +1116,45 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         bbox = t_u.bb_vehicle_to_image_system(bbox, self.config.pixels_per_meter, self.config.min_x, self.config.min_y)
       bboxes.append(bbox)
     return bboxes, future_bboxes
+  def extract_inputs(self, data, config):
+        """
+        Method used to get to know which positions from the dataset are the inputs
+        for this experiments
+        Args:
+            labels: the set of all float data got from the dataset
 
+        Returns:
+            the float data that is actually targets
+
+        Raises
+            value error when the configuration set targets that didn't exist in metadata
+        """
+        inputs_vec = []
+        if len(config.inputs) != 0:
+            for input_name in config.inputs:
+                inputs_vec.append(data[input_name])
+            return torch.cat(inputs_vec)
+        else:
+            inputs_vec.append(data['speed_module'])
+            return torch.cat(inputs_vec)
+  def extract_targets(self, data, config):
+    """
+    Method used to get to know which positions from the dataset are the targets
+    for this experiments
+    Args:
+        labels: the set of all float data got from the dataset
+
+    Returns:
+        the float data that is actually targets
+
+    Raises
+        value error when the configuration set targets that didn't exist in metadata
+    """
+    targets_vec = []
+    for target_name in config.targets:
+        targets_vec.append(data[target_name])
+
+    return torch.cat(targets_vec)
   def quantize_box(self, boxes):
     """Quantizes a bounding box into bins and writes the index into the array a classification label"""
     # range of xy is [-32, 32]
@@ -1259,9 +1318,9 @@ def compress_lidar_frame(self, lidars_i):
   compressed_lidar_i = io.BytesIO()
   with laspy.open(compressed_lidar_i, mode='w', header=header, do_compress=True, closefd=False) as writer:
     point_record = laspy.ScaleAwarePointRecord.zeros(lidars_i_copy.shape[0], header=header)
-    point_record.x = lidars_i_copy[:, 0]
-    point_record.y = lidars_i_copy[:, 1]
-    point_record.z = lidars_i_copy[:, 2]
+    point_record.x = lidars_i_copy[:, 0].astype(float)
+    point_record.y = lidars_i_copy[:, 1].astype(float)
+    point_record.z = lidars_i_copy[:, 2].astype(float)
     writer.write_points(point_record)
 
   compressed_lidar_i.seek(0)  # Resets file handle to the start
@@ -1277,5 +1336,5 @@ def compress_temporal_lidar_frames(self, temporal_lidars):
 
 
 def change_axes_and_reverse(temporal_lidars):
-    dummy_list = [laspy.read(str(lidar, encoding='utf-8')).xyz for lidar in temporal_lidars]
+    dummy_list = [laspy.read(str(lidar, encoding="utf-8")).xyz for lidar in temporal_lidars]
     return np.array(dummy_list[::-1], dtype=object)
