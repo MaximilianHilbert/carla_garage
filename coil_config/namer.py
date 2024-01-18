@@ -88,9 +88,9 @@ def generate_name(g_conf):
 
     # Temporal
 
-    if g_conf.NUMBER_FRAMES_FUSION > 1 and g_conf.NUMBER_IMAGES_SEQUENCE > 1:
+    if g_conf.IMAGE_SEQ_LEN > 1 and g_conf.NUMBER_IMAGES_SEQUENCE > 1:
         final_name_string += '_lstm_fusion'
-    elif g_conf.NUMBER_FRAMES_FUSION > 1:
+    elif g_conf.IMAGE_SEQ_LEN > 1:
         final_name_string += '_fusion'
     elif g_conf.NUMBER_IMAGES_SEQUENCE > 1:
         final_name_string += '_lstm'
