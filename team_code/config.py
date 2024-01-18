@@ -178,7 +178,7 @@ class GlobalConfig:
     self.logdir = ''  # Directory to log data to.
     self.load_file = None  # File to continue training from
     self.setting = 'all'  # Setting used for training
-    self.root_dir = '/home/maximilian/training_data_split/'  # Dataset root dir
+    self.root_dir = os.environ.get("DATASET_ROOT")  # Dataset root dir
     # When to reduce the learning rate for the first and second  time
     self.schedule_reduce_epoch_01 = 30
     self.schedule_reduce_epoch_02 = 40
