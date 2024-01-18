@@ -69,7 +69,7 @@ def plot_test_image(image, name):
     image_to_plot.save(name)
 
 
-def create_log_folder(exp_batch_name):
+def create_log_folder(root_path, exp_batch_name):
     """
         Only the train creates the path. The validation should wait for the training anyway,
         so there is no need to create any path for the logs. That avoids race conditions.
@@ -77,7 +77,6 @@ def create_log_folder(exp_batch_name):
 
     """
     # This is hardcoded the logs always stay on the _logs folder
-    root_path = '_logs'
 
     if not os.path.exists(root_path):
         os.mkdir(root_path)
@@ -86,9 +85,8 @@ def create_log_folder(exp_batch_name):
         os.mkdir(os.path.join(root_path, exp_batch_name))
 
 
-def create_exp_path(exp_batch_name, experiment_name, repetition):
+def create_exp_path(root_path, exp_batch_name, experiment_name, repetition):
     # This is hardcoded the logs always stay on the _logs folder
-    root_path = '_logs'
 
     if not os.path.exists(os.path.join(root_path, exp_batch_name, experiment_name, str(repetition))):
         os.makedirs(os.path.join(root_path, exp_batch_name, experiment_name, str(repetition)))
@@ -128,9 +126,8 @@ def get_driving_environments(exp_batch_name):
     return list(driving_environments)
 
 
-def erase_logs(exp_batch_name: object) -> object:
+def erase_logs(root_path, exp_batch_name: object) -> object:
 
-    root_path = '_logs'
 
     experiments = os.listdir(os.path.join(root_path, exp_batch_name))
 
