@@ -53,7 +53,7 @@ def get_latest_saved_checkpoint(repetition):
         Returns the , latest checkpoint number that was saved
 
     """
-    checkpoint_files = os.listdir(os.path.join('_logs', g_conf.EXPERIMENT_BATCH_NAME,
+    checkpoint_files = os.listdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', g_conf.EXPERIMENT_BATCH_NAME,
                                                g_conf.EXPERIMENT_NAME,str(repetition), 'checkpoints'))
     if checkpoint_files == []:
         return None

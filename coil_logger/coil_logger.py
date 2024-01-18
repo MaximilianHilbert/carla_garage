@@ -38,7 +38,7 @@ def create_log(exp_batch_name: object, exp_name: object, training_rep:object,pro
     global tl
 
     # Hardcoded root path
-    root_path = "_logs"
+    root_path = f'{os.environ.get("WORK_DIR")}/_logs'
 
 
     dir_name = os.path.join(root_path, exp_batch_name, exp_name, str(training_rep))
@@ -60,7 +60,7 @@ def create_log(exp_batch_name: object, exp_name: object, training_rep:object,pro
 
 def close():
 
-    full_path_name = os.path.join('_logs', EXPERIMENT_BATCH_NAME,
+    full_path_name = os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', EXPERIMENT_BATCH_NAME,
                                   EXPERIMENT_NAME, PROCESS_NAME)
 
     closeFileLogger(full_path_name)
@@ -106,7 +106,7 @@ def check_finish(process, drive_name=None):
     if process != 'drive' and process != 'train':
         raise ValueError('Wrong process to write finish')
 
-    root_path = "_logs"
+    root_path = f'{os.environ.get("WORK_DIR")}/_logs'
 
     full_path_name = os.path.join(root_path, EXPERIMENT_BATCH_NAME,
                                   EXPERIMENT_NAME)
@@ -129,7 +129,7 @@ def write_on_csv(checkpoint_name, output):
     Returns:
 
     """
-    root_path = "_logs"
+    root_path =f'{os.environ.get("WORK_DIR")}/_logs'
 
     full_path_name = os.path.join(root_path, EXPERIMENT_BATCH_NAME,
                                   EXPERIMENT_NAME, PROCESS_NAME + '_csv')
@@ -154,7 +154,7 @@ def write_on_error_csv(error_file_name, output):
     Returns:
 
     """
-    root_path = "_logs"
+    root_path =f'{os.environ.get("WORK_DIR")}/_logs'
 
     full_path_name = os.path.join(root_path, EXPERIMENT_BATCH_NAME,
                                   EXPERIMENT_NAME)
@@ -179,7 +179,7 @@ def write_stop(validation_dataset, checkpoint):
     Returns:
 
     """
-    root_path = "_logs"
+    root_path = f'{os.environ.get("WORK_DIR")}/_logs'
 
     full_path_name = os.path.join(root_path, EXPERIMENT_BATCH_NAME,
                                   EXPERIMENT_NAME)
@@ -198,7 +198,7 @@ def erase_csv(checkpoint_name):
     Returns:
 
     """
-    root_path = "_logs"
+    root_path = f'{os.environ.get("WORK_DIR")}/_logs'
 
     full_path_name = os.path.join(root_path, EXPERIMENT_BATCH_NAME,
                                   EXPERIMENT_NAME, PROCESS_NAME + '_csv')
@@ -210,7 +210,7 @@ def erase_csv(checkpoint_name):
 
 def recover_loss_window(dataset_name, iteration):
 
-    root_path = "_logs"
+    root_path = f'{os.environ.get("WORK_DIR")}/_logs'
     full_path_name = os.path.join(root_path, EXPERIMENT_BATCH_NAME,
                                   EXPERIMENT_NAME)
     file_name = os.path.join(full_path_name, str(dataset_name) + '_error' + '.csv')
