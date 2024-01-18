@@ -20,17 +20,12 @@ def compare(x, y):
 # Constants Used for the high level commands
 
 
-REACH_GOAL = 0.0
-GO_STRAIGHT = 5.0
-TURN_RIGHT = 4.0
-TURN_LEFT = 3.0
-LANE_FOLLOW = 2.0
-# new definitions in carla >=0.9
-# REACH_GOAL = 0
-# GO_STRAIGHT = 3
-# TURN_RIGHT = 2
-# TURN_LEFT = 1
-# LANE_FOLLOW = 4
+#REACH_GOAL = 0.0
+GO_STRAIGHT = 2.0
+TURN_RIGHT = 1.0
+TURN_LEFT = 0.0
+LANE_FOLLOW = 3.0
+
 
 # Auxiliary algebra function
 def angle_between(v1, v2):
@@ -69,8 +64,8 @@ class Planner(object):
 
         # reach the goal
 
-        if self._city_track.is_at_goal(track_source, track_target):
-            return REACH_GOAL
+        # if self._city_track.is_at_goal(track_source, track_target):
+        #     return REACH_GOAL
 
 
         if (self._city_track.is_at_new_node(track_source)

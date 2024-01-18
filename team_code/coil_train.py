@@ -156,22 +156,6 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
         criterion = Loss(g_conf.LOSS_FUNCTION)
 
         for data in data_loader:
-            #old values for commands and what they mean
-            # REACH_GOAL = 0.0
-            # GO_STRAIGHT = 5.0
-            # TURN_RIGHT = 4.0
-            # TURN_LEFT = 3.0
-            # LANE_FOLLOW = 2.0
-            #new_command cala 0.9: old_command carla 0.8
-            #TODO what does 5 mean? Guessed it means finished route
-            command_translation_dict={
-                5: 0.0,
-                1: 3.0,
-                2:4.0,
-                3:5.0,
-                4:2.0
-            }
-
             """
             ####################################
                 Main optimization loop
@@ -187,7 +171,7 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
             capture_time = time.time()
             one_hot_tensor=data["next_command"]
             indices = torch.argmax(one_hot_tensor, dim=1).numpy()
-            controls=torch.cuda.FloatTensor([command_translation_dict[index] for index in indices]).reshape(g_conf.BATCH_SIZE, 1)
+            controls=torch.cuda.FloatTensor(indices).reshape(g_conf.BATCH_SIZE, 1)
             if g_conf.BLANK_FRAMES_TYPE == 'black':
                 blank_images_tensor = torch.cat([torch.zeros_like(data['rgb']) for _ in range(g_conf.ALL_FRAMES_INCLUDING_BLANK - g_conf.IMAGE_SEQ_LEN)], dim=1).cuda()
 
