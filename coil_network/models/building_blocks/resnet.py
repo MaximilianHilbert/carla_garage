@@ -113,7 +113,7 @@ class ResNet(nn.Module):
         if block.__name__ == 'Bottleneck':
             self.fc = nn.Linear(6144, num_classes)
         else:
-            self.fc = nn.Linear(1536, num_classes)
+            self.fc = nn.Linear(32768, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):

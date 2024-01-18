@@ -5,13 +5,13 @@ import time
 import traceback
 import torch
 import torch.optim as optim
-
+import numpy as np
 from coil_config.coil_config import g_conf, set_type_of_process, merge_with_yaml
 from coil_network import CoILModel, Loss, adjust_learning_rate_auto
 from coil_input import CoILDataset, Augmenter, select_balancing_strategy
 from coil_logger import coil_logger
 from coil_utils.checkpoint_schedule import is_ready_to_save, get_latest_saved_checkpoint, check_loss_validation_stopped
-
+from team_code.data import CARLA_Data
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -20,7 +20,7 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 
-def main(args,seed=235345,training_repetition=0,suppress_output=False):
+def main(args,seed=235345,training_repetition=0, merged_config_object=None, suppress_output=False):
     global g_conf
     """
         The main training function. This functions loads the latest checkpoint
@@ -110,11 +110,13 @@ def main(args,seed=235345,training_repetition=0,suppress_output=False):
 
         # Instantiate the class used to read a dataset. The coil dataset generator
         # can be found
-        dataset = CoILDataset(
-                        full_dataset,
-                        transform = augmenter,
-                        preload_name = str(g_conf.NUMBER_OF_HOURS) + 'hours_' + g_conf.TRAIN_DATASET_NAME
-                    )
+
+        dataset=CARLA_Data(root=merged_config_object.train_data, config=merged_config_object)
+        # dataset = CoILDataset(
+        #                 full_dataset,
+        #                 transform = augmenter,
+        #                 preload_name = str(g_conf.NUMBER_OF_HOURS) + 'hours_' + g_conf.TRAIN_DATASET_NAME
+        #             )
         
         print("Loaded dataset")
 
@@ -154,6 +156,22 @@ def main(args,seed=235345,training_repetition=0,suppress_output=False):
         criterion = Loss(g_conf.LOSS_FUNCTION)
 
         for data in data_loader:
+            #old values for commands and what they mean
+            # REACH_GOAL = 0.0
+            # GO_STRAIGHT = 5.0
+            # TURN_RIGHT = 4.0
+            # TURN_LEFT = 3.0
+            # LANE_FOLLOW = 2.0
+            #new_command cala 0.9: old_command carla 0.8
+            #TODO what does 5 mean? Guessed it means finished route
+            command_translation_dict={
+                5: 0.0,
+                1: 3.0,
+                2:4.0,
+                3:5.0,
+                4:2.0
+            }
+
             """
             ####################################
                 Main optimization loop
@@ -167,24 +185,34 @@ def main(args,seed=235345,training_repetition=0,suppress_output=False):
 
 
             capture_time = time.time()
-            controls = data['directions']
+            one_hot_tensor=data["next_command"]
+            indices = torch.argmax(one_hot_tensor, dim=1).numpy()
+            controls=torch.cuda.FloatTensor([command_translation_dict[index] for index in indices]).reshape(g_conf.BATCH_SIZE, 1)
+            if g_conf.BLANK_FRAMES_TYPE == 'black':
+                blank_images_tensor = torch.cat([torch.zeros_like(data['rgb']) for _ in range(g_conf.ALL_FRAMES_INCLUDING_BLANK - g_conf.IMAGE_SEQ_LEN)], dim=1).cuda()
 
-            obs_history = torch.squeeze(data['rgb']).cuda()
+            obs_history = torch.cat([blank_images_tensor,data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1).to(torch.float32).cuda()
+            obs_history=obs_history/255.
+            obs_history=obs_history.view(g_conf.BATCH_SIZE, 30, merged_config_object.camera_height, merged_config_object.camera_width)
 
             current_obs = torch.zeros_like(obs_history).cuda()
             current_obs[:, -3:] = obs_history[:, -3:]
+            
                 
-            measurement_input = torch.zeros_like(dataset.extract_inputs(data).cuda())
+            current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
                 
-            controls = data['directions']
+
             
             mem_extract.zero_grad()
             mem_extract_branches, memory = mem_extract(obs_history)
+            previous_action=torch.cat([data["previous_steers"][0], data["previous_throttles"][0], torch.where(data["previous_brakes"][0], torch.tensor(1.0), torch.tensor(0.0))]).cuda()
+            #TODO watch out with implementation of previous action tensor
             loss_function_params = {
                 'branches': mem_extract_branches,
-                'targets': dataset.extract_targets(data).cuda() - data['previous_actions'].cuda(),
+                #we get only bool values from our expert, so we have to convert them back to floats, so that the baseline can work with it
+                'targets': (dataset.extract_targets(data, merged_config_object).cuda() -previous_action).reshape(merged_config_object.batch_size, -1),
                 'controls': controls.cuda(),
-                'inputs': dataset.extract_inputs(data).cuda(),
+                'inputs': data["speed"].cuda(),
                 'branch_weights': g_conf.BRANCH_LOSS_WEIGHT,
                 'variable_weights': g_conf.VARIABLE_WEIGHT
             }
@@ -193,12 +221,12 @@ def main(args,seed=235345,training_repetition=0,suppress_output=False):
             mem_extract_optimizer.step()
             
             policy.zero_grad()
-            policy_branches = policy(current_obs, measurement_input, memory)
+            policy_branches = policy(current_obs, current_speed, memory)
             loss_function_params = {
                 'branches': policy_branches,
-                'targets': dataset.extract_targets(data).cuda(),
+                'targets': dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
                 'controls': controls.cuda(),
-                'inputs': dataset.extract_inputs(data).cuda(),
+                'inputs': dataset.extract_inputs(data, merged_config_object).cuda(),
                 'branch_weights': g_conf.BRANCH_LOSS_WEIGHT,
                 'variable_weights': g_conf.VARIABLE_WEIGHT
             }
@@ -226,7 +254,7 @@ def main(args,seed=235345,training_repetition=0,suppress_output=False):
                 torch.save(
                     state, 
                     os.path.join(
-                        '_logs', args.baseline_folder_name, args.baseline_name, str(training_repetition),
+                        os.environ.get("WORK_DIR"), args.baseline_folder_name, args.baseline_name, str(training_repetition),
                          'checkpoints', str(iteration) + '.pth'
                     )
                 )
@@ -249,25 +277,25 @@ def main(args,seed=235345,training_repetition=0,suppress_output=False):
             position = random.randint(0, len(data) - 1)
 
             output = policy.extract_branch(torch.stack(policy_branches[0:4]), controls)
-            error = torch.abs(output - dataset.extract_targets(data).cuda())
+            error = torch.abs(output - dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda())
 
             accumulated_time += time.time() - capture_time
 
-            coil_logger.add_message(
-                'Iterating',
-                {
-                    'Iteration': iteration,
-                    'Loss': policy_loss.data.tolist(),
-                    'Images/s': (iteration * g_conf.BATCH_SIZE) / accumulated_time,
-                    'BestLoss': best_loss, 
-                    'BestLossIteration': best_loss_iter,
-                    'Output': output[position].data.tolist(),
-                    'GroundTruth': dataset.extract_targets(data)[position].data.tolist(),
-                    'Error': error[position].data.tolist(),
-                    'Inputs': dataset.extract_inputs(data)[position].data.tolist()
-                },
-                iteration
-            )
+            # coil_logger.add_message(
+            #     'Iterating',
+            #     {
+            #         'Iteration': iteration,
+            #         'Loss': policy_loss.data.tolist(),
+            #         'Images/s': (iteration * g_conf.BATCH_SIZE) / accumulated_time,
+            #         'BestLoss': best_loss, 
+            #         'BestLossIteration': best_loss_iter,
+            #         'Output': output[position].data.tolist(),
+            #         'GroundTruth': dataset.extract_targets(data, merged_config_object)[position].data.tolist(),
+            #         'Error': error[position].data.tolist(),
+            #         'Inputs': dataset.extract_inputs(data,merged_config_object)[position].data.tolist()
+            #     },
+            #     iteration
+            # )
             policy_loss_window.append(policy_loss.data.tolist())
             mem_extract_loss_window.append(mem_extract_loss.data.tolist())
             coil_logger.write_on_error_csv('policy_train', policy_loss.data)
