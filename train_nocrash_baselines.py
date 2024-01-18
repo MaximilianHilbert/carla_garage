@@ -2,21 +2,35 @@ import os
 from team_code.coil_train import main as training_loop
 from coil_utils.general import create_log_folder, create_exp_path, erase_logs,\
                           erase_wrong_plotting_summaries, erase_validations
+from team_code.config import GlobalConfig
 from coil_config.coil_config import g_conf, merge_with_yaml
 def main(args):
     port = args.port
     tm_port = port + 2
     g_conf.VARIABLE_WEIGHT = {}
-    merge_with_yaml(os.path.join('coil_config', args.baseline_folder_name, args.baseline_name + '.yaml'))
+    #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
+    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline_folder_name, args.baseline_name + '.yaml'))
+    
+    # init transfuser config file, necessary for the dataloader
+    config_tf = GlobalConfig()
+    config_tf.initialize(root_dir=config_tf.root_dir)
+    #translates the necessary old argument names in the yaml file of the baseline to the new transfuser config, generating the dataset accordingly
+    config_tf.number_previous_actions=g_conf.NUMBER_PREVIOUS_ACTIONS
+    config_tf.img_seq_len=g_conf.IMAGE_SEQ_LEN 
+    config_tf.all_frames_including_blank=g_conf.ALL_FRAMES_INCLUDING_BLANK
+    config_tf.targets=g_conf.TARGETS
+    config_tf.batch_size=g_conf.BATCH_SIZE
+    config_tf.inputs=g_conf.INPUTS
+
     if g_conf.MAGICAL_SEEDS is None:
         raise "Set MAGICAL SEEDS in config files as a list of magical seeds being used for training the baselines"
     else:
         seeds=g_conf.MAGICAL_SEEDS
         for training_repetition, seed in enumerate(seeds):
-            create_log_folder(args.baseline_folder_name)
-            erase_logs(args.baseline_folder_name)
-            create_exp_path(args.baseline_folder_name,args.baseline_name, repetition=training_repetition)
-            training_loop(args, seed, training_repetition)
+            create_log_folder(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
+            erase_logs(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
+            create_exp_path(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name,args.baseline_name, repetition=training_repetition)
+            training_loop(args, seed, training_repetition,config_tf)
     
     # p = multiprocessing.Process(target=train.execute,
     #                             args=(gpu, exp_batch, exp_alias, suppress_output, number_of_workers))
@@ -37,6 +51,8 @@ if __name__ == '__main__':
     parser.add_argument('--gpu', default=0, required=True)
     parser.add_argument('--agent', default='autoagents/image_agent')
     parser.add_argument('--baseline-config', dest="baseline_config", default='experiments/config_nocrash.yaml')
+    parser.add_argument("--baseline-name", default="arp_vanilla", dest='baseline_name',help="")
+    parser.add_argument("--baseline-folder-name", default="ARP", dest='baseline_folder_name',help="")
     
 
     parser.add_argument('--host', default='localhost',
@@ -53,8 +69,6 @@ if __name__ == '__main__':
                         help='Number of dataset repetitions.')
     parser.add_argument("--track", type=str, default='SENSORS', help="Participation track: SENSORS, MAP")
     parser.add_argument("--resume",type=bool, default=False)
-    parser.add_argument("--baseline-name", default="arp_vanilla", dest='baseline_name',help="")
-    parser.add_argument("--baseline-folder-name", default="ARP", dest='baseline_folder_name',help="")
     parser.add_argument(
         '-vd',
         '--val-datasets',
