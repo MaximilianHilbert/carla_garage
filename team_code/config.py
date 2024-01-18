@@ -108,14 +108,15 @@ class GlobalConfig:
     # -----------------------------------------------------------------------------
     # Dataloader
     # -----------------------------------------------------------------------------
+    # config values for the coiltraine legacy/baseline implementation for nocrash
     self.carla_fps = 20  # Simulator Frames per second
     self.seq_len =1  # length of the sequence loaded (into the future)
     # use different seq len for image and lidar
-    self.img_seq_len = 3#length of historic sequence loaded for images, only one per seq iterated over in seq_len; e. g.
+    self.img_seq_len = 3 #length of TOTAL sequence loaded for images, only one per seq iterated over in seq_len; e. g.
     # images for a img_seq_len of 3, seq_len of 2
-    # (t_n-3, t_n-2, t_n-1, t_n, t_n+1, t_n+2 )
-    # img_history, img_history, img_history, current timestep, future, future  
-    self.lidar_seq_len = 4 #length of historic sequence loaded for lidars, same as above but can be different from img_history
+    # (t_n-2, t_n-1, t_n, t_n+1, t_n+2 )
+    # img_history, img_history, current timestep, future, future  
+    self.lidar_seq_len = 2 #length of TOTAL sequence loaded for lidars, same as above but can be different from img_history
     # Number of initial frames to skip during data loading
     self.skip_first = int(2.5 * self.carla_fps) // self.data_save_freq
     self.pred_len = int(2.0 * self.carla_fps) // self.data_save_freq  # number of future waypoints predicted
@@ -177,7 +178,7 @@ class GlobalConfig:
     self.logdir = ''  # Directory to log data to.
     self.load_file = None  # File to continue training from
     self.setting = 'all'  # Setting used for training
-    self.root_dir = '/media/maximilian/SSD_Klein/train_debugging'  # Dataset root dir
+    self.root_dir = '/home/maximilian/training_data_split/'  # Dataset root dir
     # When to reduce the learning rate for the first and second  time
     self.schedule_reduce_epoch_01 = 30
     self.schedule_reduce_epoch_02 = 40
