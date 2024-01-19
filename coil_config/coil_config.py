@@ -138,7 +138,7 @@ def get_names(folder):
     return experiments_in_folder
 
 
-def set_type_of_process(process_type, args=None, training_rep=None, param=None):
+def set_type_of_process(process_type, shared_config_object,args=None, training_rep=None, param=None):
     """
     This function is used to set which is the type of the current process, test, train or val
     and also the details of each since there could be many vals and tests for a single
@@ -153,46 +153,45 @@ def set_type_of_process(process_type, args=None, training_rep=None, param=None):
 
     """
 
-    if _g_conf.PROCESS_NAME == "default":
+    if shared_config_object.PROCESS_NAME == "default":
         raise RuntimeError(" You should merge with some exp file before setting the type")
 
     if process_type == 'train':
-        _g_conf.PROCESS_NAME = process_type
+        shared_config_object.PROCESS_NAME = process_type
     elif process_type == "validation":
-        _g_conf.PROCESS_NAME = process_type + '_' + param
+        shared_config_object.PROCESS_NAME = process_type + '_' + param
     if process_type == "drive":  # FOR drive param is city name.
-        _g_conf.CITY_NAME = param.split('_')[-1]
-        _g_conf.PROCESS_NAME = process_type + '_' + param
+        shared_config_object.CITY_NAME = param.split('_')[-1]
+        shared_config_object.PROCESS_NAME = process_type + '_' + param
 
     #only log the first time of training the baseline
     create_log(args.baseline_folder_name,
             args.baseline_name,
             training_rep,
-            _g_conf.PROCESS_NAME,
-            _g_conf.LOG_SCALAR_WRITING_FREQUENCY,
-            _g_conf.LOG_IMAGE_WRITING_FREQUENCY)
+            shared_config_object.PROCESS_NAME,
+            shared_config_object.LOG_SCALAR_WRITING_FREQUENCY,
+            shared_config_object.LOG_IMAGE_WRITING_FREQUENCY)
 
     if process_type == "train":
-        if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', _g_conf.EXPERIMENT_BATCH_NAME,
-                                            _g_conf.EXPERIMENT_NAME,str(training_rep),
+        if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.EXPERIMENT_BATCH_NAME,
+                                            shared_config_object.EXPERIMENT_NAME,str(training_rep),
                                             'checkpoints') ):
-                os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', _g_conf.EXPERIMENT_BATCH_NAME,
-                                      _g_conf.EXPERIMENT_NAME,str(training_rep),
+                os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.EXPERIMENT_BATCH_NAME,
+                                      shared_config_object.EXPERIMENT_NAME,str(training_rep),
                                       'checkpoints'))
 
     if process_type == "validation" or process_type == 'drive':
-        if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', _g_conf.EXPERIMENT_BATCH_NAME,
-                                           _g_conf.EXPERIMENT_NAME,
-                                           _g_conf.PROCESS_NAME + '_csv')):
-            os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', _g_conf.EXPERIMENT_BATCH_NAME,
-                                          _g_conf.EXPERIMENT_NAME,
-                                           _g_conf.PROCESS_NAME + '_csv'))
+        if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.EXPERIMENT_BATCH_NAME,
+                                           shared_config_object.EXPERIMENT_NAME,
+                                           shared_config_object.PROCESS_NAME + '_csv')):
+            os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.EXPERIMENT_BATCH_NAME,
+                                          shared_config_object.EXPERIMENT_NAME,
+                                           shared_config_object.PROCESS_NAME + '_csv'))
 
 
-    add_message('Loading', {'ProcessName': _g_conf.EXPERIMENT_GENERATED_NAME,
-                            'FullConfiguration': _g_conf.TRAIN_DATASET_NAME + 'dict'})
+    add_message('Loading', {'ProcessName': shared_config_object.EXPERIMENT_GENERATED_NAME,
+                            'FullConfiguration': shared_config_object.TRAIN_DATASET_NAME + 'dict'})
 
-    _g_conf.immutable(True)
 
 
 def _merge_a_into_b(a, b, stack=None):

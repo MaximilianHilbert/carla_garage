@@ -1,5 +1,6 @@
-{"python.envFile": "${workspaceFolder}/dev.env",
+{
+    "editor.formatOnSaveMode": "file",
+    "editor.formatOnSave": true,
     "editor.defaultFormatter": "eeyore.yapf",
-    "python.formatting.provider": "yapf",
-    "editor.formatOnSave": true
+    "editor.formatOnType": false
 }

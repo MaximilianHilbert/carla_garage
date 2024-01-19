@@ -1,36 +1,57 @@
 import os
-from team_code.coil_train import main as training_loop
-from coil_utils.general import create_log_folder, create_exp_path, erase_logs,\
-                          erase_wrong_plotting_summaries, erase_validations
-from team_code.config import GlobalConfig
-from coil_config.coil_config import g_conf, merge_with_yaml
-def main(args):
-    port = args.port
-    tm_port = port + 2
-    g_conf.VARIABLE_WEIGHT = {}
-    #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
-    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline_folder_name, args.baseline_name + '.yaml'))
-    
-    # init transfuser config file, necessary for the dataloader
-    config_tf = GlobalConfig()
-    config_tf.initialize(root_dir=config_tf.root_dir)
-    #translates the necessary old argument names in the yaml file of the baseline to the new transfuser config, generating the dataset accordingly
-    config_tf.number_previous_actions=g_conf.NUMBER_PREVIOUS_ACTIONS
-    config_tf.img_seq_len=g_conf.IMAGE_SEQ_LEN 
-    config_tf.all_frames_including_blank=g_conf.ALL_FRAMES_INCLUDING_BLANK
-    config_tf.targets=g_conf.TARGETS
-    config_tf.batch_size=g_conf.BATCH_SIZE
-    config_tf.inputs=g_conf.INPUTS
+from coil_utils.general import create_log_folder, create_exp_path, erase_logs
+import subprocess
+def set_environment_variables():
+    command="""
+        export WORK_DIR=/home/maximilian/Master/carla_garage
+        export CONFIG_ROOT=${WORK_DIR}/coil_config
+        export CARLA_ROOT=${WORK_DIR}/carla
+        export COIL_UTILS=${WORK_DIR}/coil_utils
+        export DATASET_ROOT=/media/maximilian/HDD/training_data_split
+        export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
+        export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
+        export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI/carla
+        export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg
+        export PYTHONPATH="${CARLA_ROOT}/PythonAPI/carla/":${PYTHONPATH}
+        export PYTHONPATH=$PYTHONPATH:${CONFIG_ROOT}
+        export PYTHONPATH=$PYTHONPATH:${COIL_UTILS}
+        
+        """
+    subprocess.run(command, shell=True)
+def generate_and_place_batch_script(args,seed, repetition):
+    # template=f"""
+    # #!/bin/bash
+    # #SBATCH --job-name={args.baseline_folder_name,args.baseline_name,seed, repetition}
+    # #SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out
+    # #SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err
+    # #SBATCH --nodes=1
+    # #SBATCH --tasks-per-node=1
+    # #SBATCH --gres=gpu:1
+    # #SBATCH --mem=32G
+    # ##SBATCH --cpus-per-task=32
 
-    if g_conf.MAGICAL_SEEDS is None:
-        raise "Set MAGICAL SEEDS in config files as a list of magical seeds being used for training the baselines"
-    else:
-        seeds=g_conf.MAGICAL_SEEDS
-        for training_repetition, seed in enumerate(seeds):
+    # export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+    # export CONFIG_ROOT=$WORK_DIR/coil_config
+    # export CARLA_ROOT=$WORK_DIR/carla
+    # export DATASET_ROOT=/mnt/qb/work2/geiger0/bjaeger25/datasets/hb_dataset_v08_2023_05_10
+    # export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+    # export CARLA_SERVER=$CARLA_ROOT/CarlaUE4.sh
+    # export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI
+    # export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI/carla
+    # export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg
+    # export PYTHONPATH="$CARLA_ROOT/PythonAPI/carla/":$PYTHONPATH
+    # export PYTHONPATH=$PYTHONPATH:$CONFIG_ROOT
+    # """
+    # template=template+"conda activate /mnt/qb/work/geiger/gwb629/conda/garage/bin/python"
+    template=f"conda run -n garage python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {repetition} --baseline_folder_name {args.baseline_folder_name} --baseline_name {args.baseline_name} --number_of_workers {args.number_of_workers}"
+    subprocess.run(template, shell=True)
+def main(args):
+    set_environment_variables()
+    for training_repetition, seed in enumerate(args.seeds):
             create_log_folder(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
             erase_logs(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
             create_exp_path(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name,args.baseline_name, repetition=training_repetition)
-            training_loop(args, seed, training_repetition,config_tf)
+            generate_and_place_batch_script(args,seed, training_repetition)
     
     # p = multiprocessing.Process(target=train.execute,
     #                             args=(gpu, exp_batch, exp_alias, suppress_output, number_of_workers))
@@ -46,13 +67,13 @@ if __name__ == '__main__':
     
     # Agent configs
 
-    parser.add_argument('--dataset-root',  dest='dataset_root',required=True)
-    
+    parser.add_argument('--training_seeds', default=1, required=False)
     parser.add_argument('--gpu', default=0, required=True)
     parser.add_argument('--agent', default='autoagents/image_agent')
-    parser.add_argument('--baseline-config', dest="baseline_config", default='experiments/config_nocrash.yaml')
-    parser.add_argument("--baseline-name", default="arp_vanilla", dest='baseline_name',help="")
-    parser.add_argument("--baseline-folder-name", default="ARP", dest='baseline_folder_name',help="")
+    parser.add_argument('--baseline_config', dest="baseline_config", default='experiments/config_nocrash.yaml')
+    parser.add_argument("--baseline_name", default="arp_vanilla", dest='baseline_name',help="")
+    parser.add_argument("--baseline_folder_name", default="ARP", dest='baseline_folder_name',help="")
+    parser.add_argument('--seeds', nargs='+', type=int, help='List of seed values')
     
 
     parser.add_argument('--host', default='localhost',
@@ -76,10 +97,10 @@ if __name__ == '__main__':
         nargs='+',
         default=[]
     )
-
+    
     parser.add_argument(
         '-nw',
-        '--number-of-workers',
+        '--number_of_workers',
         dest='number_of_workers',
         type=int,
         default=1
