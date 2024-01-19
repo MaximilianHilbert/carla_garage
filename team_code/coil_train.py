@@ -6,22 +6,55 @@ import traceback
 import torch
 import torch.optim as optim
 import numpy as np
-from coil_config.coil_config import g_conf, set_type_of_process, merge_with_yaml
+from coil_config.coil_config import merged_config_object, set_type_of_process, merge_with_yaml
 from coil_network import CoILModel, Loss, adjust_learning_rate_auto
 from coil_input import CoILDataset, Augmenter, select_balancing_strategy
 from coil_logger import coil_logger
 from coil_utils.checkpoint_schedule import is_ready_to_save, get_latest_saved_checkpoint, check_loss_validation_stopped
 from team_code.data import CARLA_Data
-
+from coil_config.coil_config import g_conf, merge_with_yaml
+from team_code.config import GlobalConfig
 def set_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
+def merge_config_files():
+    #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
+    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline_folder_name, args.baseline_name + '.yaml'))
+    
+    # init transfuser config file, necessary for the dataloader
+    shared_configuration = GlobalConfig()
+    shared_configuration.initialize(root_dir=shared_configuration.root_dir)
+    #translates the necessary old argument names in the yaml file of the baseline to the new transfuser config, generating one shared object configuration
+    shared_configuration.number_previous_actions=g_conf.NUMBER_PREVIOUS_ACTIONS
+    shared_configuration.img_seq_len=g_conf.IMAGE_SEQ_LEN 
+    shared_configuration.all_frames_including_blank=g_conf.ALL_FRAMES_INCLUDING_BLANK
+    shared_configuration.targets=g_conf.TARGETS
+    shared_configuration.batch_size=g_conf.BATCH_SIZE
+    shared_configuration.inputs=g_conf.INPUTS
+    shared_configuration.optimizer=g_conf.OPTIMIZER
+    shared_configuration.process_name=g_conf.PROCESS_NAME
+    shared_configuration.preload_model_batch=g_conf.PRELOAD_MODEL_BATCH
+    shared_configuration.preload_model_alias=g_conf.PRELOAD_MODEL_ALIAS
+    shared_configuration.preload_model_checkpoint=g_conf.PRELOAD_MODEL_CHECKPOINT
+    shared_configuration.augmentation=g_conf.AUGMENTATION
+    shared_configuration.model_configuration=g_conf.MODEL_CONFIGURATION
+    shared_configuration.model_type=g_conf.MODEL_TYPE
+    shared_configuration.mem_extract_model_type=g_conf.MEM_EXTRACT_MODEL_TYPE
+    shared_configuration.mem_extract_model_configuration=g_conf.MEM_EXTRACT_MODEL_CONFIGURATION
+    shared_configuration.learning_rate=g_conf.LEARNING_RATE
+    shared_configuration.loss_function=g_conf.LOSS_FUNCTION
+    shared_configuration.blank_frames_type=g_conf.BLANK_FRAMES_TYPE
+    shared_configuration.all_frames_including_blank=g_conf.ALL_FRAMES_INCLUDING_BLANK
+    shared_configuration.image_seq_len=g_conf.IMAGE_SEQ_LEN
+    shared_configuration.branch_loss_weight=g_conf.BRANCH_LOSS_WEIGHT
+    shared_configuration.variable_weight=g_conf.VARIABLE_WEIGHT
+    return shared_configuration
 
-def main(args,seed=235345,training_repetition=0, merged_config_object=None, suppress_output=False):
-    global g_conf
+def main(args, suppress_output=False):
+    merged_config_object=merge_config_files()
     """
         The main training function. This functions loads the latest checkpoint
         for a given, exp_batch (folder) and exp_alias (experiment configuration).
@@ -43,12 +76,12 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
 
         # At this point the log file with the correct naming is created.
         # You merge the yaml file with the global configuration structure.
-        g_conf.immutable(False)
-        set_type_of_process('train', args, training_repetition)
+       
+        set_type_of_process('train', merged_config_object,args, args.training_repetition)
         # Set the process into loading status.
         coil_logger.add_message('Loading', {'GPU': args.gpu})
 
-        set_seed(seed)
+        set_seed(args.seed)
 
         # Put the output to a separate file if it is the case
         if suppress_output:
@@ -57,14 +90,14 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
             sys.stdout = open(
                             os.path.join(
                                 '_output_logs', args.baseline_name + '_' 
-                                + g_conf.PROCESS_NAME + '_' + str(os.getpid()) + ".out"
+                                + merged_config_object.process_name + '_' + str(os.getpid()) + ".out"
                             ), 
                             "a", buffering=1
                         )
             sys.stderr = open(
                             os.path.join(
                                 '_output_logs', args.baseline_name 
-                                + '_err_' + g_conf.PROCESS_NAME + '_' + str(os.getpid()) + ".out"
+                                + '_err_' + merged_config_object.process_name + '_' + str(os.getpid()) + ".out"
                             ),
                             "a", buffering=1
                         )
@@ -74,22 +107,22 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
             return
 
         # Preload option
-        if g_conf.PRELOAD_MODEL_ALIAS is not None:
+        if merged_config_object.preload_model_alias is not None:
             checkpoint = torch.load(
                                 os.path.join(
-                                    '_logs', g_conf.PRELOAD_MODEL_BATCH, g_conf.PRELOAD_MODEL_ALIAS,
-                                    'checkpoints', str(g_conf.PRELOAD_MODEL_CHECKPOINT) + '.pth'
+                                    '_logs', merged_config_object.preload_model_batch, merged_config_object.preload_model_alias,
+                                    'checkpoints', str(merged_config_object.preload_model_checkpoint) + '.pth'
                                 )
                             )
 
         # Get the latest checkpoint to be loaded
         # returns none if there are no checkpoints saved for this model
-        checkpoint_file = get_latest_saved_checkpoint(repetition=training_repetition)
+        checkpoint_file = get_latest_saved_checkpoint(repetition=args.training_repetition)
         if checkpoint_file is not None:
             checkpoint = torch.load(
                                     os.path.join(
-                                        '_logs', args.baseline_folder_name, args.baseline_name,str(training_repetition),
-                                        'checkpoints', get_latest_saved_checkpoint(repetition=training_repetition)
+                                        '_logs', args.baseline_folder_name, args.baseline_name,str(args.training_repetition),
+                                        'checkpoints', get_latest_saved_checkpoint(repetition=args.training_repetition)
                                     )
                                 )
             iteration = checkpoint['iteration']
@@ -102,11 +135,11 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
 
         # Define the dataset. This structure is has the __get_item__ redefined in a way
         # that you can access the positions from the root directory as a in a vector.
-        full_dataset = os.path.join(args.dataset_root)
+        #full_dataset = os.path.join(args.dataset_root)
 
         # By instantiating the augmenter we get a callable that augment images and transform them
         # into tensors.
-        augmenter = Augmenter(g_conf.AUGMENTATION)
+        augmenter = Augmenter(merged_config_object.augmentation)
 
         # Instantiate the class used to read a dataset. The coil dataset generator
         # can be found
@@ -115,28 +148,28 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
         # dataset = CoILDataset(
         #                 full_dataset,
         #                 transform = augmenter,
-        #                 preload_name = str(g_conf.NUMBER_OF_HOURS) + 'hours_' + g_conf.TRAIN_DATASET_NAME
+        #                 preload_name = str(merged_config_object.NUMBER_OF_HOURS) + 'hours_' + merged_config_object.TRAIN_DATASET_NAME
         #             )
         
         print("Loaded dataset")
 
         data_loader = select_balancing_strategy(dataset, iteration, args.number_of_workers)
-        policy = CoILModel(g_conf.MODEL_TYPE, g_conf.MODEL_CONFIGURATION)
+        policy = CoILModel(merged_config_object.MODEL_TYPE, merged_config_object.model_configuration)
         policy.cuda()
 
-        mem_extract = CoILModel(g_conf.MEM_EXTRACT_MODEL_TYPE, g_conf.MEM_EXTRACT_MODEL_CONFIGURATION)
+        mem_extract = CoILModel(merged_config_object.mem_extract_model_type, merged_config_object.mem_extract_model_configuration)
         mem_extract.cuda()
 
-        if g_conf.OPTIMIZER == 'Adam':
-            policy_optimizer = optim.Adam(policy.parameters(), lr=g_conf.LEARNING_RATE)
-            mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=g_conf.LEARNING_RATE)
-        elif g_conf.OPTIMIZER == 'SGD':
-            policy_optimizer = optim.SGD(policy.parameters(), lr=g_conf.LEARNING_RATE, momentum=0.9)
-            mem_extract_optimizer = optim.SGD(mem_extract.parameters(), lr=g_conf.LEARNING_RATE, momentum=0.9)
+        if merged_config_object.optimizer == 'Adam':
+            policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
+            mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate)
+        elif merged_config_object.optimizer == 'SGD':
+            policy_optimizer = optim.SGD(policy.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
+            mem_extract_optimizer = optim.SGD(mem_extract.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
         else:
             raise ValueError
 
-        if checkpoint_file is not None or g_conf.PRELOAD_MODEL_ALIAS is not None:
+        if checkpoint_file is not None or merged_config_object.preload_model_alias is not None:
             accumulated_time = checkpoint['total_time']
         
             policy.load_state_dict(checkpoint['policy_state_dict'])
@@ -153,7 +186,7 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
 
         print("Before the loss")
 
-        criterion = Loss(g_conf.LOSS_FUNCTION)
+        criterion = Loss(merged_config_object.loss_function)
 
         for data in data_loader:
             """
@@ -171,13 +204,13 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
             capture_time = time.time()
             one_hot_tensor=data["next_command"]
             indices = torch.argmax(one_hot_tensor, dim=1).numpy()
-            controls=torch.cuda.FloatTensor(indices).reshape(g_conf.BATCH_SIZE, 1)
-            if g_conf.BLANK_FRAMES_TYPE == 'black':
-                blank_images_tensor = torch.cat([torch.zeros_like(data['rgb']) for _ in range(g_conf.ALL_FRAMES_INCLUDING_BLANK - g_conf.IMAGE_SEQ_LEN)], dim=1).cuda()
+            controls=torch.cuda.FloatTensor(indices).reshape(merged_config_object.batch_size, 1)
+            if merged_config_object.BLANK_FRAMES_TYPE == 'black':
+                blank_images_tensor = torch.cat([torch.zeros_like(data['rgb']) for _ in range(merged_config_object.all_frames_including_blank - merged_config_object.img_seq_len)], dim=1).cuda()
 
             obs_history = torch.cat([blank_images_tensor,data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1).to(torch.float32).cuda()
             obs_history=obs_history/255.
-            obs_history=obs_history.view(g_conf.BATCH_SIZE, 30, merged_config_object.camera_height, merged_config_object.camera_width)
+            obs_history=obs_history.view(merged_config_object.batch_size, 30, merged_config_object.camera_height, merged_config_object.camera_width)
 
             current_obs = torch.zeros_like(obs_history).cuda()
             current_obs[:, -3:] = obs_history[:, -3:]
@@ -197,8 +230,8 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
                 'targets': (dataset.extract_targets(data, merged_config_object).cuda() -previous_action).reshape(merged_config_object.batch_size, -1),
                 'controls': controls.cuda(),
                 'inputs': data["speed"].cuda(),
-                'branch_weights': g_conf.BRANCH_LOSS_WEIGHT,
-                'variable_weights': g_conf.VARIABLE_WEIGHT
+                'branch_weights': merged_config_object.branch_loss_weight,
+                'variable_weights': merged_config_object.variable_weight
             }
             mem_extract_loss, _ = criterion(loss_function_params)
             mem_extract_loss.backward()
@@ -211,8 +244,8 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
                 'targets': dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
                 'controls': controls.cuda(),
                 'inputs': dataset.extract_inputs(data, merged_config_object).cuda(),
-                'branch_weights': g_conf.BRANCH_LOSS_WEIGHT,
-                'variable_weights': g_conf.VARIABLE_WEIGHT
+                'branch_weights': merged_config_object.branch_loss_weight,
+                'variable_weights': merged_config_object.variable_weight
             }
             policy_loss, _ = criterion(loss_function_params)
             policy_loss.backward()
@@ -238,7 +271,7 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
                 torch.save(
                     state, 
                     os.path.join(
-                        os.environ.get("WORK_DIR"), args.baseline_folder_name, args.baseline_name, str(training_repetition),
+                        os.environ.get("WORK_DIR"), args.baseline_folder_name, args.baseline_name, str(args.training_repetition),
                          'checkpoints', str(iteration) + '.pth'
                     )
                 )
@@ -270,7 +303,7 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
             #     {
             #         'Iteration': iteration,
             #         'Loss': policy_loss.data.tolist(),
-            #         'Images/s': (iteration * g_conf.BATCH_SIZE) / accumulated_time,
+            #         'Images/s': (iteration * merged_config_object.BATCH_SIZE) / accumulated_time,
             #         'BestLoss': best_loss, 
             #         'BestLossIteration': best_loss_iter,
             #         'Output': output[position].data.tolist(),
@@ -301,4 +334,20 @@ def main(args,seed=235345,training_repetition=0, merged_config_object=None, supp
         coil_logger.add_message('Error', {'Message': 'Something Happened'})
 
 if __name__=="__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+
+    # Agent configs
+
+    parser.add_argument('--seed',  dest='seed',required=True, default=345345)
+
+    parser.add_argument('--training_repetition', dest="training_repetition", default=0, required=True)
+    parser.add_argument('--merged_config_object', dest="merged_config_object", default=None, required=True)
+    parser.add_argument('--gpu', dest="gpu", default=0, required=True)
+    parser.add_argument('--baseline_folder_name', dest="baseline_folder_name", default=None, required=True)
+    parser.add_argument('--baseline_name', dest="baseline_name", default=None, required=True)
+    parser.add_argument('--number_of_workers', dest="number_of_workers", default=12, required=True)
+    parser.add_argument('--training_repetition', dest="training_repetition", default=0, required=True)
+    args = parser.parse_args()
+
+    main(args)

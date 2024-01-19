@@ -49,11 +49,11 @@
 
         },
         {
-            "name": "debug_dataset",
+            "name": "debug_dist",
             "type": "python",
             "request": "launch",
-            "program": "/home/maximilian/Master/carla_garage/debug_dataset.py",
-            "args": [],
+            "program": "/home/maximilian/Master/carla_garage/train_nocrash_baselines.py",
+            "args": ["--gpu", "0" ,"--seeds" ,"1", "2", "3", "--baseline_folder_name", "ARP", "--baseline_name", "arp_vanilla","--number_of_workers", "1"],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",

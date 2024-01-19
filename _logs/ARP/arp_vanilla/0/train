@@ -1,0 +1,25 @@
+{"Loading": {"ProcessName": "CoILTrain_coil-policy_resnet34_fusion_control_balancesteer_L1_noise_all_6_None_100hours", "FullConfiguration": "CoILTraindict"}}
+{"Loading": {"GPU": "0"}}
+{"Loading": {"ProcessName": "CoILTrain_coil-policy_resnet34_fusion_control_balancesteer_L1_noise_all_6_None_100hours", "FullConfiguration": "CoILTraindict"}}
+{"Loading": {"GPU": "0"}}
+{"Loading": {"ProcessName": "CoILTrain_coil-policy_resnet34_fusion_control_balancesteer_L1_noise_all_6_None_100hours", "FullConfiguration": "CoILTraindict"}}
+{"Loading": {"GPU": "0"}}
+{"Error": {"Message": "Killed By User"}}
+{"Loading": {"ProcessName": "CoILTrain_coil-policy_resnet34_fusion_control_balancesteer_L1_noise_all_6_None_100hours", "FullConfiguration": "CoILTraindict"}}
+{"Loading": {"GPU": "0"}}
+{"Error": {"Message": "cuDNN error: CUDNN_STATUS_NOT_INITIALIZED"}}
+{"Loading": {"ProcessName": "CoILTrain_coil-policy_resnet34_fusion_control_balancesteer_L1_noise_all_6_None_100hours", "FullConfiguration": "CoILTraindict"}}
+{"Loading": {"GPU": "0"}}
+{"Error": {"Message": "CUDA out of memory. Tried to allocate 480.00 MiB (GPU 0; 7.90 GiB total capacity; 2.59 GiB already allocated; 155.06 MiB free; 2.62 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF"}}
+{"Loading": {"ProcessName": "CoILTrain_coil-policy_resnet34_fusion_control_balancesteer_L1_noise_all_6_None_100hours", "FullConfiguration": "CoILTraindict"}}
+{"Loading": {"GPU": "0"}}
+{"Error": {"Message": "CUDA out of memory. Tried to allocate 20.00 MiB (GPU 0; 7.90 GiB total capacity; 2.50 GiB already allocated; 53.06 MiB free; 2.58 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF"}}
+{"Loading": {"ProcessName": "CoILTrain_coil-policy_resnet34_fusion_control_balancesteer_L1_noise_all_6_None_100hours", "FullConfiguration": "CoILTraindict"}}
+{"Loading": {"GPU": "0"}}
+{"Error": {"Message": "Killed By User"}}
+{"Loading": {"ProcessName": "CoILTrain_coil-policy_resnet34_fusion_control_balancesteer_L1_noise_all_6_None_100hours", "FullConfiguration": "CoILTraindict"}}
+{"Loading": {"GPU": "0"}}
+{"Error": {"Message": "Killed By User"}}
+{"Loading": {"ProcessName": "CoILTrain_coil-policy_resnet34_fusion_control_balancesteer_L1_noise_all_6_None_100hours", "FullConfiguration": "CoILTraindict"}}
+{"Loading": {"GPU": "0"}}
+{"Error": {"Message": "Killed By User"}}
