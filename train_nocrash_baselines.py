@@ -10,7 +10,7 @@ def generate_and_place_batch_script(args, seed, repetition):
 #SBATCH --job-name=reproduce_{args.baseline_folder_name}_{args.baseline_name}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --time=00-01:00
+#SBATCH --time=00-12:00
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task={args.number_of_workers}
 #SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/carla_garage/%j.out  # File to which STDOUT will be written
