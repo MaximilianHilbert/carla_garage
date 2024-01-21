@@ -21,6 +21,9 @@ export CONFIG_ROOT=$WORK_DIR/coil_config
 export CARLA_ROOT=$WORK_DIR/carla
 export DATASET_ROOT=/mnt/qb/work2/geiger0/bjaeger25/datasets/hb_dataset_v08_2023_05_10
 export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+export COIL_NETWORK=$WORK_DIR/coil_network
+export TEAM_CODE=$WORK_DIR/team_code
+
 
 export CARLA_SERVER=$CARLA_ROOT/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI
@@ -36,8 +39,8 @@ export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 conda run -n garage python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {repetition} --baseline_folder_name {args.baseline_folder_name} --baseline_name {args.baseline_name} --number_of_workers {args.number_of_workers}
         """
         f.write(command)
-    subprocess.Popen(f'chmod +x {job_full_path}', shell=True)
-    subprocess.Popen(job_full_path, shell=True)
+    subprocess.Popen(f'chmod u+x {job_full_path}', shell=True)
+    subprocess.Popen(f"sbatch {job_full_path}", shell=True)
 
 def main(args):
     for training_repetition, seed in enumerate(args.seeds):
