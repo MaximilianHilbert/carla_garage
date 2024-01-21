@@ -35,8 +35,9 @@ export PYTHONPATH=$PYTHONPATH:$COIL_NETWORK
 export PYTHONPATH=$PYTHONPATH:$TEAM_CODE
 export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 
-
-conda run -n garage python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {repetition} --baseline_folder_name {args.baseline_folder_name} --baseline_name {args.baseline_name} --number_of_workers {args.number_of_workers}
+source ~/.bashrc
+conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {repetition} --baseline_folder_name {args.baseline_folder_name} --baseline_name {args.baseline_name} --number_of_workers {args.number_of_workers}
         """
         f.write(command)
     out=subprocess.check_output(f'chmod u+x {job_full_path}', shell=True)
