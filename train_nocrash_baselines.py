@@ -2,8 +2,10 @@ import os
 from coil_utils.general import create_log_folder, create_exp_path, erase_logs
 import subprocess
 def generate_and_place_batch_script(args, seed, repetition):
-    job_path=os.path.join(os.environ.get("WORK_DIR"), "job_files", "_".join(args.baseline_folder_name, args.baseline_name, repetition), ".sh")
-    with open(job_path, 'w', encoding='utf-8') as f:
+    job_path=os.path.join(os.environ.get("WORK_DIR"), "job_files")
+    os.makedirs(job_path, exist_ok=True)
+    job_full_path=os.path.join(job_path, f"{args.baseline_folder_name}_{args.baseline_name}_{str(repetition)}.sh")
+    with open(job_full_path, 'w', encoding='utf-8') as f:
         command=f"""#!/bin/bash
 #SBATCH --job-name=reproduce_{args.baseline_folder_name, args.baseline_name}
 #SBATCH --ntasks=1
@@ -34,8 +36,8 @@ export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 conda run -n garage python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {repetition} --baseline_folder_name {args.baseline_folder_name} --baseline_name {args.baseline_name} --number_of_workers {args.number_of_workers}
         """
         f.write(command)
-    subprocess.Popen(f'chmod +x {job_path}', shell=True)
-    subprocess.Popen(job_path, shell=True)
+    subprocess.Popen(f'chmod +x {job_full_path}', shell=True)
+    subprocess.Popen(job_full_path, shell=True)
 
 def main(args):
     for training_repetition, seed in enumerate(args.seeds):
