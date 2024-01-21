@@ -39,9 +39,9 @@ export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 conda run -n garage python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {repetition} --baseline_folder_name {args.baseline_folder_name} --baseline_name {args.baseline_name} --number_of_workers {args.number_of_workers}
         """
         f.write(command)
-    subprocess.Popen(f'chmod u+x {job_full_path}', shell=True)
-    subprocess.Popen(["sbatch", job_full_path], shell=True)
-
+    out=subprocess.check_output(f'chmod u+x {job_full_path}', shell=True)
+    out=subprocess.check_output(["sbatch", job_full_path], shell=True)
+    print(out)
 def main(args):
     for training_repetition, seed in enumerate(args.seeds):
             create_log_folder(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
