@@ -5,14 +5,15 @@ import time
 import traceback
 import torch
 import torch.optim as optim
-import numpy as np
-from coil_config.coil_config import merged_config_object, set_type_of_process, merge_with_yaml
-from coil_network import CoILModel, Loss, adjust_learning_rate_auto
-from coil_input import CoILDataset, Augmenter, select_balancing_strategy
+
+from coil_configuration.coil_config import set_type_of_process, merge_with_yaml, g_conf
+from coil_network.coil_model import CoILModel
+from coil_network.loss import Loss
+from coil_network.optimizer import adjust_learning_rate_auto
+from coil_input import Augmenter, select_balancing_strategy
 from coil_logger import coil_logger
-from coil_utils.checkpoint_schedule import is_ready_to_save, get_latest_saved_checkpoint, check_loss_validation_stopped
+from coil_utils.checkpoint_schedule import is_ready_to_save, get_latest_saved_checkpoint
 from team_code.data import CARLA_Data
-from coil_config.coil_config import g_conf, merge_with_yaml
 from team_code.config import GlobalConfig
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -51,6 +52,11 @@ def merge_config_files():
     shared_configuration.image_seq_len=g_conf.IMAGE_SEQ_LEN
     shared_configuration.branch_loss_weight=g_conf.BRANCH_LOSS_WEIGHT
     shared_configuration.variable_weight=g_conf.VARIABLE_WEIGHT
+    shared_configuration.experiment_generated_name=g_conf.EXPERIMENT_GENERATED_NAME
+    shared_configuration.experiment_name=g_conf.EXPERIMENT_NAME
+    shared_configuration.experiment_batch_name=g_conf.EXPERIMENT_BATCH_NAME
+    shared_configuration.log_scalar_writing_frequency=g_conf.LOG_SCALAR_WRITING_FREQUENCY
+    shared_configuration.log_image_writing_frequency=g_conf.LOG_IMAGE_WRITING_FREQUENCY
     return shared_configuration
 
 def main(args, suppress_output=False):
@@ -133,28 +139,18 @@ def main(args, suppress_output=False):
             best_loss = 10000.0
             best_loss_iter = 0
 
-        # Define the dataset. This structure is has the __get_item__ redefined in a way
-        # that you can access the positions from the root directory as a in a vector.
-        #full_dataset = os.path.join(args.dataset_root)
-
+       
         # By instantiating the augmenter we get a callable that augment images and transform them
         # into tensors.
         augmenter = Augmenter(merged_config_object.augmentation)
 
-        # Instantiate the class used to read a dataset. The coil dataset generator
-        # can be found
-
+        #introduce new dataset from the Paper TransFuser++
         dataset=CARLA_Data(root=merged_config_object.train_data, config=merged_config_object)
-        # dataset = CoILDataset(
-        #                 full_dataset,
-        #                 transform = augmenter,
-        #                 preload_name = str(merged_config_object.NUMBER_OF_HOURS) + 'hours_' + merged_config_object.TRAIN_DATASET_NAME
-        #             )
-        
+       
         print("Loaded dataset")
 
         data_loader = select_balancing_strategy(dataset, iteration, args.number_of_workers)
-        policy = CoILModel(merged_config_object.MODEL_TYPE, merged_config_object.model_configuration)
+        policy = CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
         policy.cuda()
 
         mem_extract = CoILModel(merged_config_object.mem_extract_model_type, merged_config_object.mem_extract_model_configuration)
@@ -205,7 +201,7 @@ def main(args, suppress_output=False):
             one_hot_tensor=data["next_command"]
             indices = torch.argmax(one_hot_tensor, dim=1).numpy()
             controls=torch.cuda.FloatTensor(indices).reshape(merged_config_object.batch_size, 1)
-            if merged_config_object.BLANK_FRAMES_TYPE == 'black':
+            if merged_config_object.blank_frames_type == 'black':
                 blank_images_tensor = torch.cat([torch.zeros_like(data['rgb']) for _ in range(merged_config_object.all_frames_including_blank - merged_config_object.img_seq_len)], dim=1).cuda()
 
             obs_history = torch.cat([blank_images_tensor,data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1).to(torch.float32).cuda()
@@ -298,21 +294,6 @@ def main(args, suppress_output=False):
 
             accumulated_time += time.time() - capture_time
 
-            # coil_logger.add_message(
-            #     'Iterating',
-            #     {
-            #         'Iteration': iteration,
-            #         'Loss': policy_loss.data.tolist(),
-            #         'Images/s': (iteration * merged_config_object.BATCH_SIZE) / accumulated_time,
-            #         'BestLoss': best_loss, 
-            #         'BestLossIteration': best_loss_iter,
-            #         'Output': output[position].data.tolist(),
-            #         'GroundTruth': dataset.extract_targets(data, merged_config_object)[position].data.tolist(),
-            #         'Error': error[position].data.tolist(),
-            #         'Inputs': dataset.extract_inputs(data,merged_config_object)[position].data.tolist()
-            #     },
-            #     iteration
-            # )
             policy_loss_window.append(policy_loss.data.tolist())
             mem_extract_loss_window.append(mem_extract_loss.data.tolist())
             coil_logger.write_on_error_csv('policy_train', policy_loss.data)
@@ -336,18 +317,11 @@ def main(args, suppress_output=False):
 if __name__=="__main__":
     import argparse
     parser = argparse.ArgumentParser()
-
-    # Agent configs
-
-    parser.add_argument('--seed',  dest='seed',required=True, default=345345)
-
-    parser.add_argument('--training_repetition', dest="training_repetition", default=0, required=True)
-    parser.add_argument('--merged_config_object', dest="merged_config_object", default=None, required=True)
+    parser.add_argument('--seed',  dest='seed',required=True, type=int, default=345345)
+    parser.add_argument('--training_repetition', dest="training_repetition", type=int, default=0, required=True)
     parser.add_argument('--gpu', dest="gpu", default=0, required=True)
     parser.add_argument('--baseline_folder_name', dest="baseline_folder_name", default=None, required=True)
     parser.add_argument('--baseline_name', dest="baseline_name", default=None, required=True)
-    parser.add_argument('--number_of_workers', dest="number_of_workers", default=12, required=True)
-    parser.add_argument('--training_repetition', dest="training_repetition", default=0, required=True)
+    parser.add_argument('--number_of_workers', dest="number_of_workers", default=12, type=int, required=True)
     args = parser.parse_args()
-
     main(args)
