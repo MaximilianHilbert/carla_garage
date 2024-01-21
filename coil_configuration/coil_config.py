@@ -10,7 +10,7 @@ import numpy as np
 import os
 import yaml
 
-from coil_config.namer import generate_name
+from namer import generate_name
 from coil_logger.coil_logger import create_log, add_message
 
 
@@ -133,7 +133,7 @@ def get_names(folder):
         g_conf.immutable(False)
         merge_with_yaml(os.path.join('configs', folder, experiment_alias))
 
-        experiments_in_folder.update({experiment_alias: g_conf.EXPERIMENT_GENERATED_NAME})
+        experiments_in_folder.update({experiment_alias: g_conf.experiment_generated_name})
 
     return experiments_in_folder
 
@@ -153,44 +153,40 @@ def set_type_of_process(process_type, shared_config_object,args=None, training_r
 
     """
 
-    if shared_config_object.PROCESS_NAME == "default":
+    if shared_config_object.process_name == "default":
         raise RuntimeError(" You should merge with some exp file before setting the type")
 
     if process_type == 'train':
-        shared_config_object.PROCESS_NAME = process_type
+        shared_config_object.process_name = process_type
     elif process_type == "validation":
-        shared_config_object.PROCESS_NAME = process_type + '_' + param
+        shared_config_object.process_name = process_type + '_' + param
     if process_type == "drive":  # FOR drive param is city name.
         shared_config_object.CITY_NAME = param.split('_')[-1]
-        shared_config_object.PROCESS_NAME = process_type + '_' + param
+        shared_config_object.process_name = process_type + '_' + param
 
     #only log the first time of training the baseline
     create_log(args.baseline_folder_name,
             args.baseline_name,
             training_rep,
-            shared_config_object.PROCESS_NAME,
-            shared_config_object.LOG_SCALAR_WRITING_FREQUENCY,
-            shared_config_object.LOG_IMAGE_WRITING_FREQUENCY)
+            shared_config_object.process_name,
+            shared_config_object.log_scalar_writing_frequency,
+            shared_config_object.log_image_writing_frequency)
 
     if process_type == "train":
-        if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.EXPERIMENT_BATCH_NAME,
-                                            shared_config_object.EXPERIMENT_NAME,str(training_rep),
+        if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.experiment_batch_name,
+                                            shared_config_object.experiment_name,str(training_rep),
                                             'checkpoints') ):
-                os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.EXPERIMENT_BATCH_NAME,
-                                      shared_config_object.EXPERIMENT_NAME,str(training_rep),
+                os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.experiment_batch_name,
+                                      shared_config_object.experiment_name,str(training_rep),
                                       'checkpoints'))
 
     if process_type == "validation" or process_type == 'drive':
-        if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.EXPERIMENT_BATCH_NAME,
-                                           shared_config_object.EXPERIMENT_NAME,
-                                           shared_config_object.PROCESS_NAME + '_csv')):
-            os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.EXPERIMENT_BATCH_NAME,
-                                          shared_config_object.EXPERIMENT_NAME,
-                                           shared_config_object.PROCESS_NAME + '_csv'))
-
-
-    add_message('Loading', {'ProcessName': shared_config_object.EXPERIMENT_GENERATED_NAME,
-                            'FullConfiguration': shared_config_object.TRAIN_DATASET_NAME + 'dict'})
+        if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.experiment_batch_name,
+                                           shared_config_object.experiment_name,
+                                           shared_config_object.process_name + '_csv')):
+            os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.experiment_batch_name,
+                                          shared_config_object.experiment_name,
+                                           shared_config_object.process_name + '_csv'))
 
 
 

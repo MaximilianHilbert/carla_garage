@@ -18,7 +18,7 @@ from torch.utils.data import Dataset
 from . import splitter
 from . import data_parser
 
-from coil_config.coil_config import g_conf
+from coil_configuration.coil_config import g_conf
 
 from coil_utils.general import sort_nicely
 

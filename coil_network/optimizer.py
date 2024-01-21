@@ -1,6 +1,6 @@
 import numpy as np
 
-from coil_config.coil_config import g_conf
+from coil_configuration.coil_config import g_conf
 
 
 

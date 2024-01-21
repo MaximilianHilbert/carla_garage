@@ -3,7 +3,7 @@ import re
 import numpy as np
 
 from coil_logger import json_formatter
-from coil_config.coil_config import g_conf
+from coil_configuration.coil_config import g_conf
 from coil_utils.general import sort_nicely
 
 

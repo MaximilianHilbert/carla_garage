@@ -1,7 +1,7 @@
 import os
 import time
 
-from coil_config.coil_config import g_conf
+from coil_configuration.coil_config import g_conf
 from coil_logger import monitorer
 
 from coil_utils.general import sort_nicely
