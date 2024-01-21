@@ -4,7 +4,7 @@ import collections
 
 import torch
 
-from coil_config.coil_config import g_conf
+from coil_configuration.coil_config import g_conf
 from coil_logger import coil_logger
 from coil_utils.general import softmax
 

@@ -8,7 +8,7 @@ from torch.utils.data.sampler import Sampler
 from torch import optim
 from torch.autograd import Variable
 
-from coil_config.coil_config import g_conf
+from coil_configuration.coil_config import g_conf
 
 def get_rank(input_array):
 

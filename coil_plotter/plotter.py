@@ -9,7 +9,7 @@ import logging
 import pprint
 import collections
 
-from coil_config.coil_config import get_names
+from coil_configuration.coil_config import get_names
 
 from . import scatter_plotter
 from . import data_reading
