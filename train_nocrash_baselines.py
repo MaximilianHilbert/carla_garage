@@ -7,7 +7,7 @@ def generate_and_place_batch_script(args, seed, repetition):
     job_full_path=os.path.join(job_path, f"{args.baseline_folder_name}_{args.baseline_name}_{str(repetition)}.sh")
     with open(job_full_path, 'w', encoding='utf-8') as f:
         command=f"""#!/bin/bash
-#SBATCH --job-name=reproduce_{args.baseline_folder_name, args.baseline_name}
+#SBATCH --job-name=reproduce_{args.baseline_folder_name}_{args.baseline_name}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --time=00-01:00
@@ -40,7 +40,7 @@ conda run -n garage python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} -
         """
         f.write(command)
     subprocess.Popen(f'chmod u+x {job_full_path}', shell=True)
-    subprocess.Popen(f"sbatch {job_full_path}", shell=True)
+    subprocess.Popen(["sbatch", job_full_path], shell=True)
 
 def main(args):
     for training_repetition, seed in enumerate(args.seeds):
