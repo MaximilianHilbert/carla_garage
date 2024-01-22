@@ -15,6 +15,7 @@ from coil_logger import coil_logger
 from coil_utils.checkpoint_schedule import is_ready_to_save, get_latest_saved_checkpoint
 from team_code.data import CARLA_Data
 from team_code.config import GlobalConfig
+from coil_utils.general import create_log_folder, create_exp_path, erase_logs
 def set_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
@@ -23,6 +24,7 @@ def set_seed(seed):
 
 def merge_config_files():
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
+
     merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline_folder_name, args.baseline_name + '.yaml'))
     
     # init transfuser config file, necessary for the dataloader
@@ -61,6 +63,10 @@ def merge_config_files():
 
 def main(args, suppress_output=False):
     merged_config_object=merge_config_files()
+    create_log_folder(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
+    erase_logs(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
+    create_exp_path(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name,args.baseline_name, repetition=args.training_repetition)
+    
     """
         The main training function. This functions loads the latest checkpoint
         for a given, exp_batch (folder) and exp_alias (experiment configuration).
