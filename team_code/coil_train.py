@@ -127,7 +127,7 @@ def main(args, suppress_output=False):
         if checkpoint_file is not None:
             checkpoint = torch.load(
                                     os.path.join(
-                                        '_logs', args.baseline_folder_name, args.baseline_name,str(args.training_repetition),
+                                        os.environ.get("WORK_DIR"), '_logs', args.baseline_folder_name, args.baseline_name,str(args.training_repetition),
                                         'checkpoints', get_latest_saved_checkpoint(repetition=args.training_repetition)
                                     )
                                 )
@@ -277,7 +277,7 @@ def main(args, suppress_output=False):
                 torch.save(
                     state, 
                     os.path.join(
-                        os.environ.get("WORK_DIR"), args.baseline_folder_name, args.baseline_name, str(args.training_repetition),
+                        os.environ.get("WORK_DIR"), "_logs", args.baseline_folder_name, args.baseline_name, str(args.training_repetition),
                          'checkpoints', str(iteration) + '.pth'
                     )
                 )
