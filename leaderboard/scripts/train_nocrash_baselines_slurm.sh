@@ -21,4 +21,4 @@ export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
-python $WORK_DIR/train_nocrash_baselines.py --seed 1 2 3 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 1
+python $WORK_DIR/train_nocrash_baselines.py --seed 1 2 3 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 1 --use-disk-cache 1
