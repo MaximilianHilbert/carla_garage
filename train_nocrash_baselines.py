@@ -1,5 +1,4 @@
 import os
-from coil_utils.general import create_log_folder, create_exp_path, erase_logs
 import subprocess
 def generate_and_place_batch_script(args, seed, repetition):
     job_path=os.path.join(os.environ.get("WORK_DIR"), "job_files")
@@ -45,10 +44,7 @@ python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --train
     print(out)
 def main(args):
     for training_repetition, seed in enumerate(args.seeds):
-            create_log_folder(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
-            erase_logs(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
-            create_exp_path(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name,args.baseline_name, repetition=training_repetition)
-            generate_and_place_batch_script(args,seed, training_repetition)
+        generate_and_place_batch_script(args,seed, training_repetition)
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
