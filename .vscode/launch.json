@@ -37,10 +37,10 @@
             "type": "python",
             "request": "launch",
             "program": "/home/maximilian/Master/carla_garage/train_nocrash_baselines.py",
-            "args": ["--dataset-root", "/home/maximilian/carla100",
+            "args": ["--dataset-root", "/media/maximilian/9A40D8F240D8D65B/training_data_split",
                     "--gpu", "0",
                     "--agent", "/home/maximilian/Master/carla_garage/team_code/coil_agent.py",
-                    "--baseline-config", "/home/maximilian/Master/carla_garage/coil_config"],
+                    "--baseline-config", "/home/maximilian/Master/carla_garage/coil_configuration"],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
@@ -60,6 +60,19 @@
             "purpose": ["debug-in-terminal"],
             "envFile": "${workspaceFolder}/dev.env"
 
-        }
+        },
+        {
+            "name": "dataset_debugging",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/maximilian/Master/carla_garage/debug_dataset.py",
+            "args": ["--baseline_folder_name", "ARP", "--baseline_name", "arp_vanilla",],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "purpose": ["debug-in-terminal"],
+            "envFile": "${workspaceFolder}/dev.env"
+
+        },
+
     ]
 }
