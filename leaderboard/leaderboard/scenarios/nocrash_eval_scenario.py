@@ -5,7 +5,7 @@ import numpy.random as random
 
 import carla
 import py_trees
-from coil_config.coil_config import g_conf
+from coil_configuration.coil_config import g_conf
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 from team_code.nav_planner import RoutePlanner

@@ -10,7 +10,7 @@ import numpy as np
 import os
 import yaml
 
-from namer import generate_name
+from coil_configuration.namer import generate_name
 from coil_logger.coil_logger import create_log, add_message
 
 

@@ -10,16 +10,14 @@ import time
 import cv2
 from collections import deque
 from skimage import io
-from coil_config.coil_config import g_conf
+from coil_configuration.coil_config import g_conf
 import matplotlib.pyplot as plt
 from leaderboard.envs.sensor_interface import SensorInterface
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
 from leaderboard.autoagents.autonomous_agent import Track
 from srunner.scenariomanager.timer import GameTime
-from coil_network import CoILModel
+from coil_network.coil_model import CoILModel
 from coil_planner.planner import Planner
-from coil_config.coil_config import g_conf
-#from coil_logger import coil_logger
 from team_code.transfuser_utils import preprocess_compass, inverse_conversion_2d
 import carla
 
@@ -38,7 +36,7 @@ class CoILAgent(AutonomousAgent):
         self._mem_extract = CoILModel("coil-memory", g_conf.MEM_EXTRACT_MODEL_CONFIGURATION)
         self.first_iter = True
         #self.rgb_queue=deque(maxlen=g_conf.NUMBER_FRAMES_FUSION)
-        self.rgb_queue=deque(maxlen=g_conf.NUMBER_FRAMES_FUSION)
+        self.rgb_queue=deque(maxlen=g_conf.IMAGE_SEQ_LEN)
 
         #TODO watch out, this is the old planner from coiltraine!
         self._planner=Planner(city_name)
