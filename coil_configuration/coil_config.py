@@ -164,14 +164,6 @@ def set_type_of_process(process_type, shared_config_object,args=None, training_r
         shared_config_object.CITY_NAME = param.split('_')[-1]
         shared_config_object.process_name = process_type + '_' + param
 
-    #only log the first time of training the baseline
-    create_log(args.baseline_folder_name,
-            args.baseline_name,
-            training_rep,
-            shared_config_object.process_name,
-            shared_config_object.log_scalar_writing_frequency,
-            shared_config_object.log_image_writing_frequency)
-
     if process_type == "train":
         if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.experiment_batch_name,
                                             shared_config_object.experiment_name,str(training_rep),
