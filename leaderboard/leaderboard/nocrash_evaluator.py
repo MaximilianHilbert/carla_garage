@@ -25,7 +25,7 @@ import sys
 import carla
 import signal
 import torch
-from coil_config.coil_config import merge_with_yaml
+from coil_configuration.coil_config import merge_with_yaml
 from srunner.scenariomanager.carla_data_provider import *
 from srunner.scenariomanager.timer import GameTime
 from srunner.scenariomanager.watchdog import Watchdog

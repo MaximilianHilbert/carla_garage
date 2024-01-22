@@ -13,8 +13,8 @@
             "--checkpoint","/home/maximilian/Master/carla_garage/results/arp.json",
             "--agent","/home/maximilian/Master/carla_garage/team_code/coil_agent.py",
             //"--agent","/home/maximilian/Master/carla_garage/team_code/sensor_agent.py",
-            "--agent-config","/home/maximilian/Master/carla_garage/coil_config/coil_config.py",
-            "--agent-yaml","/home/maximilian/Master/carla_garage/coil_config/ARP/arp_vanilla.yaml",
+            "--agent-config","/home/maximilian/Master/carla_garage/coil_configuration/coil_config.py",
+            "--agent-yaml","/home/maximilian/Master/carla_garage/coil_configuration/ARP/arp_vanilla.yaml",
             
             "--coil_checkpoint", "/home/maximilian/Master/carla_garage/pretrained_models/arp/checkpoints/100000.pth",
             //"--agent-config","/home/maximilian/Master/carla_garage/pretrained_models/leaderboard/tfpp_wp_all_0",
