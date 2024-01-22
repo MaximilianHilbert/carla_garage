@@ -40,7 +40,7 @@ def main(args):
         
         callable_function=lambda: data.__getitem__(0)
         timer=timeit.Timer(callable_function)
-        execution_time=timer.timeit(number=100)
+        execution_time=timer.timeit(number=10)
         print(cache_value)
         print(execution_time)
 

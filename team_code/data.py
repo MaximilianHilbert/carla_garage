@@ -147,27 +147,20 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
             self.angle_distribution.append(angle_index)
             self.speed_distribution.append(target_speed_index)
-
-          if self.config.lidar_seq_len > 1 or self.config.number_previous_actions>0:
-            #select what is the longest sequence where we need previous measurements for, so that we only collect them once
-            if self.config.lidar_seq_len>self.config.number_previous_actions:
-              number_of_required_measurements=self.config.lidar_seq_len-1
-              collect_lidar=True
-            else:
-              number_of_required_measurements=self.config.number_previous_actions-1
-              collect_lidar=False
-            # load input seq and pred seq jointly
-            temporal_lidar = []
-            temporal_measurement = []
+          if self.config.lidar_seq_len>1 or self.config.number_previous_actions>0:
+            temporal_measurements = []
+            temporal_lidars = []
+            number_of_required_measurements=max(self.config.lidar_seq_len,self.config.number_previous_actions)
             for idx in range(1, number_of_required_measurements+1):
               if seq-idx>=0:
                 if not self.config.use_plant:
-                  if collect_lidar:
-                    temporal_lidar.append(route_dir + '/lidar' + (f'/{(seq - idx):04}.laz'))
-                  temporal_measurement.append(route_dir + '/measurements' + (f'/{(seq - idx):04}.json.gz'))
-            if collect_lidar:
-              self.temporal_lidars.append(temporal_lidar)
-            self.temporal_measurements.append(temporal_measurement)
+                  temporal_measurements.append(route_dir + '/measurements' + (f'/{(seq - idx):04}.json.gz'))
+            for idx in range(1,  self.config.lidar_seq_len+1):
+              if seq-idx>=0:
+                temporal_lidars.append(route_dir + '/lidar' + (f'/{(seq - idx):04}.laz'))
+            self.temporal_lidars.append(temporal_lidars)
+            self.temporal_measurements.append(temporal_measurements)
+            
           if self.config.img_seq_len > 1:
             temporal_images = []
             temporal_images_augmented = []
@@ -180,6 +173,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             self.temporal_images_augmented.append(temporal_images_augmented)
 
           self.images.append(image)
+
           self.images_augmented.append(image_augmented)
           self.semantics.append(semantic)
           self.semantics_augmented.append(semantic_augmented)
@@ -430,10 +424,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           images_i = cv2.cvtColor(images_i, cv2.COLOR_BGR2RGB)
 
           ############################################################################################################################
-
-          loaded_temporal_lidars = change_axes_and_reverse(temporal_lidars)
-          loaded_temporal_images, loaded_temporal_images_augmented = self.load_temporal_images(
-        temporal_images, temporal_images_augmented)
+          if self.config.lidar_seq_len > 1:
+            loaded_temporal_lidars = change_axes_and_reverse(temporal_lidars)
+          if self.config.img_seq_len > 1:
+            loaded_temporal_images, loaded_temporal_images_augmented = self.load_temporal_images(
+          temporal_images, temporal_images_augmented)
           #################################################################################
           if self.config.use_semantic:
             semantics_i = cv2.imread(str(semantics[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
@@ -531,11 +526,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     for key, value in lists_dict.items():
       assert len(value) == self.config.seq_len, f"Sequence length and len of {key} is not equal!"
 
-      assert temporal_lidars.shape[
-          -1] == self.config.lidar_seq_len-1, "Sequence length number of temporal lidars is not equal!"
-    assert temporal_images.shape[
-        -1] == self.config.img_seq_len-1, "Sequence length and number of temporal images are not equal!"
-
+  
     loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
 
     assert len(
