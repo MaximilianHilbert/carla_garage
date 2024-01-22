@@ -5,7 +5,7 @@ import time
 import traceback
 import torch
 import torch.optim as optim
-
+from diskcache import Cache
 from coil_configuration.coil_config import set_type_of_process, merge_with_yaml, g_conf
 from coil_network.coil_model import CoILModel
 from coil_network.loss import Loss
@@ -143,9 +143,19 @@ def main(args, suppress_output=False):
         # By instantiating the augmenter we get a callable that augment images and transform them
         # into tensors.
         augmenter = Augmenter(merged_config_object.augmentation)
-
+        if bool(args.use_disk_cache):
+        # NOTE: This is specific to our cluster setup where the data is stored on slow storage.
+        # During training, we cache the dataset on the fast storage of the local compute nodes.
+        # Adapt to your cluster setup as needed. Important initialize the parallel threads from torch run to the
+        # same folder (so they can share the cache).
+            tmp_folder = str(os.environ.get('SCRATCH', '/tmp'))
+            print('Tmp folder for dataset cache: ', tmp_folder)
+            tmp_folder = tmp_folder + '/dataset_cache'
+            shared_dict = Cache(directory=tmp_folder, size_limit=int(768 * 1024**3))
+        else:
+            shared_dict = None
         #introduce new dataset from the Paper TransFuser++
-        dataset=CARLA_Data(root=merged_config_object.train_data, config=merged_config_object)
+        dataset=CARLA_Data(root=merged_config_object.train_data, config=merged_config_object, shared_dict=shared_dict)
        
         print("Loaded dataset")
 
@@ -323,5 +333,6 @@ if __name__=="__main__":
     parser.add_argument('--baseline_folder_name', dest="baseline_folder_name", default=None, required=True)
     parser.add_argument('--baseline_name', dest="baseline_name", default=None, required=True)
     parser.add_argument('--number_of_workers', dest="number_of_workers", default=12, type=int, required=True)
+    parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=bool, default=0)
     args = parser.parse_args()
     main(args)

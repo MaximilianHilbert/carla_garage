@@ -37,7 +37,7 @@ export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 
 source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
-python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {repetition} --baseline_folder_name {args.baseline_folder_name} --baseline_name {args.baseline_name} --number_of_workers {args.number_of_workers}
+python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {args.baseline_folder_name} --baseline_name {args.baseline_name} --number_of_workers {args.number_of_workers}
         """
         f.write(command)
     out=subprocess.check_output(f'chmod u+x {job_full_path}', shell=True)
@@ -57,6 +57,7 @@ if __name__ == '__main__':
     parser.add_argument("--baseline_name", default="arp_vanilla", dest='baseline_name',help="")
     parser.add_argument("--baseline_folder_name", default="ARP", dest='baseline_folder_name',help="")
     parser.add_argument('--seeds', nargs='+', type=int, help='List of seed values')
+    parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=bool, default=0)
     parser.add_argument(
          '--repetitions',
         type=int,
