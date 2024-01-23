@@ -78,7 +78,8 @@
             "--training_repetition", "0",
             "--baseline_folder_name", "bcoh",
             "--baseline_name", "bcoh_vanilla",
-            "--number_of_workers", "1",],
+            "--number_of_workers", "1",
+            "--use-disk-cache", "0"],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
