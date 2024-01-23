@@ -292,10 +292,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     loaded_boxes = []
     loaded_future_boxes = []
     loaded_measurements = []
-    loaded_temporal_images_augmented=[]
-    loaded_temporal_images=[]
-    loaded_temporal_lidars=[]
-
+    loaded_temporal_images_augmented=np.empty(0)
+    loaded_temporal_images=np.empty(0)
+    loaded_temporal_lidars=np.empty(0)
+    loaded_temporal_measurements=np.empty(0)
     ##############################################################tests####################################
     testing_list = [
         loaded_images,
@@ -526,8 +526,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     for key, value in lists_dict.items():
       assert len(value) == self.config.seq_len, f"Sequence length and len of {key} is not equal!"
 
-  
-    loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
+    if self.config.lidar_seq_len > 1 or self.config.number_previous_actions>0:
+      loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
 
     assert len(
         loaded_temporal_measurements
