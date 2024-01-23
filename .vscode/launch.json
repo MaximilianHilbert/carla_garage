@@ -33,14 +33,16 @@
 
         },
         {
-            "name": "train",
+            "name": "train_ARP",
             "type": "python",
             "request": "launch",
-            "program": "/home/maximilian/Master/carla_garage/train_nocrash_baselines.py",
-            "args": ["--dataset-root", "/media/maximilian/9A40D8F240D8D65B/training_data_split",
-                    "--gpu", "0",
-                    "--agent", "/home/maximilian/Master/carla_garage/team_code/coil_agent.py",
-                    "--baseline-config", "/home/maximilian/Master/carla_garage/coil_configuration"],
+            "program": "/home/maximilian/Master/carla_garage/team_code/coil_train.py",
+            "args": ["--gpu", "0",
+            "--seed", "123",
+            "--training_repetition", "0",
+            "--baseline_folder_name", "ARP",
+            "--baseline_name", "arp_vanilla",
+            "--number_of_workers", "1",],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
@@ -49,7 +51,44 @@
 
         },
         {
-            "name": "debug_dist",
+            "name": "train_BCSO",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/maximilian/Master/carla_garage/team_code/coil_train.py",
+            "args": ["--gpu", "0",
+            "--seed", "123",
+            "--training_repetition", "0",
+            "--baseline_folder_name", "bcso",
+            "--baseline_name", "bcso_vanilla",
+            "--number_of_workers", "1",],
+            
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "purpose": ["debug-in-terminal"],
+            "envFile": "${workspaceFolder}/dev.env"
+
+        },
+        {
+            "name": "train_BCOH",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/maximilian/Master/carla_garage/team_code/coil_train.py",
+            "args": ["--gpu", "0",
+            "--seed", "123",
+            "--training_repetition", "0",
+            "--baseline_folder_name", "bcoh",
+            "--baseline_name", "bcoh_vanilla",
+            "--number_of_workers", "1",],
+            
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "purpose": ["debug-in-terminal"],
+            "envFile": "${workspaceFolder}/dev.env"
+
+        },
+
+        {
+            "name": "debug_distribution",
             "type": "python",
             "request": "launch",
             "program": "/home/maximilian/Master/carla_garage/train_nocrash_baselines.py",
