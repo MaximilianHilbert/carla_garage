@@ -61,6 +61,7 @@ def merge_config_files():
     shared_configuration.log_image_writing_frequency=g_conf.LOG_IMAGE_WRITING_FREQUENCY
     return shared_configuration
 
+
 def main(args, suppress_output=False):
     merged_config_object=merge_config_files()
     create_log_folder(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
@@ -217,7 +218,8 @@ def main(args, suppress_output=False):
         print("Before the loss")
 
         criterion = Loss(merged_config_object.loss_function)
-
+        
+        
         for data in data_loader:
             """
             ####################################
@@ -347,6 +349,9 @@ def main(args, suppress_output=False):
                 loss_window.append(loss.data.tolist())
                 coil_logger.write_on_error_csv('train', loss.data)
                 print("Iteration: %d  Loss: %f" % (iteration, loss.data))
+            
+        
+        
         coil_logger.add_message('Finished', {})
 
     except KeyboardInterrupt:
@@ -375,6 +380,6 @@ if __name__=="__main__":
     parser.add_argument('--baseline_folder_name', dest="baseline_folder_name", default=None, required=True)
     parser.add_argument('--baseline_name', dest="baseline_name", default=None, required=True)
     parser.add_argument('--number_of_workers', dest="number_of_workers", default=12, type=int, required=True)
-    parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=bool, default=0)
+    parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=int, default=0)
     args = parser.parse_args()
     main(args)
