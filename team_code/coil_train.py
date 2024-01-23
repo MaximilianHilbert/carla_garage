@@ -166,35 +166,53 @@ def main(args, suppress_output=False):
         print("Loaded dataset")
 
         data_loader = select_balancing_strategy(dataset, iteration, args.number_of_workers)
-        policy = CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
-        policy.cuda()
+        if args.baseline_folder_name=="ARP":
+            policy = CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
+            policy.cuda()
 
-        mem_extract = CoILModel(merged_config_object.mem_extract_model_type, merged_config_object.mem_extract_model_configuration)
-        mem_extract.cuda()
-
+            mem_extract = CoILModel(merged_config_object.mem_extract_model_type, merged_config_object.mem_extract_model_configuration)
+            mem_extract.cuda()
+        else:
+            model=CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
+            model.cuda()
         if merged_config_object.optimizer == 'Adam':
-            policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
-            mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate)
+            if args.baseline_folder_name=="ARP":
+                policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
+                mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate)
+            else:
+                optimizer= optim.Adam(model.parameters(), lr=merged_config_object.learning_rate)
         elif merged_config_object.optimizer == 'SGD':
-            policy_optimizer = optim.SGD(policy.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
-            mem_extract_optimizer = optim.SGD(mem_extract.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
+            if args.baseline_folder_name=="ARP":
+                policy_optimizer = optim.SGD(policy.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
+                mem_extract_optimizer = optim.SGD(mem_extract.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
+            else:
+                optimizer = optim.SGD(model.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
         else:
             raise ValueError
 
         if checkpoint_file is not None or merged_config_object.preload_model_alias is not None:
             accumulated_time = checkpoint['total_time']
-        
-            policy.load_state_dict(checkpoint['policy_state_dict'])
-            policy_optimizer.load_state_dict(checkpoint['policy_optimizer'])
-            policy_loss_window = coil_logger.recover_loss_window('policy_train', iteration)
-            
-            mem_extract.load_state_dict(checkpoint['mem_extract_state_dict'])
-            mem_extract_optimizer.load_state_dict(checkpoint['mem_extract_optimizer'])
-            mem_extract_loss_window = coil_logger.recover_loss_window('mem_extract_train', iteration)
+            if args.baseline_folder_name=="ARP":
+
+                policy.load_state_dict(checkpoint['policy_state_dict'])
+                policy_optimizer.load_state_dict(checkpoint['policy_optimizer'])
+                policy_loss_window = coil_logger.recover_loss_window('policy_train', iteration)
+                
+                mem_extract.load_state_dict(checkpoint['mem_extract_state_dict'])
+                mem_extract_optimizer.load_state_dict(checkpoint['mem_extract_optimizer'])
+                mem_extract_loss_window = coil_logger.recover_loss_window('mem_extract_train', iteration)
+            else:
+                model.load_state_dict(checkpoint['state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer'])
+                accumulated_time = checkpoint['total_time']
+                loss_window = coil_logger.recover_loss_window('train', iteration)
         else:  # We accumulate iteration time and keep the average speed
             accumulated_time = 0
-            policy_loss_window = []
-            mem_extract_loss_window = []
+            if args.baseline_folder_name=="ARP":
+                policy_loss_window = []
+                mem_extract_loss_window = []
+            else:
+                loss_window = []
 
         print("Before the loss")
 
@@ -206,37 +224,26 @@ def main(args, suppress_output=False):
                 Main optimization loop
             ####################################
             """
-
-            iteration += 1
-            if iteration % 1000 == 0:
-                adjust_learning_rate_auto(policy_optimizer, policy_loss_window)
-                adjust_learning_rate_auto(mem_extract_optimizer, mem_extract_loss_window)
-
-
             capture_time = time.time()
-            one_hot_tensor=data["next_command"]
-            indices = torch.argmax(one_hot_tensor, dim=1).numpy()
-            controls=torch.cuda.FloatTensor(indices).reshape(merged_config_object.batch_size, 1)
-            if merged_config_object.blank_frames_type == 'black':
-                blank_images_tensor = torch.cat([torch.zeros_like(data['rgb']) for _ in range(merged_config_object.all_frames_including_blank - merged_config_object.img_seq_len)], dim=1).cuda()
+            controls = get_controls_from_data(merged_config_object, data)
+            iteration += 1
+            if args.baseline_folder_name=="ARP":
+                if iteration % 1000 == 0:
+                    adjust_learning_rate_auto(policy_optimizer, policy_loss_window)
+                    adjust_learning_rate_auto(mem_extract_optimizer, mem_extract_loss_window)
+                if merged_config_object.blank_frames_type == 'black':
+                    blank_images_tensor = torch.cat([torch.zeros_like(data['rgb']) for _ in range(merged_config_object.all_frames_including_blank - merged_config_object.img_seq_len)], dim=1).cuda()
 
-            obs_history = torch.cat([blank_images_tensor,data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1).to(torch.float32).cuda()
-            obs_history=obs_history/255.
-            obs_history=obs_history.view(merged_config_object.batch_size, 30, merged_config_object.camera_height, merged_config_object.camera_width)
-
-            current_obs = torch.zeros_like(obs_history).cuda()
-            current_obs[:, -3:] = obs_history[:, -3:]
-            
-                
-            current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
-                
-
-            
-            mem_extract.zero_grad()
-            mem_extract_branches, memory = mem_extract(obs_history)
-            previous_action=torch.cat([data["previous_steers"][0], data["previous_throttles"][0], torch.where(data["previous_brakes"][0], torch.tensor(1.0), torch.tensor(0.0))]).cuda()
-            #TODO watch out with implementation of previous action tensor
-            loss_function_params = {
+                obs_history = torch.cat([blank_images_tensor,data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1).to(torch.float32).cuda()
+                obs_history=obs_history/255.
+                obs_history=obs_history.view(merged_config_object.batch_size, 30, merged_config_object.camera_height, merged_config_object.camera_width)
+                current_obs = torch.zeros_like(obs_history).cuda()
+                current_obs[:, -3:] = obs_history[:, -3:]
+                current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+                mem_extract.zero_grad()
+                mem_extract_branches, memory = mem_extract(obs_history)
+                previous_action=torch.cat([data["previous_steers"][0], data["previous_throttles"][0], torch.where(data["previous_brakes"][0], torch.tensor(1.0), torch.tensor(0.0))]).cuda()
+                loss_function_params = {
                 'branches': mem_extract_branches,
                 #we get only bool values from our expert, so we have to convert them back to floats, so that the baseline can work with it
                 'targets': (dataset.extract_targets(data, merged_config_object).cuda() -previous_action).reshape(merged_config_object.batch_size, -1),
@@ -244,79 +251,102 @@ def main(args, suppress_output=False):
                 'inputs': data["speed"].cuda(),
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
-            }
-            mem_extract_loss, _ = criterion(loss_function_params)
-            mem_extract_loss.backward()
-            mem_extract_optimizer.step()
-            
-            policy.zero_grad()
-            policy_branches = policy(current_obs, current_speed, memory)
-            loss_function_params = {
-                'branches': policy_branches,
+                }
+                mem_extract_loss, _ = criterion(loss_function_params)
+                mem_extract_loss.backward()
+                mem_extract_optimizer.step()
+                #TODO watch out with implementation of previous action tensor
+                policy.zero_grad()
+                policy_branches = policy(current_obs, current_speed, memory)
+                loss_function_params = {
+                    'branches': policy_branches,
+                    'targets': dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
+                    'controls': controls.cuda(),
+                    'inputs': dataset.extract_inputs(data, merged_config_object).cuda(),
+                    'branch_weights': merged_config_object.branch_loss_weight,
+                    'variable_weights': merged_config_object.variable_weight
+                }
+                policy_loss, _ = criterion(loss_function_params)
+                policy_loss.backward()
+                policy_optimizer.step()
+                if is_ready_to_save(iteration):
+                    state = {
+                        'iteration': iteration,
+                        'policy_state_dict': policy.state_dict(),
+                        'mem_extract_state_dict': mem_extract.state_dict(),
+                        'best_loss': best_loss,
+                        'total_time': accumulated_time,
+                        'policy_optimizer': policy_optimizer.state_dict(),
+                        'mem_extract_optimizer': mem_extract_optimizer.state_dict(),
+                        'best_loss_iter': best_loss_iter
+                    }
+                    torch.save(
+                        state, 
+                        os.path.join(
+                            os.environ.get("WORK_DIR"), "_logs", args.baseline_folder_name, args.baseline_name, str(args.training_repetition),
+                                'checkpoints', str(iteration) + '.pth'
+                        )
+                    )
+                coil_logger.add_scalar('Policy_Loss', policy_loss.data, iteration)
+                coil_logger.add_scalar('Mem_Extract_Loss', mem_extract_loss.data, iteration)
+                if policy_loss.data < best_loss:
+                    best_loss = policy_loss.data.tolist()
+                    best_loss_iter = iteration
+                accumulated_time += time.time() - capture_time
+                policy_loss_window.append(policy_loss.data.tolist())
+                mem_extract_loss_window.append(mem_extract_loss.data.tolist())
+                coil_logger.write_on_error_csv('policy_train', policy_loss.data)
+                coil_logger.write_on_error_csv('mem_extract_train', mem_extract_loss.data)
+                print("Iteration: %d  Policy_Loss: %f" % (iteration, policy_loss.data))
+                print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
+
+            else:
+                if iteration % 1000 == 0:
+                    adjust_learning_rate_auto(optimizer,loss_window)
+                model.zero_grad()
+                input=torch.squeeze(data['rgb'].to(torch.float32).cuda())
+                input=input/255.
+                current_speed =dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+                branches = model(input,
+                             current_speed)
+                loss_function_params = {
+                'branches': branches,
                 'targets': dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
                 'controls': controls.cuda(),
                 'inputs': dataset.extract_inputs(data, merged_config_object).cuda(),
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
-            }
-            policy_loss, _ = criterion(loss_function_params)
-            policy_loss.backward()
-            policy_optimizer.step()
-                      
-            """
-            ####################################
-                Saving the model if necessary
-            ####################################
-            """
-
-            if is_ready_to_save(iteration):
-                state = {
-                    'iteration': iteration,
-                    'policy_state_dict': policy.state_dict(),
-                    'mem_extract_state_dict': mem_extract.state_dict(),
-                    'best_loss': best_loss,
-                    'total_time': accumulated_time,
-                    'policy_optimizer': policy_optimizer.state_dict(),
-                    'mem_extract_optimizer': mem_extract_optimizer.state_dict(),
-                    'best_loss_iter': best_loss_iter
                 }
-                torch.save(
-                    state, 
-                    os.path.join(
-                        os.environ.get("WORK_DIR"), "_logs", args.baseline_folder_name, args.baseline_name, str(args.training_repetition),
-                         'checkpoints', str(iteration) + '.pth'
+                loss, _ = criterion(loss_function_params)
+                loss.backward()
+                optimizer.step()
+                if is_ready_to_save(iteration):
+
+                    state = {
+                        'iteration': iteration,
+                        'state_dict': model.state_dict(),
+                        'best_loss': best_loss,
+                        'total_time': accumulated_time,
+                        'optimizer': optimizer.state_dict(),
+                        'best_loss_iter': best_loss_iter
+                    }
+            
+                    torch.save(
+                        state, 
+                        os.path.join(
+                            os.environ.get("WORK_DIR"), "_logs", args.baseline_folder_name, args.baseline_name, str(args.training_repetition),
+                                'checkpoints', str(iteration) + '.pth'
+                        )
                     )
-                )
 
-            """
-            ################################################
-                   Adding tensorboard logs.
-                   Making calculations for logging purposes.
-                   These logs are monitored by the printer module.
-            #################################################
-            """
-            coil_logger.add_scalar('Policy_Loss', policy_loss.data, iteration)
-            coil_logger.add_scalar('Mem_Extract_Loss', mem_extract_loss.data, iteration)
-            #coil_logger.add_image('Image', torch.squeeze(data['rgb']), iteration)
-            if policy_loss.data < best_loss:
-                best_loss = policy_loss.data.tolist()
-                best_loss_iter = iteration
-
-            # Log a random position
-            position = random.randint(0, len(data) - 1)
-
-            output = policy.extract_branch(torch.stack(policy_branches[0:4]), controls)
-            error = torch.abs(output - dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda())
-
-            accumulated_time += time.time() - capture_time
-
-            policy_loss_window.append(policy_loss.data.tolist())
-            mem_extract_loss_window.append(mem_extract_loss.data.tolist())
-            coil_logger.write_on_error_csv('policy_train', policy_loss.data)
-            coil_logger.write_on_error_csv('mem_extract_train', mem_extract_loss.data)
-            print("Iteration: %d  Policy_Loss: %f" % (iteration, policy_loss.data))
-            print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
-
+                coil_logger.add_scalar('Loss', loss.data, iteration)
+                if loss.data < best_loss:
+                    best_loss = loss.data.tolist()
+                    best_loss_iter = iteration
+                accumulated_time += time.time() - capture_time
+                loss_window.append(loss.data.tolist())
+                coil_logger.write_on_error_csv('train', loss.data)
+                print("Iteration: %d  Loss: %f" % (iteration, loss.data))
         coil_logger.add_message('Finished', {})
 
     except KeyboardInterrupt:
@@ -329,6 +359,12 @@ def main(args, suppress_output=False):
     except:
         traceback.print_exc()
         coil_logger.add_message('Error', {'Message': 'Something Happened'})
+
+def get_controls_from_data(merged_config_object, data):
+    one_hot_tensor=data["next_command"]
+    indices = torch.argmax(one_hot_tensor, dim=1).numpy()
+    controls=torch.cuda.FloatTensor(indices).reshape(merged_config_object.batch_size, 1)
+    return controls
 
 if __name__=="__main__":
     import argparse
