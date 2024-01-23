@@ -3,7 +3,9 @@
 
 """
 
-from .models import CoILPolicy, CoILMemExtract
+from coil_network.models.coil_policy import CoILPolicy
+from coil_network.models.coil_memory_extraction import CoILMemExtract
+from coil_network.models.coil_icra import CoILICRA
 
 def CoILModel(architecture_name, architecture_configuration):
     """ Factory function
@@ -21,6 +23,8 @@ def CoILModel(architecture_name, architecture_configuration):
     elif architecture_name == 'coil-memory':
 
         return CoILMemExtract(architecture_configuration)
+    elif architecture_name=="coil-icra":
+        return CoILICRA(architecture_configuration)
 
     else:
 
