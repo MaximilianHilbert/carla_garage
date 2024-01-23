@@ -249,8 +249,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
   def __len__(self):
     """Returns the length of the dataset. """
     return self.lidars.shape[0]
-
   def __getitem__(self, index):
+
     """Returns the item at index idx. """
     # Disable threading because the data loader will already split in threads.
     cv2.setNumThreads(0)
@@ -292,10 +292,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     loaded_boxes = []
     loaded_future_boxes = []
     loaded_measurements = []
-    loaded_temporal_images_augmented=np.empty(0)
-    loaded_temporal_images=np.empty(0)
-    loaded_temporal_lidars=np.empty(0)
-    loaded_temporal_measurements=np.empty(0)
+    loaded_temporal_images_augmented=[]
+    loaded_temporal_images=[]
+    loaded_temporal_lidars=[]
+    loaded_temporal_measurements=[]
     ##############################################################tests####################################
     testing_list = [
         loaded_images,
@@ -468,7 +468,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             for temporal_image in loaded_temporal_images:
               _, compressed_temporal_frame = cv2.imencode('.jpg', temporal_image)
               compressed_temporal_images_i.append(compressed_temporal_frame)
-            compressed_temporal_images_i=np.array(compressed_temporal_images_i)
             if self.config.use_semantic:
               _, compressed_semantic_i = cv2.imencode('.png', semantics_i)
             if self.config.use_bev_semantic:
@@ -534,10 +533,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     ) == max(self.config.number_previous_actions, self.config.lidar_seq_len-1), "Length of Temporal Measurements and max of img_seq_len, lidar_seq_len is not equal!"
 
     
-    assert loaded_temporal_images.shape[
-        0] == self.config.img_seq_len-1, "Length of loaded_temporal_images is not equal to img_seq_len!"
-    assert loaded_temporal_images_augmented.shape[
-        0] == self.config.img_seq_len-1, "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
+    assert len(loaded_temporal_images)== self.config.img_seq_len-1, "Length of loaded_temporal_images is not equal to img_seq_len!"
+    assert len(loaded_temporal_images_augmented) == self.config.img_seq_len-1, "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
 
     current_measurement = loaded_measurements[self.config.seq_len - 1]
 
@@ -703,10 +700,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     previous_throttle_list=[]
     previous_brake_list=[]
     previous_steer_list=[]
-    for temporal_measurement_dict in loaded_temporal_measurements:
-      previous_throttle_list.append(temporal_measurement_dict["throttle"])
-      previous_brake_list.append(temporal_measurement_dict["brake"])
-      previous_steer_list.append(temporal_measurement_dict["steer"])
+    if self.config.number_previous_actions>0:
+      for temporal_measurement_dict in loaded_temporal_measurements:
+        previous_throttle_list.append(temporal_measurement_dict["throttle"])
+        previous_brake_list.append(temporal_measurement_dict["brake"])
+        previous_steer_list.append(temporal_measurement_dict["steer"])
     data["previous_brakes"]=previous_brake_list
     data["previous_steers"]=previous_steer_list
     data["previous_throttles"]=previous_throttle_list
@@ -776,7 +774,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     aim_wp = np.array(current_measurement['aim_wp'])
     aim_wp = self.augment_target_point(aim_wp, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
     data['aim_wp'] = aim_wp
-
     return data
 
   def augment_images(self, loaded_images_augmented):
@@ -804,7 +801,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
       loaded_temporal_images.reverse()
       loaded_temporal_images_augmented.reverse()
-    return np.array(loaded_temporal_images), np.array(loaded_temporal_images_augmented)
+    return loaded_temporal_images,loaded_temporal_images_augmented
 
   def load_temporal_measurements(self, temporal_measurements):
     loaded_temporal_measurements = []
@@ -1351,9 +1348,9 @@ def compress_temporal_lidar_frames(self, temporal_lidars):
   compressed_temporal_lidars = []
   for lidar_frame in temporal_lidars:
     compressed_temporal_lidars.append(compress_lidar_frame(self, lidar_frame))
-  return np.array(compressed_temporal_lidars)
+  return compressed_temporal_lidars
 
 
 def change_axes_and_reverse(temporal_lidars):
     dummy_list = [laspy.read(str(lidar, encoding="utf-8")).xyz for lidar in temporal_lidars]
-    return np.array(dummy_list[::-1], dtype=object)
+    return dummy_list[::-1]
