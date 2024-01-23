@@ -80,7 +80,6 @@ _g_conf.MEM_EXTRACT_MODEL_TYPE = None
 _g_conf.MEM_EXTRACT_MODEL_CONFIGURATION = {}
 
 _g_conf.PRE_TRAINED = False
-_g_conf.MAGICAL_SEEDS = []  # the random seeds for pytorch training process (includeing weight initialize and optimize) which determines how often we want to retrain every baseline
 _g_conf.WEIGHT_INIT_SEED = None  # the random seed dedicated to weight initialization
 
 _g_conf.OPTIMIZER = 'Adam'
@@ -96,7 +95,6 @@ _g_conf.LOSS_FUNCTION = 'L2'
 
 """#### Simulation Related Parameters ####"""
 
-_g_conf.IMAGE_CUT = [115, 510]  # How you should cut the input image that is received from the server
 _g_conf.USE_ORACLE = False
 _g_conf.USE_FULL_ORACLE = False
 _g_conf.AVOID_STOPPING = False
