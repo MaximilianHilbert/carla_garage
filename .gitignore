@@ -141,3 +141,4 @@ carla_0_9_10
 /tools/proxy_simulator/map_data
 /carla
 /pretrained_models
+/_logs
