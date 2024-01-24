@@ -803,47 +803,47 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
   def augment_lidars(self, lidars_bev):
     return np.transpose(np.array(self.lidar_augmenter_func(image=np.transpose(lidars_bev, (1,2,0))) ), (2,0,1))
 
-  # def load_temporal_images(self, temporal_images, temporal_images_augmented):
-  #   t.toc("begin images", restart=True)
-  #   def load_image(image_path):
-  #     image = cv2.imread(str(image_path, encoding='utf-8'), cv2.IMREAD_COLOR)
-  #     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-  #     return image
-  #   loaded_temporal_images = []
-  #   loaded_temporal_images_augmented = []
-
-  #   if self.config.img_seq_len > 1 and not self.config.use_plant:
-  #       # Temporal data just for images
-  #       with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-  #           # Load original temporal images
-  #           loaded_temporal_images = list(executor.map(load_image, temporal_images))
-
-  #           # Load augmented temporal images
-  #           loaded_temporal_images_augmented = list(executor.map(load_image, temporal_images_augmented))
-
-  #       loaded_temporal_images.reverse()
-  #       loaded_temporal_images_augmented.reverse()
-  #   t.toc("end of images", restart=True)
-  #   return loaded_temporal_images, loaded_temporal_images_augmented
   def load_temporal_images(self, temporal_images, temporal_images_augmented):
+    t.toc("begin images", restart=True)
+    def load_image(image_path):
+      image = cv2.imread(str(image_path, encoding='utf-8'), cv2.IMREAD_COLOR)
+      image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+      return image
     loaded_temporal_images = []
     loaded_temporal_images_augmented = []
+
     if self.config.img_seq_len > 1 and not self.config.use_plant:
-      #Temporal data just for images
-      t.toc("begin images", restart=True)
-      for i in range(self.config.img_seq_len-1):
-        image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        loaded_temporal_images.append(image)
+        # Temporal data just for images
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            # Load original temporal images
+            loaded_temporal_images = list(executor.map(load_image, temporal_images))
 
-        image_augmented = cv2.imread(str(temporal_images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-        image_augmented = cv2.cvtColor(image_augmented, cv2.COLOR_BGR2RGB)
-        loaded_temporal_images_augmented.append(image_augmented)
+            # Load augmented temporal images
+            loaded_temporal_images_augmented = list(executor.map(load_image, temporal_images_augmented))
 
-      loaded_temporal_images.reverse()
-      loaded_temporal_images_augmented.reverse()
+        loaded_temporal_images.reverse()
+        loaded_temporal_images_augmented.reverse()
     t.toc("end of images", restart=True)
-    return loaded_temporal_images,loaded_temporal_images_augmented
+    return loaded_temporal_images, loaded_temporal_images_augmented
+  # def load_temporal_images(self, temporal_images, temporal_images_augmented):
+  #   loaded_temporal_images = []
+  #   loaded_temporal_images_augmented = []
+  #   if self.config.img_seq_len > 1 and not self.config.use_plant:
+  #     #Temporal data just for images
+  #     t.toc("begin images", restart=True)
+  #     for i in range(self.config.img_seq_len-1):
+  #       image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
+  #       image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+  #       loaded_temporal_images.append(image)
+
+  #       image_augmented = cv2.imread(str(temporal_images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
+  #       image_augmented = cv2.cvtColor(image_augmented, cv2.COLOR_BGR2RGB)
+  #       loaded_temporal_images_augmented.append(image_augmented)
+
+  #     loaded_temporal_images.reverse()
+  #     loaded_temporal_images_augmented.reverse()
+  #   t.toc("end of images", restart=True)
+  #   return loaded_temporal_images,loaded_temporal_images_augmented
 
   def load_temporal_measurements(self, temporal_measurements):
     loaded_temporal_measurements = []
