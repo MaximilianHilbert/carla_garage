@@ -10,7 +10,7 @@ export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
 export CARLA_ROOT=${WORK_DIR}/carla
-export DATASET_ROOT=/mnt/qb/work2/geiger/gwb629/datasets/test/
+export DATASET_ROOT=/mnt/qb/work/geiger/gwb629/datasets/test/
 export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
