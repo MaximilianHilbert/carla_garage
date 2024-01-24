@@ -20,7 +20,9 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
-
+from pytictoc import TicToc
+t = TicToc()
+fulltime=TicToc()
 #TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
 #TODO augmentations dont work for past images
 class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
@@ -232,7 +234,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     self.future_boxes = np.array(self.future_boxes).astype(np.string_)
     self.measurements = np.array(self.measurements).astype(np.string_)
     self.temporal_lidars = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_lidars])
-    #self.temporal_lidars = np.array(self.temporal_lidars).astype(np.string_)
     self.temporal_images = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_images])
     #self.temporal_images = np.array(self.temporal_images).astype(np.string_)
     self.temporal_images_augmented = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_images_augmented])
@@ -250,11 +251,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     """Returns the length of the dataset. """
     return self.lidars.shape[0]
   def __getitem__(self, index):
-
+    fulltime.tic()
     """Returns the item at index idx. """
     # Disable threading because the data loader will already split in threads.
     cv2.setNumThreads(0)
-
+    t.tic()
     data = {}
 
     images = self.images[index]
@@ -278,7 +279,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     if self.config.img_seq_len > 1:
       temporal_images = self.temporal_images[index]
       temporal_images_augmented = self.temporal_images_augmented[index]
-
+    t.toc("loading temporal values from list took", restart=True)
     # load measurements
     loaded_images = []
     loaded_images_augmented = []
@@ -361,7 +362,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         cache_key = str(images[i], encoding='utf-8')
 
       # Retrieve preprocessed and compressed data from the disc cache
+      
       if not self.data_cache is None and cache_key in self.data_cache:
+        t.toc("START time difference if already cached", restart=True)
         boxes_i, future_boxes_i, images_i, images_augmented_i, semantics_i, semantics_augmented_i, bev_semantics_i,\
         bev_semantics_augmented_i, depth_i, depth_augmented_i, lidars_i, temporal_lidars_i, temporal_images_i, temporal_images_augmented_i= self.data_cache[cache_key]
         if not self.config.use_plant:
@@ -395,7 +398,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             las_object_temporal = laspy.read(temporal_lidar)
             loaded_temporal_lidars.append(las_object_temporal.xyz)
         # Complete else branch only when data is not already cached, update cache with preprocessed data + compression
+        t.toc("END time difference if already cached", restart=True)
       else:
+        t.toc("START time difference if NOT already cached", restart=True)
         semantics_i = None
         semantics_augmented_i = None
         bev_semantics_i = None
@@ -448,6 +453,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
               depth_augmented_i = cv2.imread(str(depth_augmented[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
 
         # Store data inside disc cache
+        
         if not self.data_cache is None:
           # We want to cache the images in jpg format instead of uncompressed, to reduce memory usage
           compressed_image_i = None
@@ -508,6 +514,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 compressed_temporal_images_augmented_i)
           except cv2.error:
             print(f"This path threw an error in the caching compression stage:{str(images[i].decode('utf-8'))}")
+        t.toc("END time difference if NOT already cached", restart=True)
       loaded_images.append(images_i)
       loaded_images_augmented.append(images_augmented_i)
       if self.config.use_semantic:
@@ -572,7 +579,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             bev_semantics_i = self.bev_converter[loaded_bev_semantics[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
           if self.config.use_depth:
             depth_i = loaded_depth[self.config.seq_len - 1].astype(np.float32) / 255.0  # pylint: disable=locally-disabled, unsubscriptable-object
-    
+      
         # The indexing is an elegant way to down-sample the semantic images without interpolation or changing the dtype
         if self.config.use_semantic:
           data['semantic'] = semantics_i[::self.config.perspective_downsample_factor, ::self.config.
@@ -587,7 +594,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                     interpolation=cv2.INTER_LINEAR)
     except TypeError:
       print("Tried to work on None Type images")
-      # The transpose change the image into pytorch (C,H,W) format
+    
+    # The transpose change the image into pytorch (C,H,W) format
     def transpose_image(image):
       return np.transpose(image, (2, 0, 1))
 
@@ -633,7 +641,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           temporal_lidars_lst.append(temporal_lidar)
 
         temporal_lidar_bev = np.concatenate(temporal_lidars_lst, axis=0)
-
+    t.toc("after align took", restart=True)
     if self.config.detect_boxes or self.config.use_plant:
       bounding_boxes, future_bounding_boxes = self.parse_bounding_boxes(loaded_boxes[self.config.seq_len - 1],
                                                                         loaded_future_boxes[self.config.seq_len - 1],
@@ -778,6 +786,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     aim_wp = np.array(current_measurement['aim_wp'])
     aim_wp = self.augment_target_point(aim_wp, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
     data['aim_wp'] = aim_wp
+    fulltime.toc("ENDE")
     return data
 
   def augment_images(self, loaded_images_augmented):
