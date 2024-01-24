@@ -816,10 +816,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         # Temporal data just for images
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # Load original temporal images
-            loaded_temporal_images = list(executor.map(load_image, temporal_images[:-1]))
+            loaded_temporal_images = list(executor.map(load_image, temporal_images))
 
             # Load augmented temporal images
-            loaded_temporal_images_augmented = list(executor.map(load_image, temporal_images_augmented[:-1]))
+            loaded_temporal_images_augmented = list(executor.map(load_image, temporal_images_augmented))
 
         loaded_temporal_images.reverse()
         loaded_temporal_images_augmented.reverse()
