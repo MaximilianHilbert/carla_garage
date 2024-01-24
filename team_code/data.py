@@ -814,7 +814,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
     if self.config.img_seq_len > 1 and not self.config.use_plant:
         # Temporal data just for images
-        with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             # Load original temporal images
             loaded_temporal_images = list(executor.map(load_image, temporal_images))
 
