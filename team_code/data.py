@@ -453,7 +453,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                                      cv2.IMREAD_UNCHANGED)
             if self.config.use_depth:
               depth_augmented_i = cv2.imread(str(depth_augmented[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
-
+          t.toc("load others", restart=True)
         # Store data inside disc cache
         
         if not self.data_cache is None:
