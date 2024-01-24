@@ -349,7 +349,7 @@ def main(args, suppress_output=False):
                 loss_window.append(loss.data.tolist())
                 coil_logger.write_on_error_csv('train', loss.data)
                 print("Iteration: %d  Loss: %f" % (iteration, loss.data))
-            
+            torch.cuda.empty_cache()
         
         
         coil_logger.add_message('Finished', {})

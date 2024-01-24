@@ -826,17 +826,14 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
   #   t.toc("end of images", restart=True)
   #   return loaded_temporal_images, loaded_temporal_images_augmented
   def load_temporal_images(self, temporal_images, temporal_images_augmented):
-    t.toc("begin images", restart=True)
     loaded_temporal_images = []
     loaded_temporal_images_augmented = []
     if self.config.img_seq_len > 1 and not self.config.use_plant:
       #Temporal data just for images
+      t.toc("begin images", restart=True)
       for i in range(self.config.img_seq_len-1):
-        t.toc("begin of actual loading", restart=True)
         image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-        t.toc("end of actual loading", restart=True)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        t.toc("end of conversion", restart=True)
         loaded_temporal_images.append(image)
 
         image_augmented = cv2.imread(str(temporal_images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
@@ -845,7 +842,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
       loaded_temporal_images.reverse()
       loaded_temporal_images_augmented.reverse()
-      t.toc("end of images", restart=True)
+    t.toc("end of images", restart=True)
     return loaded_temporal_images,loaded_temporal_images_augmented
 
   def load_temporal_measurements(self, temporal_measurements):
