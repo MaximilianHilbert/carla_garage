@@ -252,7 +252,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     """Returns the length of the dataset. """
     return self.lidars.shape[0]
   def __getitem__(self, index):
-    #fulltime.tic()
+    fulltime.tic()
     """Returns the item at index idx. """
     # Disable threading because the data loader will already split in threads.
     cv2.setNumThreads(0)
@@ -791,7 +791,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     aim_wp = np.array(current_measurement['aim_wp'])
     aim_wp = self.augment_target_point(aim_wp, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
     data['aim_wp'] = aim_wp
-    #fulltime.toc("ENDE")
+    fulltime.toc("ENDE")
     return data
 
   def augment_images(self, loaded_images_augmented):
@@ -804,7 +804,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     return np.transpose(np.array(self.lidar_augmenter_func(image=np.transpose(lidars_bev, (1,2,0))) ), (2,0,1))
 
   def load_temporal_images(self, temporal_images, temporal_images_augmented):
-    #t.toc("begin images", restart=True)
+    t.toc("begin images", restart=True)
     def load_image(image_path):
       image = cv2.imread(str(image_path, encoding='utf-8'), cv2.IMREAD_COLOR)
       image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -823,7 +823,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         loaded_temporal_images.reverse()
         loaded_temporal_images_augmented.reverse()
-    #t.toc("end of images", restart=True)
+    t.toc("end of images", restart=True)
     return loaded_temporal_images, loaded_temporal_images_augmented
   # def load_temporal_images(self, temporal_images, temporal_images_augmented):
   #   t.toc("begin images", restart=True)
