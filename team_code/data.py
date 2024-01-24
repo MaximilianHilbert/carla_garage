@@ -279,7 +279,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     if self.config.img_seq_len > 1:
       temporal_images = self.temporal_images[index]
       temporal_images_augmented = self.temporal_images_augmented[index]
-    t.toc("loading temporal values from list took", restart=True)
+  
     # load measurements
     loaded_images = []
     loaded_images_augmented = []
@@ -469,6 +469,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           compressed_temporal_images_i=[]
           compressed_temporal_images_augmented_i=[]
           try:
+            t.toc("start encoding", restart=True)
             if not self.config.use_plant:
               _, compressed_image_i = cv2.imencode('.jpg', images_i)
               for temporal_image in loaded_temporal_images:
@@ -641,7 +642,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           temporal_lidars_lst.append(temporal_lidar)
 
         temporal_lidar_bev = np.concatenate(temporal_lidars_lst, axis=0)
-    t.toc("after align took", restart=True)
+
+
     if self.config.detect_boxes or self.config.use_plant:
       bounding_boxes, future_bounding_boxes = self.parse_bounding_boxes(loaded_boxes[self.config.seq_len - 1],
                                                                         loaded_future_boxes[self.config.seq_len - 1],
