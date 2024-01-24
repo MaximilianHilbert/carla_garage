@@ -462,51 +462,52 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           compressed_temporal_lidars_i = []
           compressed_temporal_images_i=[]
           compressed_temporal_images_augmented_i=[]
-          
-          if not self.config.use_plant:
-            _, compressed_image_i = cv2.imencode('.jpg', images_i)
-            for temporal_image in loaded_temporal_images:
-              _, compressed_temporal_frame = cv2.imencode('.jpg', temporal_image)
-              compressed_temporal_images_i.append(compressed_temporal_frame)
-            if self.config.use_semantic:
-              _, compressed_semantic_i = cv2.imencode('.png', semantics_i)
-            if self.config.use_bev_semantic:
-              _, compressed_bev_semantic_i = cv2.imencode('.png', bev_semantics_i)
-            if self.config.use_depth:
-              _, compressed_depth_i = cv2.imencode('.png', depth_i)
-            if self.config.augment:
-              _, compressed_image_augmented_i = cv2.imencode('.jpg', images_augmented_i)
-              for temporal_image_augmented in loaded_temporal_images_augmented:
-                _, compressed_temporal_image_augmented = cv2.imencode('.jpg', temporal_image_augmented)
-                compressed_temporal_images_augmented_i.append(compressed_temporal_image_augmented)
-
+          try:
+            if not self.config.use_plant:
+              _, compressed_image_i = cv2.imencode('.jpg', images_i)
+              for temporal_image in loaded_temporal_images:
+                _, compressed_temporal_frame = cv2.imencode('.jpg', temporal_image)
+                compressed_temporal_images_i.append(compressed_temporal_frame)
               if self.config.use_semantic:
-                _, compressed_semantic_augmented_i = cv2.imencode('.png', semantics_augmented_i)
+                _, compressed_semantic_i = cv2.imencode('.png', semantics_i)
               if self.config.use_bev_semantic:
-                _, compressed_bev_semantic_augmented_i = cv2.imencode('.png', bev_semantics_augmented_i)
+                _, compressed_bev_semantic_i = cv2.imencode('.png', bev_semantics_i)
               if self.config.use_depth:
-                _, compressed_depth_augmented_i = cv2.imencode('.png', depth_augmented_i)
+                _, compressed_depth_i = cv2.imencode('.png', depth_i)
+              if self.config.augment:
+                _, compressed_image_augmented_i = cv2.imencode('.jpg', images_augmented_i)
+                for temporal_image_augmented in loaded_temporal_images_augmented:
+                  _, compressed_temporal_image_augmented = cv2.imencode('.jpg', temporal_image_augmented)
+                  compressed_temporal_images_augmented_i.append(compressed_temporal_image_augmented)
 
-            compressed_lidar_i = compress_lidar_frame(self, lidars_i)
-            if self.config.lidar_seq_len > 1:
-              compressed_temporal_lidars_i = compress_temporal_lidar_frames(self, loaded_temporal_lidars)###############################################################################
-              
-          self.data_cache[cache_key] = (
-              boxes_i,
-              future_boxes_i,
-              compressed_image_i,
-              compressed_image_augmented_i,
-              compressed_semantic_i,
-              compressed_semantic_augmented_i,
-              compressed_bev_semantic_i,
-              compressed_bev_semantic_augmented_i,
-              compressed_depth_i,
-              compressed_depth_augmented_i,
-              compressed_lidar_i,
-              compressed_temporal_lidars_i,
-              compressed_temporal_images_i,
-              compressed_temporal_images_augmented_i
-          )
+                if self.config.use_semantic:
+                  _, compressed_semantic_augmented_i = cv2.imencode('.png', semantics_augmented_i)
+                if self.config.use_bev_semantic:
+                  _, compressed_bev_semantic_augmented_i = cv2.imencode('.png', bev_semantics_augmented_i)
+                if self.config.use_depth:
+                  _, compressed_depth_augmented_i = cv2.imencode('.png', depth_augmented_i)
+
+              compressed_lidar_i = compress_lidar_frame(self, lidars_i)
+              if self.config.lidar_seq_len > 1:
+                compressed_temporal_lidars_i = compress_temporal_lidar_frames(self, loaded_temporal_lidars)###############################################################################
+                
+            self.data_cache[cache_key] = (
+                boxes_i,
+                future_boxes_i,
+                compressed_image_i,
+                compressed_image_augmented_i,
+                compressed_semantic_i,
+                compressed_semantic_augmented_i,
+                compressed_bev_semantic_i,
+                compressed_bev_semantic_augmented_i,
+                compressed_depth_i,
+                compressed_depth_augmented_i,
+                compressed_lidar_i,
+                compressed_temporal_lidars_i,
+                compressed_temporal_images_i,
+                compressed_temporal_images_augmented_i)
+          except cv2.error:
+            print(f"This path threw an error in the caching compression stage:{str(images[i].decode('utf-8'))}")
       loaded_images.append(images_i)
       loaded_images_augmented.append(images_augmented_i)
       if self.config.use_semantic:
@@ -539,6 +540,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     current_measurement = loaded_measurements[self.config.seq_len - 1]
 
     # Determine whether the augmented camera or the normal camera is used.
+  
     if random.random() <= self.config.augment_percentage and self.config.augment:
       augment_sample = True
       aug_rotation = current_measurement['augmentation_rotation']
@@ -547,48 +549,50 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       augment_sample = False
       aug_rotation = 0.0
       aug_translation = 0.0
-    if not self.config.use_plant:
-      if self.config.augment and augment_sample:
-        processed_images = self.augment_images(loaded_images_augmented)
-        processed_temporal_images = self.augment_images(loaded_temporal_images_augmented)
+    try:
+      if not self.config.use_plant:
+        if self.config.augment and augment_sample:
+          processed_images = self.augment_images(loaded_images_augmented)
+          processed_temporal_images = self.augment_images(loaded_temporal_images_augmented)
+          if self.config.use_semantic:
+            semantics_i = self.converter[loaded_semantics_augmented[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
+          if self.config.use_bev_semantic:
+            bev_semantics_i = self.bev_converter[loaded_bev_semantics_augmented[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
+          if self.config.use_depth:
+            # We saved the data in 8 bit and now convert back to float.
+            depth_i = loaded_depth_augmented[self.config.seq_len - 1].astype(np.float32) / 255.0  # pylint: disable=locally-disabled, unsubscriptable-object
+
+        else:
+          processed_images = self.augment_images(loaded_images)
+          processed_temporal_images = self.augment_images(loaded_temporal_images)
+
+          if self.config.use_semantic:
+            semantics_i = self.converter[loaded_semantics[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
+          if self.config.use_bev_semantic:
+            bev_semantics_i = self.bev_converter[loaded_bev_semantics[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
+          if self.config.use_depth:
+            depth_i = loaded_depth[self.config.seq_len - 1].astype(np.float32) / 255.0  # pylint: disable=locally-disabled, unsubscriptable-object
+    
+        # The indexing is an elegant way to down-sample the semantic images without interpolation or changing the dtype
         if self.config.use_semantic:
-          semantics_i = self.converter[loaded_semantics_augmented[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
+          data['semantic'] = semantics_i[::self.config.perspective_downsample_factor, ::self.config.
+                                        perspective_downsample_factor]
         if self.config.use_bev_semantic:
-          bev_semantics_i = self.bev_converter[loaded_bev_semantics_augmented[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
+          data['bev_semantic'] = bev_semantics_i
         if self.config.use_depth:
-          # We saved the data in 8 bit and now convert back to float.
-          depth_i = loaded_depth_augmented[self.config.seq_len - 1].astype(np.float32) / 255.0  # pylint: disable=locally-disabled, unsubscriptable-object
-
-      else:
-        processed_images = self.augment_images(loaded_images)
-        processed_temporal_images = self.augment_images(loaded_temporal_images)
-
-        if self.config.use_semantic:
-          semantics_i = self.converter[loaded_semantics[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
-        if self.config.use_bev_semantic:
-          bev_semantics_i = self.bev_converter[loaded_bev_semantics[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
-        if self.config.use_depth:
-          depth_i = loaded_depth[self.config.seq_len - 1].astype(np.float32) / 255.0  # pylint: disable=locally-disabled, unsubscriptable-object
-
-      # The indexing is an elegant way to down-sample the semantic images without interpolation or changing the dtype
-      if self.config.use_semantic:
-        data['semantic'] = semantics_i[::self.config.perspective_downsample_factor, ::self.config.
-                                       perspective_downsample_factor]
-      if self.config.use_bev_semantic:
-        data['bev_semantic'] = bev_semantics_i
-      if self.config.use_depth:
-        # OpenCV uses Col, Row format
-        data['depth'] = cv2.resize(depth_i,
-                                   dsize=(depth_i.shape[1] // self.config.perspective_downsample_factor,
-                                          depth_i.shape[0] // self.config.perspective_downsample_factor),
-                                   interpolation=cv2.INTER_LINEAR)
+          # OpenCV uses Col, Row format
+          data['depth'] = cv2.resize(depth_i,
+                                    dsize=(depth_i.shape[1] // self.config.perspective_downsample_factor,
+                                            depth_i.shape[0] // self.config.perspective_downsample_factor),
+                                    interpolation=cv2.INTER_LINEAR)
+    except TypeError:
+      print("Tried to work on None Type images")
       # The transpose change the image into pytorch (C,H,W) format
-      def transpose_image(image):
-        return np.transpose(image, (2, 0, 1))
+    def transpose_image(image):
+      return np.transpose(image, (2, 0, 1))
 
-      data['rgb'] = np.array([transpose_image(image) for image in processed_images])
-      data['temporal_rgb'] = np.array([transpose_image(image) for image in processed_temporal_images])
-      #######asserts###########################################################################################
+    data['rgb'] = np.array([transpose_image(image) for image in processed_images])
+    data['temporal_rgb'] = np.array([transpose_image(image) for image in processed_temporal_images])
     #data["rgb"] is now of shape (N_seq, C, H, W)
     # need to concatenate seq data here and align to the same coordinate
     lidars = []
