@@ -431,9 +431,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           ############################################################################################################################
           if self.config.lidar_seq_len > 1:
             loaded_temporal_lidars = change_axes_and_reverse(temporal_lidars)
+            t.toc("begin load image seq", restart=True)
           if self.config.img_seq_len > 1:
             loaded_temporal_images, loaded_temporal_images_augmented = self.load_temporal_images(
           temporal_images, temporal_images_augmented)
+            t.toc("end image seq", restart=True)
           #################################################################################
           if self.config.use_semantic:
             semantics_i = cv2.imread(str(semantics[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
