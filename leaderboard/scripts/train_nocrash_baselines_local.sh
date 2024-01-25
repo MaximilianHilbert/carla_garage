@@ -1,17 +1,17 @@
 #local
-# export WORK_DIR=/home/maximilian/Master/carla_garage
-# export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-# export TEAM_CODE=$WORK_DIR/team_code
-# export CARLA_ROOT=${WORK_DIR}/carla
-# export COIL_NETWORK=${WORK_DIR}/coil_network
-# export DATASET_ROOT=/media/maximilian/SSD_Klein/training_data_split
-#cluster
-export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+export WORK_DIR=/home/maximilian/Master/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
 export CARLA_ROOT=${WORK_DIR}/carla
-export DATASET_ROOT=/mnt/qb/work/geiger/gwb629/datasets/test/
-export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+export COIL_NETWORK=${WORK_DIR}/coil_network
+export DATASET_ROOT=/home/maximilian/training_data_split
+#cluster
+#export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+#export CONFIG_ROOT=${WORK_DIR}/coil_configuration
+#export TEAM_CODE=$WORK_DIR/team_code
+#export CARLA_ROOT=${WORK_DIR}/carla
+#export DATASET_ROOT=/mnt/qb/work/geiger/gwb629/datasets/hb_dataset_v08_2023_05_10
+#export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
@@ -23,4 +23,4 @@ export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
-python $TEAM_CODE/coil_train.py --seed 1 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 1 --training_repetition 0 --use-disk-cache 1
+python $TEAM_CODE/coil_train.py --seed 1 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 10 --training_repetition 0 --use-disk-cache 1
