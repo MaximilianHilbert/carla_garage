@@ -20,10 +20,6 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
-from pytictoc import TicToc
-t = TicToc()
-fulltime=TicToc()
-import concurrent.futures
 #TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
 #TODO augmentations dont work for past images
 class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
@@ -252,11 +248,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     """Returns the length of the dataset. """
     return self.lidars.shape[0]
   def __getitem__(self, index):
-    fulltime.tic()
     """Returns the item at index idx. """
     # Disable threading because the data loader will already split in threads.
     cv2.setNumThreads(0)
-    #t.tic()
     data = {}
 
     images = self.images[index]
@@ -365,7 +359,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       # Retrieve preprocessed and compressed data from the disc cache
       
       if not self.data_cache is None and cache_key in self.data_cache:
-        #t.toc("START time difference if already cached", restart=True)
         boxes_i, future_boxes_i, images_i, images_augmented_i, semantics_i, semantics_augmented_i, bev_semantics_i,\
         bev_semantics_augmented_i, depth_i, depth_augmented_i, lidars_i, temporal_lidars_i, temporal_images_i, temporal_images_augmented_i= self.data_cache[cache_key]
         if not self.config.use_plant:
@@ -399,9 +392,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             las_object_temporal = laspy.read(temporal_lidar)
             loaded_temporal_lidars.append(las_object_temporal.xyz)
         # Complete else branch only when data is not already cached, update cache with preprocessed data + compression
-        #t.toc("END time difference if already cached", restart=True)
       else:
-        #t.toc("START time difference if NOT already cached", restart=True)
         semantics_i = None
         semantics_augmented_i = None
         bev_semantics_i = None
@@ -428,16 +419,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           lidars_i = las_object.xyz
           images_i = cv2.imread(str(images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
           images_i = cv2.cvtColor(images_i, cv2.COLOR_BGR2RGB)
-
-          ############################################################################################################################
           if self.config.lidar_seq_len > 1:
             loaded_temporal_lidars = change_axes_and_reverse(temporal_lidars)
-          #t.toc("begin load image seq", restart=True)
           if self.config.img_seq_len > 1:
             loaded_temporal_images, loaded_temporal_images_augmented = self.load_temporal_images(
           temporal_images, temporal_images_augmented)
-          #t.toc("end image seq", restart=True)
-          #################################################################################
           if self.config.use_semantic:
             semantics_i = cv2.imread(str(semantics[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
           if self.config.use_bev_semantic:
@@ -454,7 +440,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                                      cv2.IMREAD_UNCHANGED)
             if self.config.use_depth:
               depth_augmented_i = cv2.imread(str(depth_augmented[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
-          #t.toc("load others", restart=True)
         # Store data inside disc cache
         
         if not self.data_cache is None:
@@ -472,7 +457,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           compressed_temporal_images_i=[]
           compressed_temporal_images_augmented_i=[]
           try:
-            #t.toc("start encoding", restart=True)
             if not self.config.use_plant:
               _, compressed_image_i = cv2.imencode('.jpg', images_i)
               for temporal_image in loaded_temporal_images:
@@ -518,7 +502,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 compressed_temporal_images_augmented_i)
           except cv2.error:
             print(f"This path threw an error in the caching compression stage:{str(images[i].decode('utf-8'))}")
-        #t.toc("END time difference if NOT already cached", restart=True)
       loaded_images.append(images_i)
       loaded_images_augmented.append(images_augmented_i)
       if self.config.use_semantic:
@@ -791,7 +774,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     aim_wp = np.array(current_measurement['aim_wp'])
     aim_wp = self.augment_target_point(aim_wp, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
     data['aim_wp'] = aim_wp
-    #fulltime.toc("ENDE")
     return data
 
   def augment_images(self, loaded_images_augmented):
@@ -803,34 +785,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
   def augment_lidars(self, lidars_bev):
     return np.transpose(np.array(self.lidar_augmenter_func(image=np.transpose(lidars_bev, (1,2,0))) ), (2,0,1))
 
-  # def load_temporal_images(self, temporal_images, temporal_images_augmented):
-  #   t.toc("begin images", restart=True)
-  #   def load_image(image_path):
-  #     image = cv2.imread(str(image_path, encoding='utf-8'), cv2.IMREAD_COLOR)
-  #     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-  #     return image
-  #   loaded_temporal_images = []
-  #   loaded_temporal_images_augmented = []
-
-  #   if self.config.img_seq_len > 1 and not self.config.use_plant:
-  #       # Temporal data just for images
-  #       with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-  #           # Load original temporal images
-  #           loaded_temporal_images = list(executor.map(load_image, temporal_images))
-
-  #           # Load augmented temporal images
-  #           loaded_temporal_images_augmented = list(executor.map(load_image, temporal_images_augmented))
-
-  #       loaded_temporal_images.reverse()
-  #       loaded_temporal_images_augmented.reverse()
-  #   t.toc("end of images", restart=True)
-  #   return loaded_temporal_images, loaded_temporal_images_augmented
   def load_temporal_images(self, temporal_images, temporal_images_augmented):
     loaded_temporal_images = []
     loaded_temporal_images_augmented = []
     if self.config.img_seq_len > 1 and not self.config.use_plant:
-      #Temporal data just for images
-      #t.toc("begin images", restart=True)
       for i in range(self.config.img_seq_len-1):
         image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -842,7 +800,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
       loaded_temporal_images.reverse()
       loaded_temporal_images_augmented.reverse()
-    #t.toc("end of images", restart=True)
     return loaded_temporal_images,loaded_temporal_images_augmented
 
   def load_temporal_measurements(self, temporal_measurements):
