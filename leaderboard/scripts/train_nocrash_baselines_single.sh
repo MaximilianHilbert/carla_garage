@@ -2,7 +2,8 @@
 #SBATCH --job-name=reproduce_ARP_arp_vanilla_single
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --time=00-12:00
+#SBATCH --partition=day
+#SBATCH --time=01-00:00
 #SBATCH --gres=gpu:1
 #SBATCH --gres=gpu:A4000:1
 #SBATCH --cpus-per-task=24
@@ -45,4 +46,4 @@ export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 #source ~/.bashrc
 #conda activate /home/hilbert/miniconda3/envs/garage
 
-python $TEAM_CODE/coil_train.py --seed 1 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 10 --training_repetition 0 --use-disk-cache 1
+python $TEAM_CODE/coil_train.py --seed 1 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 24 --training_repetition 0 --use-disk-cache 1
