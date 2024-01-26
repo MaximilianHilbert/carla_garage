@@ -4,12 +4,11 @@
 #SBATCH --nodes=1
 #SBATCH --partition=day
 #SBATCH --time=01-00:00
-#SBATCH --gres=gpu:1
 #SBATCH --gres=gpu:A4000:1
 #SBATCH --mem=100GB
 #SBATCH --cpus-per-task=12
-#SBATCH --output=/home/hilbert/slurmlogs/carla_garage/%j.out  # File to which STDOUT will be written
-#SBATCH --error=/home/hilbert/slurmlogs/carla_garage/%j.err   # File to which STDERR will be written
+#SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
+#SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
 
 #local
 # export WORK_DIR=/home/maximilian/Master/carla_garage
@@ -43,8 +42,8 @@ export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
-#cluster tcml
-#source ~/.bashrc
-#conda activate /home/hilbert/miniconda3/envs/garage
+
+source ~/.bashrc
+conda activate /home/hilbert/miniconda3/envs/garage
 
 python $TEAM_CODE/coil_train.py --seed 1 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 12 --training_repetition 0 --use-disk-cache 1
