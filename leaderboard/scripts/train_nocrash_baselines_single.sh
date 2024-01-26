@@ -6,7 +6,8 @@
 #SBATCH --time=01-00:00
 #SBATCH --gres=gpu:1
 #SBATCH --gres=gpu:A4000:1
-#SBATCH --cpus-per-task=24
+#SBATCH --mem=100GB
+#SBATCH --cpus-per-task=12
 #SBATCH --output=/home/hilbert/slurmlogs/carla_garage/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/home/hilbert/slurmlogs/carla_garage/%j.err   # File to which STDERR will be written
 
@@ -46,4 +47,4 @@ export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 #source ~/.bashrc
 #conda activate /home/hilbert/miniconda3/envs/garage
 
-python $TEAM_CODE/coil_train.py --seed 1 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 24 --training_repetition 0 --use-disk-cache 1
+python $TEAM_CODE/coil_train.py --seed 1 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 12 --training_repetition 0 --use-disk-cache 1
