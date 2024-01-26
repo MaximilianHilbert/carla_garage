@@ -42,8 +42,12 @@ export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
-
-source ~/.bashrc
-conda activate /home/hilbert/miniconda3/envs/garage
+#mlcloud
+# source ~/.bashrc
+# conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+#tcml
+source /home/hilbert/.bashrc
+eval "$(conda shell.bash hook)"
+conda activate garage
 
 python $TEAM_CODE/coil_train.py --seed 1 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 12 --training_repetition 0 --use-disk-cache 1
