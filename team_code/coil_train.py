@@ -16,6 +16,10 @@ from coil_utils.checkpoint_schedule import is_ready_to_save, get_latest_saved_ch
 from team_code.data import CARLA_Data
 from team_code.config import GlobalConfig
 from coil_utils.general import create_log_folder, create_exp_path, erase_logs
+from coil_utils.checkpoint_schedule import is_ready_to_save, get_latest_saved_checkpoint, \
+                                    check_loss_validation_stopped
+import numpy as np
+import heapq
 def set_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
@@ -32,6 +36,7 @@ def merge_config_files():
     shared_configuration.initialize(root_dir=shared_configuration.root_dir)
     #translates the necessary old argument names in the yaml file of the baseline to the new transfuser config, generating one shared object configuration
     shared_configuration.number_previous_actions=g_conf.NUMBER_PREVIOUS_ACTIONS
+    shared_configuration.number_future_actions=g_conf.NUMBER_FUTURE_ACTIONS
     shared_configuration.img_seq_len=g_conf.IMAGE_SEQ_LEN 
     shared_configuration.all_frames_including_blank=g_conf.ALL_FRAMES_INCLUDING_BLANK
     shared_configuration.targets=g_conf.TARGETS
@@ -59,6 +64,13 @@ def merge_config_files():
     shared_configuration.experiment_batch_name=g_conf.EXPERIMENT_BATCH_NAME
     shared_configuration.log_scalar_writing_frequency=g_conf.LOG_SCALAR_WRITING_FREQUENCY
     shared_configuration.log_image_writing_frequency=g_conf.LOG_IMAGE_WRITING_FREQUENCY
+    shared_configuration.importance_sample_method=g_conf.IMPORTANCE_SAMPLE_METHOD
+    shared_configuration.softmax_temper=g_conf.SOFTMAX_TEMPER
+    shared_configuration.threshold_ratio=g_conf.THRESHOLD_RATIO
+    shared_configuration.threshold_weight=g_conf.THRESHOLD_WEIGHT
+    shared_configuration.speed_input=g_conf.SPEED_INPUT
+    shared_configuration.train_with_actions_as_input=g_conf.TRAIN_WITH_ACTIONS_AS_INPUT
+    shared_configuration.correlation_weights=g_conf.CORRELATION_WEIGHTS
     return shared_configuration
 
 
@@ -163,7 +175,10 @@ def main(args, suppress_output=False):
             shared_dict = None
         #introduce new dataset from the Paper TransFuser++
         dataset=CARLA_Data(root=merged_config_object.train_data, config=merged_config_object, shared_dict=shared_dict)
-       
+        if args.baseline_name=="keyframes_vanilla":
+            #load the correlation weights and reshape them, that the last 3 elements that do not fit into the batch size dimension get dropped, because the dataloader of Carla_Dataset does the same, it should fit
+            dataset.set_correlation_weights(path="/home/maximilian/Master/carla_garage/_prev3_curr1_layer300.npy")
+            action_predict_threshold=get_action_predict_loss_threshold(dataset.get_correlation_weights(),merged_config_object.threshold_ratio)
         print("Loaded dataset")
 
         data_loader = select_balancing_strategy(dataset, iteration, args.number_of_workers)
@@ -216,7 +231,10 @@ def main(args, suppress_output=False):
                 loss_window = []
 
         print("Before the loss")
-
+        if args.baseline_name=="keyframes_vanilla":
+            from coil_network.keyframes_loss import Loss
+        else:
+            from coil_network.loss import Loss
         criterion = Loss(merged_config_object.loss_function)
         
         
@@ -226,6 +244,9 @@ def main(args, suppress_output=False):
                 Main optimization loop
             ####################################
             """
+            if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
+                    check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
+                break
             capture_time = time.time()
             controls = get_controls_from_data(merged_config_object, data)
             iteration += 1
@@ -241,14 +262,18 @@ def main(args, suppress_output=False):
                 obs_history=obs_history.view(merged_config_object.batch_size, 30, merged_config_object.camera_height, merged_config_object.camera_width)
                 current_obs = torch.zeros_like(obs_history).cuda()
                 current_obs[:, -3:] = obs_history[:, -3:]
-                current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+                if merged_config_object.speed_input:
+                    current_speed =dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()                    
+                else:
+                    current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+
                 mem_extract.zero_grad()
                 mem_extract_branches, memory = mem_extract(obs_history)
-                previous_action=torch.cat([data["previous_steers"][0], data["previous_throttles"][0], torch.where(data["previous_brakes"][0], torch.tensor(1.0), torch.tensor(0.0))]).cuda()
+                previous_action=data["previous_actions"].cuda()
                 loss_function_params = {
                 'branches': mem_extract_branches,
                 #we get only bool values from our expert, so we have to convert them back to floats, so that the baseline can work with it
-                'targets': (dataset.extract_targets(data, merged_config_object).cuda() -previous_action).reshape(merged_config_object.batch_size, -1),
+                'targets': (dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda() -previous_action),
                 'controls': controls.cuda(),
                 'inputs': data["speed"].cuda(),
                 'branch_weights': merged_config_object.branch_loss_weight,
@@ -308,18 +333,43 @@ def main(args, suppress_output=False):
                 model.zero_grad()
                 input=torch.squeeze(data['rgb'].to(torch.float32).cuda())
                 input=input/255.
-                current_speed =dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
-                branches = model(input,
-                             current_speed)
+                if merged_config_object.speed_input:
+                    current_speed =dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+                else:
+                    current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+                #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
+                if merged_config_object.train_with_actions_as_input:
+                    branches = model(torch.squeeze(data['rgb'].to(torch.float32)).cuda(),
+                             current_speed,
+                             data['previous_actions'].reshape(merged_config_object.batch_size, -1).to(torch.float32).cuda())
+                else:
+                    branches = model(input,
+                                current_speed)
+                    
+                    ########################################################introduce importance weight adding to the temporal images/lidars and the current one################
+                if args.baseline_name=="keyframes_vanilla":
+                    reweight_params = {'importance_sampling_softmax_temper': merged_config_object.softmax_temper,
+                                   'importance_sampling_threshold': action_predict_threshold,
+                                   'importance_sampling_threshold_weight': merged_config_object.threshold_weight,
+                                   'action_predict_loss': data["correlation_weight"].squeeze().cuda()}
+                else:
+                    reweight_params={}
+
                 loss_function_params = {
                 'branches': branches,
                 'targets': dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
                 'controls': controls.cuda(),
-                'inputs': dataset.extract_inputs(data, merged_config_object).cuda(),
+                'inputs': dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
+                'importance_sampling_method': merged_config_object.importance_sample_method,
+                **reweight_params,
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
-                loss, _ = criterion(loss_function_params)
+                if args.baseline_name=="keyframes_vanilla":
+                    loss, loss_info, _ = criterion(loss_function_params)
+                else:
+                    loss, _ = criterion(loss_function_params)
+                
                 loss.backward()
                 optimizer.step()
                 if is_ready_to_save(iteration):
@@ -342,6 +392,14 @@ def main(args, suppress_output=False):
                     )
 
                 coil_logger.add_scalar('Loss', loss.data, iteration)
+                if args.baseline_name=="keyframes_vanilla":
+                    for loss_name, loss_value in loss_info.items():
+                        if loss_value.shape[0] > 0:
+                            average_loss_value = (torch.sum(loss_value) / loss_value.shape[0]).data.item()
+                        else:
+                            average_loss_value = 0
+                        coil_logger.add_scalar(loss_name, average_loss_value, iteration)
+
                 if loss.data < best_loss:
                     best_loss = loss.data.tolist()
                     best_loss_iter = iteration
@@ -370,7 +428,15 @@ def get_controls_from_data(merged_config_object, data):
     indices = torch.argmax(one_hot_tensor, dim=1).numpy()
     controls=torch.cuda.FloatTensor(indices).reshape(merged_config_object.batch_size, 1)
     return controls
-
+def get_action_predict_loss_threshold(correlation_weights, ratio):
+    _action_predict_loss_threshold = {}
+    if ratio in _action_predict_loss_threshold:
+        return _action_predict_loss_threshold[ratio]
+    else:
+        action_predict_losses = correlation_weights
+        threshold = heapq.nlargest(int(len(action_predict_losses) * ratio), action_predict_losses)[-1]
+        _action_predict_loss_threshold[ratio] = threshold
+        return threshold
 if __name__=="__main__":
     import argparse
     parser = argparse.ArgumentParser()

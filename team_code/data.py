@@ -20,8 +20,12 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
+
+
+
 #TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
 #TODO augmentations dont work for past images
+
 class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
   """
     Custom dataset that dynamically loads a CARLA dataset from disk.
@@ -57,6 +61,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
     self.temporal_lidars = []
     self.temporal_measurements = []
+    self.future_measurements=[]
     self.temporal_images = []
     self.temporal_images_augmented = []
 
@@ -146,6 +151,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
             self.angle_distribution.append(angle_index)
             self.speed_distribution.append(target_speed_index)
+          if self.config.number_future_actions>0:
+            future_measurements=[]
+            for idx in range(1, self.config.number_future_actions+1):
+              future_measurements.append(route_dir + '/measurements' + (f'/{(seq + idx):04}.json.gz'))
+            self.future_measurements.append(future_measurements)
           if self.config.lidar_seq_len>1 or self.config.number_previous_actions>0:
             temporal_measurements = []
             temporal_lidars = []
@@ -154,7 +164,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
               if seq-idx>=0:
                 if not self.config.use_plant:
                   temporal_measurements.append(route_dir + '/measurements' + (f'/{(seq - idx):04}.json.gz'))
-            for idx in range(1,  self.config.lidar_seq_len+1):
+            for idx in range(1,  self.config.lidar_seq_len):
               if seq-idx>=0:
                 temporal_lidars.append(route_dir + '/lidar' + (f'/{(seq - idx):04}.laz'))
             self.temporal_lidars.append(temporal_lidars)
@@ -232,11 +242,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     self.measurements = np.array(self.measurements).astype(np.string_)
     self.temporal_lidars = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_lidars])
     self.temporal_images = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_images])
-    #self.temporal_images = np.array(self.temporal_images).astype(np.string_)
     self.temporal_images_augmented = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_images_augmented])
-    #self.temporal_images_augmented = np.array(self.temporal_images_augmented).astype(np.string_)
     self.temporal_measurements = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_measurements])
-    #self.temporal_measurements = np.array(self.temporal_measurements).astype(np.string_)
+    self.future_measurements = np.array([list(map(np.string_, sublist)) for sublist in self.future_measurements])
     self.sample_start = np.array(self.sample_start)
     if rank == 0:
       print(f'Loading {len(self.lidars)} lidars from {len(root)} folders')
@@ -247,8 +255,18 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
   def __len__(self):
     """Returns the length of the dataset. """
     return self.lidars.shape[0]
+  def set_correlation_weights(self, path):
+    correlation_weight_array=np.load(path, allow_pickle=True)
+    assert len(correlation_weight_array)==len(self.images), f"Lengths of correlation_weight array and dataset are not equal!"
+    self.correlation_weights=correlation_weight_array
+  def get_correlation_weights(self):
+    return self.correlation_weights
+  # def load_correlation_weights(self, index):
+  #   return np.array([self.correlation_weights[idx] for idx in range(index-self.config.img_seq_len+1, index+1)])
+
   def __getitem__(self, index):
     """Returns the item at index idx. """
+
     # Disable threading because the data loader will already split in threads.
     cv2.setNumThreads(0)
     data = {}
@@ -266,16 +284,20 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     future_boxes = self.future_boxes[index]
     measurements = self.measurements[index]
     sample_start = self.sample_start[index]
-
     if self.config.lidar_seq_len > 1 or self.config.number_previous_actions>0:
       temporal_measurements = self.temporal_measurements[index]
+    if self.config.number_future_actions>0:
+      future_measurements = self.future_measurements[index]
     if self.config.lidar_seq_len > 1:
       temporal_lidars = self.temporal_lidars[index]
     if self.config.img_seq_len > 1:
+      if self.config.correlation_weights:
+        current_correlation_weight=self.correlation_weights[index].reshape(self.config.seq_len, -1)
       temporal_images = self.temporal_images[index]
       temporal_images_augmented = self.temporal_images_augmented[index]
   
     # load measurements
+      
     loaded_images = []
     loaded_images_augmented = []
     loaded_semantics = []
@@ -292,6 +314,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     loaded_temporal_images=[]
     loaded_temporal_lidars=[]
     loaded_temporal_measurements=[]
+    loaded_future_measurements=[]
     ##############################################################tests####################################
     testing_list = [
         loaded_images,
@@ -357,7 +380,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         cache_key = str(images[i], encoding='utf-8')
 
       # Retrieve preprocessed and compressed data from the disc cache
-      
       if not self.data_cache is None and cache_key in self.data_cache:
         boxes_i, future_boxes_i, images_i, images_augmented_i, semantics_i, semantics_augmented_i, bev_semantics_i,\
         bev_semantics_augmented_i, depth_i, depth_augmented_i, lidars_i, temporal_lidars_i, temporal_images_i, temporal_images_augmented_i= self.data_cache[cache_key]
@@ -522,14 +544,19 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
     if self.config.lidar_seq_len > 1 or self.config.number_previous_actions>0:
       loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
+    if self.config.number_future_actions>0:
+      loaded_future_measurements=self.load_temporal_measurements(future_measurements, future=True)
 
     assert len(
         loaded_temporal_measurements
     ) == max(self.config.number_previous_actions, self.config.lidar_seq_len-1), "Length of Temporal Measurements and max of img_seq_len, lidar_seq_len is not equal!"
+    assert len(
+            loaded_future_measurements
+        ) == self.config.number_future_actions, "Length of Temporal Measurements and max of img_seq_len, lidar_seq_len is not equal!"
 
     
-    assert len(loaded_temporal_images)== self.config.img_seq_len-1, "Length of loaded_temporal_images is not equal to img_seq_len!"
-    assert len(loaded_temporal_images_augmented) == self.config.img_seq_len-1, "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
+    assert len(loaded_temporal_images)== max(0, self.config.img_seq_len-1), "Length of loaded_temporal_images is not equal to img_seq_len!"
+    assert len(loaded_temporal_images_augmented) == max(0,self.config.img_seq_len-1), "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
 
     current_measurement = loaded_measurements[self.config.seq_len - 1]
 
@@ -557,8 +584,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             depth_i = loaded_depth_augmented[self.config.seq_len - 1].astype(np.float32) / 255.0  # pylint: disable=locally-disabled, unsubscriptable-object
 
         else:
-          processed_images = self.augment_images(loaded_images)
-          processed_temporal_images = self.augment_images(loaded_temporal_images)
+          processed_images = loaded_images
+          processed_temporal_images = loaded_temporal_images
 
           if self.config.use_semantic:
             semantics_i = self.converter[loaded_semantics[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
@@ -697,18 +724,46 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                                                    angle=current_measurement['angle'])
 
     data['brake'] = brake
+    data['steer'] = current_measurement['steer']
+    data['throttle'] = current_measurement['throttle']
     previous_throttle_list=[]
     previous_brake_list=[]
     previous_steer_list=[]
+
+    future_throttle_list=[]
+    future_brake_list=[]
+    future_steer_list= []
+    #perform necessary data transformations for keyframes/ARP baselines
     if self.config.number_previous_actions>0:
       for temporal_measurement_dict in loaded_temporal_measurements:
         previous_throttle_list.append(temporal_measurement_dict["throttle"])
-        previous_brake_list.append(temporal_measurement_dict["brake"])
+        previous_brake_list.append(1. if temporal_measurement_dict["brake"] else 0.)
         previous_steer_list.append(temporal_measurement_dict["steer"])
-    data["previous_brakes"]=previous_brake_list
-    data["previous_steers"]=previous_steer_list
-    data["previous_throttles"]=previous_throttle_list
+    if self.config.number_future_actions>0:
+      for temporal_measurement_dict in loaded_future_measurements:
+        future_throttle_list.append(temporal_measurement_dict["throttle"])
+        future_brake_list.append(1. if temporal_measurement_dict["brake"] else 0.)
+        future_steer_list.append(temporal_measurement_dict["steer"])
+
     
+    previous_action_lst=[]
+    current_and_future_lst=[]
+    for steer, throttle, brake in zip(previous_steer_list, previous_throttle_list, previous_brake_list):
+      previous_action_lst.append(steer)
+      previous_action_lst.append(throttle)
+      previous_action_lst.append(brake)
+        #first add the current measurement, because the baseline training needs (past measurements) as one part,
+      # (current measurement, future measurements) together as one part
+    current_and_future_lst.append(data["steer"])
+    current_and_future_lst.append(data["throttle"])
+    current_and_future_lst.append(data["brake"])
+    for steer, throttle, brake in zip(future_steer_list, future_throttle_list, future_brake_list):
+      current_and_future_lst.append(steer)
+      current_and_future_lst.append(throttle)
+      current_and_future_lst.append(brake)
+    data["current_and_future_actions"]=np.array(current_and_future_lst, dtype=np.float32)
+    data["previous_actions"]=np.array(previous_action_lst, dtype=np.float32)
+    # data["action_list_previous"]=np.array(action_lst)
     data['angle_index'] = angle_index
 
     if self.config.use_plant_labels:
@@ -734,8 +789,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       data['temporal_lidar'] = temporal_lidar_bev
     #temporal lidar gets tensor of shape (lidar_seq, bev1, bev2) ####################################check x,y #TODO watch out with shape!
 
-    data['steer'] = current_measurement['steer']
-    data['throttle'] = current_measurement['throttle']
+   
     data['light'] = current_measurement['light_hazard']
     data['stop_sign'] = current_measurement['stop_sign_hazard']
     data['junction'] = current_measurement['junction']
@@ -774,6 +828,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     aim_wp = np.array(current_measurement['aim_wp'])
     aim_wp = self.augment_target_point(aim_wp, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
     data['aim_wp'] = aim_wp
+
+    #for keyframes baseline get the corresponding importance weight
+    if self.config.correlation_weights:
+      data["correlation_weight"]=current_correlation_weight
+    else:
+      data["correlation_weight"]=np.array([])
     return data
 
   def augment_images(self, loaded_images_augmented):
@@ -802,7 +862,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       loaded_temporal_images_augmented.reverse()
     return loaded_temporal_images,loaded_temporal_images_augmented
 
-  def load_temporal_measurements(self, temporal_measurements):
+  def load_temporal_measurements(self, temporal_measurements, future=False):
     loaded_temporal_measurements = []
     if not self.config.use_plant:
       #Temporal data just for LiDAR
@@ -810,8 +870,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         with gzip.open(temporal_measurement, 'rt', encoding='utf-8') as f1:
           loaded = ujson.load(f1)
         loaded_temporal_measurements.append(loaded)
-      loaded_temporal_measurements.reverse()
+      if not future:
+        loaded_temporal_measurements.reverse()
     return loaded_temporal_measurements
+  
 
   def get_targets(self, gt_bboxes, feat_h, feat_w):
     """
@@ -1150,7 +1212,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 inputs_vec.append(data[input_name])
             return torch.cat(inputs_vec)
         else:
-            inputs_vec.append(data['speed_module'])
+            inputs_vec.append(data['speed'])
             return torch.cat(inputs_vec)
   def extract_targets(self, data, config):
     """
