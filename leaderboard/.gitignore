@@ -3,3 +3,4 @@
 .project
 .pydevproject
 _logs/
+action_correlation/
