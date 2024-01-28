@@ -15,6 +15,7 @@ def main(args):
     config_tf.number_previous_actions=g_conf.NUMBER_PREVIOUS_ACTIONS
     config_tf.img_seq_len=g_conf.IMAGE_SEQ_LEN 
     config_tf.all_frames_including_blank=g_conf.ALL_FRAMES_INCLUDING_BLANK
+    config_tf.number_future_actions=g_conf.NUMBER_FUTURE_ACTIONS
     torch.manual_seed(123)
     for cache_value in [True, False]:
         if bool(cache_value):
