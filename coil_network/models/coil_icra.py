@@ -63,12 +63,21 @@ class CoILICRA(nn.Module):
                                                    params['measurements']['fc']['neurons'],
                                        'dropouts': params['measurements']['fc']['dropouts'],
                                        'end_layer': False})
-
+        if 'previous_actions' in params:
+            self.use_previous_actions = True
+            self.previous_actions = FC(params={'neurons': [len(g_conf.TARGETS)*g_conf.NUMBER_PREVIOUS_ACTIONS] +
+                                                          params['previous_actions']['fc']['neurons'],
+                                               'dropouts': params['previous_actions']['fc']['dropouts'],
+                                               'end_layer': False})
+            number_preaction_neurons = params['previous_actions']['fc']['neurons'][-1]
+        else:
+            self.use_previous_actions = False
+            number_preaction_neurons = 0
         self.join = Join(
             params={'after_process':
                          FC(params={'neurons':
                                         [params['measurements']['fc']['neurons'][-1] +
-                                         number_output_neurons] +
+                                         + number_preaction_neurons + number_output_neurons] +
                                         params['join']['fc']['neurons'],
                                      'dropouts': params['join']['fc']['dropouts'],
                                      'end_layer': False}),
@@ -76,7 +85,7 @@ class CoILICRA(nn.Module):
                     }
          )
 
-        self.speed_branch = FC(params={'neurons': [params['join']['fc']['neurons'][-1]] +
+        self.speed_branch = FC(params={'neurons': [number_output_neurons] +
                                                   params['speed_branch']['fc']['neurons'] + [1],
                                        'dropouts': params['speed_branch']['fc']['dropouts'] + [0.0],
                                        'end_layer': True})
@@ -104,16 +113,26 @@ class CoILICRA(nn.Module):
                     nn.init.constant_(m.bias, 0.1)
 
 
-    def forward(self, x, a):
+    def forward(self, x, a, pa=None):
         """ ###### APPLY THE PERCEPTION MODULE """
         x, inter = self.perception(x)
         ## Not a variable, just to store intermediate layers for future vizualization
         #self.intermediate_layers = inter
 
         """ ###### APPLY THE MEASUREMENT MODULE """
-        m = self.measurements(a)
+        if self.measurements is not None:
+            m = self.measurements(a)
+        else:
+            m = None
+        """ ###### APPLY THE PREVIOUS ACTIONS MODULE, IF THIS MODULE EXISTS"""
+        if self.use_previous_actions and m is not None:
+            n = self.previous_actions(pa)
+            m = torch.cat((m, n), 1)
         """ Join measurements and perception"""
-        j = self.join(x, m)
+        if self.join is not None and m is not None:
+            j = self.join(x, m)
+        else:
+            j = x
 
         branch_outputs = self.branches(j)
 

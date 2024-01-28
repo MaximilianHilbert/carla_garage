@@ -18,7 +18,7 @@ class Logger(object):
 
     def scalar_summary(self, tag, value, step):
         """Log a scalar variable."""
-        self.writer.add_scalar(tag, value.cpu(), global_step=step)
+        self.writer.add_scalar(tag, value, global_step=step)
     def image_summary(self, tag, images, step):
         """Log a list of images."""
         

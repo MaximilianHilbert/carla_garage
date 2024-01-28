@@ -26,6 +26,11 @@ _g_conf.FINISH_ON_VALIDATION_STALE = None
 _g_conf.SENSORS = {'rgb': (3, 88, 200)}
 _g_conf.MEASUREMENTS = {'float_data': (31)}
 _g_conf.TARGETS = ['steer', 'throttle', "brake"]
+#keyframes related
+_g_conf.NO_SPEED_INPUT=False
+_g_conf.LIDAR_SEQ_LEN=1
+
+
 _g_conf.INPUTS = ['speed_module']
 _g_conf.INTENTIONS = []
 _g_conf.BALANCE_DATA = True
@@ -51,6 +56,8 @@ _g_conf.EXPERIMENT_GENERATED_NAME = None
 _g_conf.PROCESS_NAME = "None"
 _g_conf.NUMBER_ITERATIONS = 20000
 _g_conf.SAVE_SCHEDULE = range(0, 2000, 200)
+#arp related
+_g_conf.ACTION_CORRELATION_MODEL_TYPE= 'prev9actions_weight'
 _g_conf.ALL_FRAMES_INCLUDING_BLANK = None
 _g_conf.IMAGE_SEQ_LEN = 1
 _g_conf.PREFRAME_PROCESS = "None"  # None, blackhole, inpaint, blackhole+randombox
@@ -59,10 +66,18 @@ _g_conf.PREFRAME_PROCESS_PROBABILITY = 1.0  # The probability to mask out the ob
 _g_conf.BLANK_FRAMES_TYPE = 'black'  # black (padd with all zeros) or copy (padd with the last image in frame sequence)
 _g_conf.NUMBER_IMAGES_SEQUENCE = 1
 _g_conf.SEQUENCE_STRIDE = 1
-_g_conf.NUMBER_PREVIOUS_ACTIONS = 0
+#keyframes related
+_g_conf.NUMBER_FUTURE_ACTIONS=3
+_g_conf.NUMBER_PREVIOUS_ACTIONS = 2
+_g_conf.EPOCHS=1
+_g_conf.USE_COLOR_AUG=0
+_g_conf.AUGMENT=0
+
+
 _g_conf.VALIDATE_SCHEDULE = range(0, 2000, 200)
 _g_conf.TEST_SCHEDULE = range(0, 2000, 200)
 _g_conf.SPEED_FACTOR = 12.0
+
 _g_conf.AUGMENT_LATERAL_STEERINGS = 6
 _g_conf.NUMBER_OF_HOURS = 1
 _g_conf.ASSIGN_WEATHER = None
@@ -73,14 +88,23 @@ _g_conf.PRELOAD_MODEL_CHECKPOINT = None
 
 """#### Network Related Parameters ####"""
 
-
+#all baselines related
+_g_conf.CORRELATION_WEIGHTS=False
 _g_conf.MODEL_TYPE = None
 _g_conf.MODEL_CONFIGURATION = {}
+#arp related
 _g_conf.MEM_EXTRACT_MODEL_TYPE = None
 _g_conf.MEM_EXTRACT_MODEL_CONFIGURATION = {}
 
 _g_conf.PRE_TRAINED = False
 _g_conf.WEIGHT_INIT_SEED = None  # the random seed dedicated to weight initialization
+#keyframes related
+_g_conf.TRAIN_WITH_ACTIONS_AS_INPUT=True
+_g_conf.IMPORTANCE_SAMPLE_METHOD = 'mean'  # mean / softmax / threshold
+_g_conf.SOFTMAX_TEMPER = 1.0
+_g_conf.THRESHOLD_RATIO = 0.1  # set top 10% as THRESHOLD_WEIGHT and others as 1
+_g_conf.THRESHOLD_WEIGHT = 5.0
+_g_conf.SPEED_INPUT=True #also relevant for ARP!
 
 _g_conf.OPTIMIZER = 'Adam'
 _g_conf.LEARNING_RATE_DECAY_INTERVAL = 50000
