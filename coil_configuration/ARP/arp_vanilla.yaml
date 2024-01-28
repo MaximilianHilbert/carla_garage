@@ -9,7 +9,7 @@ SENSORS:
   rgb: [3, 256, 1024] # A RGB input sensor with three channels that is resized to 200x88
 MEASUREMENTS:
   float_data: [31]  # Number of float data that must be read from the dataset
-BATCH_SIZE: 40
+BATCH_SIZE: 5
 NUMBER_ITERATIONS: 100000
 TARGETS: ['steer', 'throttle', 'brake']  # From the float data, the ones that the network should estimate
 INPUTS: ['speed'] # From the float data, the ones that are input to the neural network
@@ -23,8 +23,8 @@ SPEED_FACTOR: 12.0  # The constant that is divides the speed_module in order to 
 AUGMENTATION: None  # The image augmentation applied on every input image
 DATA_USED: 'all'  # The part of the data to be used
 USE_NOISE_DATA: True  # If we use the noise data.
-
-
+NO_SPEED_INPUT: False
+CORRELATION_WEIGHTS: False
 VALIDATE_SCHEDULE: range(20000, 100001, 20000)
 
 #### Testing Related Parameters ####
