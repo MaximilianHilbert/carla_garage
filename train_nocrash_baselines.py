@@ -5,7 +5,7 @@ def generate_and_place_batch_script(workers, seed, training_repetition, baseline
     os.makedirs(job_path, exist_ok=True)
     job_full_path=os.path.join(job_path, f"{baseline_folder_name}_{baseline_name}_{str(training_repetition)}.sh")
     with open(job_full_path, 'w', encoding='utf-8') as f:
-        command=f"""#!/bin/sh
+        command=f"""#!/bin/bash
 #SBATCH --job-name=reproduce_{baseline_folder_name}_{baseline_name}_{training_repetition}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
