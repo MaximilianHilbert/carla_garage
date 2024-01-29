@@ -11,19 +11,19 @@
 #SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
 
 #local
-export WORK_DIR=/home/maximilian/Master/carla_garage
+# export WORK_DIR=/home/maximilian/Master/carla_garage
+# export CONFIG_ROOT=${WORK_DIR}/coil_configuration
+# export TEAM_CODE=$WORK_DIR/team_code
+# export CARLA_ROOT=${WORK_DIR}/carla
+# export COIL_NETWORK=${WORK_DIR}/coil_network
+# export DATASET_ROOT=/home/maximilian/training_data_split
+#cluster tcml
+export WORK_DIR=/home/hilbert/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
 export CARLA_ROOT=${WORK_DIR}/carla
-export COIL_NETWORK=${WORK_DIR}/coil_network
-export DATASET_ROOT=/home/maximilian/training_data_split
-#cluster tcml
-#export WORK_DIR=/home/hilbert/carla_garage
-#export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-#export TEAM_CODE=$WORK_DIR/team_code
-#export CARLA_ROOT=${WORK_DIR}/carla
-#export DATASET_ROOT=/home/hilbert/dataset_v08
-#export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
+export DATASET_ROOT=/home/hilbert/dataset_v08
+export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
 #cluster
 #export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
 #export CONFIG_ROOT=${WORK_DIR}/coil_configuration
