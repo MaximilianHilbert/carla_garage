@@ -45,9 +45,8 @@ python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --train
     print(out)
 def main(args):
     for training_repetition, seed in enumerate(args.seeds):
-        for baseline_folder_name in args.baseline_folder_names:
-            for baseline_name in args.baseline_names:
-                generate_and_place_batch_script(args.number_of_workers,seed, training_repetition, baseline_folder_name, baseline_name)
+        for baseline_folder_name,baseline_name in zip(args.baseline_folder_names, args.baseline_names):
+            generate_and_place_batch_script(args.number_of_workers,seed, training_repetition, baseline_folder_name, baseline_name)
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
