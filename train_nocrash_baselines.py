@@ -10,7 +10,7 @@ def generate_and_place_batch_script(workers, seed, training_repetition, baseline
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --time=03-00:00
-#SBATCH --parition=week
+#SBATCH --partition=week
 #SBATCH --gres=gpu:A4000:1
 #SBATCH --cpus-per-task={workers}
 #SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
