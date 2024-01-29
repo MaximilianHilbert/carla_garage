@@ -109,6 +109,7 @@ class GlobalConfig:
     # Dataloader
     # -----------------------------------------------------------------------------
     # config values for the coiltraine legacy/baseline implementation for nocrash
+
     self.carla_fps = 20  # Simulator Frames per second
     self.seq_len =1  # length of the sequence loaded (into the future)
     # use different seq len for image and lidar
@@ -188,13 +189,13 @@ class GlobalConfig:
     # Whether zero_redundancy_optimizer was used during training
     self.zero_redundancy_optimizer = 1
     self.use_disk_cache = 1  # Whether disc cache was used during training
-    self.detect_boxes = 1  # Whether to use the bounding box auxiliary task
+    self.detect_boxes = 0  # Whether to use the bounding box auxiliary task
     self.train_sampling_rate = 1  # We train on every n th sample on the route
     # Number of route points we use for prediction in TF or input in planT
     self.num_route_points = 20
     self.augment_percentage = 0.5  # Probability of the augmented sample being used.
     self.learn_origin = 1  # Whether to learn the origin of the waypoints or use 0 / 0
-    self.augment = 1  # Whether to use rotation and translation augmentation
+    self.augment = 0  # Whether to use rotation and translation augmentation
     # If this is true we convert the batch norms, to synced bach norms.
     self.sync_batch_norm = False
     # At which interval to save debug files to disk during training
@@ -255,8 +256,8 @@ class GlobalConfig:
     self.lidar_aug_prob = 1.0  # Probability with which data augmentation is applied to the LiDAR image.
     self.freeze_backbone = False  # Whether to freeze the image backbone during training. Useful for 2 stage training.
     self.learn_multi_task_weights = False  # Whether to learn the multi-task weights
-    self.use_bev_semantic = True  # Whether to use bev semantic segmentation as auxiliary loss for training.
-    self.use_depth = True  # Whether to use depth prediction as auxiliary loss for training.
+    self.use_bev_semantic = False  # Whether to use bev semantic segmentation as auxiliary loss for training.
+    self.use_depth = False  # Whether to use depth prediction as auxiliary loss for training.
     self.num_repetitions = 3  # How many repetitions of the dataset we train with.
     self.continue_epoch = True  # Whether to continue the training from the loaded epoch or from 0.
 
@@ -373,7 +374,7 @@ class GlobalConfig:
     self.use_wp_gru = False  # Whether to use the WP output GRU.
 
     # Semantic Segmentation
-    self.use_semantic = True  # Whether to use semantic segmentation as auxiliary loss
+    self.use_semantic = False  # Whether to use semantic segmentation as auxiliary loss
     self.num_semantic_classes = 7
     self.classes = {
         0: [0, 0, 0],  # unlabeled

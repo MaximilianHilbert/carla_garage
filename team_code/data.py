@@ -20,8 +20,8 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
-
-
+from pytictoc import TicToc
+t=TicToc()
 
 #TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
 #TODO augmentations dont work for past images
@@ -261,8 +261,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     self.correlation_weights=correlation_weight_array
   def get_correlation_weights(self):
     return self.correlation_weights
-  # def load_correlation_weights(self, index):
-  #   return np.array([self.correlation_weights[idx] for idx in range(index-self.config.img_seq_len+1, index+1)])
 
   def __getitem__(self, index):
     """Returns the item at index idx. """
@@ -272,7 +270,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     data = {}
 
     images = self.images[index]
-    images_augmented = self.images_augmented[index]
+    if self.config.augment:
+      images_augmented = self.images_augmented[index]
+    else:
+      images_augmented=[]
     semantics = self.semantics[index]
     semantics_augmented = self.semantics_augmented[index]
     bev_semantics = self.bev_semantics[index]
@@ -294,7 +295,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       if self.config.correlation_weights:
         current_correlation_weight=self.correlation_weights[index].reshape(self.config.seq_len, -1)
       temporal_images = self.temporal_images[index]
-      temporal_images_augmented = self.temporal_images_augmented[index]
+      if self.config.augment:
+        temporal_images_augmented = self.temporal_images_augmented[index]
+      else:
+        temporal_images_augmented=[]
   
     # load measurements
       
@@ -505,7 +509,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
               compressed_lidar_i = compress_lidar_frame(self, lidars_i)
               if self.config.lidar_seq_len > 1:
-                compressed_temporal_lidars_i = compress_temporal_lidar_frames(self, loaded_temporal_lidars)###############################################################################
+                compressed_temporal_lidars_i = compress_temporal_lidar_frames(self, loaded_temporal_lidars)
                 
             self.data_cache[cache_key] = (
                 boxes_i,
@@ -539,8 +543,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       loaded_boxes.append(boxes_i)
       loaded_future_boxes.append(future_boxes_i)
 
-    for key, value in lists_dict.items():
-      assert len(value) == self.config.seq_len, f"Sequence length and len of {key} is not equal!"
 
     if self.config.lidar_seq_len > 1 or self.config.number_previous_actions>0:
       loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
@@ -556,7 +558,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
     
     assert len(loaded_temporal_images)== max(0, self.config.img_seq_len-1), "Length of loaded_temporal_images is not equal to img_seq_len!"
-    assert len(loaded_temporal_images_augmented) == max(0,self.config.img_seq_len-1), "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
+    if self.config.augment:
+      assert len(loaded_temporal_images_augmented) == max(0,self.config.img_seq_len-1), "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
 
     current_measurement = loaded_measurements[self.config.seq_len - 1]
 
@@ -573,8 +576,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     try:
       if not self.config.use_plant:
         if self.config.augment and augment_sample:
-          processed_images = self.augment_images(loaded_images_augmented)
-          processed_temporal_images = self.augment_images(loaded_temporal_images_augmented)
+          processed_images = self.augment_images(loaded_images)
+          processed_temporal_images = self.augment_images(loaded_temporal_images)
           if self.config.use_semantic:
             semantics_i = self.converter[loaded_semantics_augmented[self.config.seq_len - 1]]  # pylint: disable=locally-disabled, unsubscriptable-object
           if self.config.use_bev_semantic:
@@ -834,6 +837,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       data["correlation_weight"]=current_correlation_weight
     else:
       data["correlation_weight"]=np.array([])
+      t.toc(restart=True)
     return data
 
   def augment_images(self, loaded_images_augmented):
@@ -853,11 +857,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         loaded_temporal_images.append(image)
-
-        image_augmented = cv2.imread(str(temporal_images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-        image_augmented = cv2.cvtColor(image_augmented, cv2.COLOR_BGR2RGB)
-        loaded_temporal_images_augmented.append(image_augmented)
-
+        if self.config.augment:
+          image_augmented = cv2.imread(str(temporal_images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
+          image_augmented = cv2.cvtColor(image_augmented, cv2.COLOR_BGR2RGB)
+          loaded_temporal_images_augmented.append(image_augmented)
       loaded_temporal_images.reverse()
       loaded_temporal_images_augmented.reverse()
     return loaded_temporal_images,loaded_temporal_images_augmented
