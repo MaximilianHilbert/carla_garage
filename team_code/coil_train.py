@@ -324,8 +324,9 @@ def main(args, suppress_output=False):
                 mem_extract_loss_window.append(mem_extract_loss.data.tolist())
                 coil_logger.write_on_error_csv('policy_train', policy_loss.data)
                 coil_logger.write_on_error_csv('mem_extract_train', mem_extract_loss.data)
-                print("Iteration: %d  Policy_Loss: %f" % (iteration, policy_loss.data))
-                print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
+                if iteration%100:
+                    print("Iteration: %d  Policy_Loss: %f" % (iteration, policy_loss.data))
+                    print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
 
             else:
                 if iteration % 1000 == 0:
