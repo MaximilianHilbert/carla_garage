@@ -96,40 +96,12 @@ def get_target_actions(index, img_path_list, target_action_num, measurements_lis
 
 def main(args):
     merged_config_object=merge_config_files(args)
-    
-    layer_num_str = [str(n) for n in args.neurons]
     checkpoint_path=os.path.join(os.environ.get("WORK_DIR"), "action_correlation", "checkpoints")
-    if os.path.exists(checkpoint_path):
-        checkpoint_file=os.listdir(checkpoint_path)[0]
-        action_prediction_model = ActionModel(input_dim=merged_config_object.number_previous_actions*3, output_dim=(merged_config_object.number_future_actions+1)*3, neurons=args.neurons)
-        checkpoint=torch.load(os.path.join(checkpoint_path, checkpoint_file))
-        action_prediction_model.load_state_dict(checkpoint["state_dict"])
-        action_prediction_model=action_prediction_model.cuda()
-        full_dataset=CARLA_Data(root=merged_config_object.train_data, config=merged_config_object)
-
-    else:
-        action_prediction_model, full_dataset= train_ape_model(args, merged_config_object,if_save=True)
+    for seed, repetition in enumerate(args.seeds):
+        checkpoint_name=f"correlation_weights_prev{merged_config_object.number_previous_actions}_curr{merged_config_object.number_future_actions+1}_rep{repetition}_neurons{args.neurons}.npy"
+        checkpoint_full_path=os.path.join(checkpoint_path, checkpoint_name)
+        train_ape_model(args, seed, repetition,merged_config_object, checkpoint_full_path, if_save=True)
     
-    action_prediction_model.eval()
-    #
-    #img_path_list, measurements_list = np.load(args.data, allow_pickle=True)
-    action_predict_losses=[]
-    for index in range(len(full_dataset)):
-        print(f"inference on {index} of {len(full_dataset)}")
-        data=full_dataset.__getitem__(index)
-        previous_actions = data["previous_actions"]
-        current_and_future_actions=data["current_and_future_actions"]
-        
-        previous_actions = torch.FloatTensor(previous_actions).cuda().unsqueeze(0)
-        current_actions = torch.FloatTensor(current_and_future_actions[:3]).cuda().unsqueeze(0)
-
-        predict_curr_action = action_prediction_model(previous_actions)
-        test_loss = ((predict_curr_action - current_actions).pow(2) * torch.Tensor(
-            [0.5, 0.45, 0.05]).cuda()).sum().cpu().item()
-        action_predict_losses.append(test_loss)
-    os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "action_correlation"), exist_ok=True)
-    np.save(os.path.join(os.environ.get("WORK_DIR"), "action_correlation", "_prev{}_curr{}_layer{}.npy".format(merged_config_object.number_previous_actions, merged_config_object.number_future_actions+1, '-'.join(layer_num_str))),
-            action_predict_losses)
 #TODO implement batching if performance is too slow
     #     merged_config_object=merge_config_files(args)
     
@@ -177,6 +149,8 @@ if __name__ == '__main__':
     parser.add_argument('--baseline-name', dest="baseline_name", type=str, default="keyframes_vanilla_weights", help='name of the experiment/subfoldername that gets created for the baseline')
     parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=int, default=0, help='use caching on /scratch')
     parser.add_argument('--number-of-workers', dest="number_of_workers", type=int, default=12, help='dataloader workers')
+    parser.add_argument('--seeds', dest="seeds", type=int, nargs="+", help='seeds for training, also determining the retrain amount')
+    
     
     args = parser.parse_args()
     main(args)

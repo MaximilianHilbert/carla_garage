@@ -140,18 +140,13 @@ def adjustlr(optimizer, decay_rate):
         param_group['lr'] *= decay_rate
 
 
-def train_ape_model(args, merged_config_object,if_save):
-
-    data_name = os.path.basename("dataset_v08").split('.')[0]
+def train_ape_model(args, seed,repetition, merged_config_object, checkpoint_full_path, if_save):
     identifier = str(int(datetime.utcnow().timestamp())) + ''.join([str(np.random.randint(10)) for _ in range(8)])
 
     dataset=CARLA_Data(root=merged_config_object.train_data, config=merged_config_object)
-    #mean, std = dataset.get_mean(), dataset.get_std()
 
-    prev_seed = torch.get_rng_state()
-    torch.manual_seed(0)
+    torch.manual_seed(seed)
     trainset, testset = torch.utils.data.random_split(dataset, [int(len(dataset)*0.8), len(dataset)-int(len(dataset)*0.8)])
-    torch.set_rng_state(prev_seed)
 
     trainloader = DataLoader(dataset=trainset, batch_size=merged_config_object.batch_size, num_workers=args.number_of_workers, shuffle=True)
     testloader = DataLoader(dataset=testset, batch_size=merged_config_object.batch_size, num_workers=args.number_of_workers, shuffle=False)
@@ -162,9 +157,7 @@ def train_ape_model(args, merged_config_object,if_save):
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
     loss_func = partial(weighted_loss, weight=torch.Tensor([0.5, 0.45, 0.05]*(merged_config_object.number_future_actions+1)).cuda())
 
-    layer_num_str = [str(n) for n in args.neurons]
-    result_dir = os.path.join(os.environ.get("WORK_DIR"), "action_correlation","results", "{}-prev{}-curr{}-layer{}-{}".format(data_name, merged_config_object.number_previous_actions, (merged_config_object.number_future_actions+1), '-'.join(layer_num_str), identifier))
-    save_dir =  os.path.join(os.environ.get("WORK_DIR"), "action_correlation", "checkpoints", "prev{}-curr{}-layer{}.pkl".format(merged_config_object.number_previous_actions, (merged_config_object.number_future_actions+1), '-'.join(layer_num_str)))
+    result_dir = os.path.join(os.environ.get("WORK_DIR"), "action_correlation","results", f"prev{merged_config_object.number_previous_actions}-curr{merged_config_object.number_future_actions+1}-repetition-{repetition}-{identifier}")
 
     log_dir = os.path.join(result_dir, 'run')
     os.makedirs(log_dir)
@@ -181,7 +174,5 @@ def train_ape_model(args, merged_config_object,if_save):
 
     if if_save:
         os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "action_correlation", "checkpoints"), exist_ok=True)
-        checkpoint = {'state_dict': model.state_dict(), 'min_loss': min_loss, 'max_loss': max_loss}#'mean': mean, 'std': std}
-        torch.save(checkpoint, save_dir)
-
-    return model, dataset
+        checkpoint = {'state_dict': model.state_dict(), 'min_loss': min_loss, 'max_loss': max_loss}
+        torch.save(checkpoint, checkpoint_full_path)
