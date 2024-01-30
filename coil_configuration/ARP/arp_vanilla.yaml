@@ -1,5 +1,5 @@
 ### General Configuration Parameters ####
-SAVE_SCHEDULE: range(0, 100001, 100000) # The iterations where training checkpoints are going to be saved
+SAVE_SCHEDULE: range(0, 100001, 20000) # The iterations where training checkpoints are going to be saved
 #### Input related parameters ####
 # A dictionary with all the sensors that are going to be used as input
 # this should match the train dataset
