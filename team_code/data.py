@@ -20,8 +20,8 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
-from pytictoc import TicToc
-t=TicToc()
+
+
 
 #TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
 #TODO augmentations dont work for past images
@@ -837,7 +837,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       data["correlation_weight"]=current_correlation_weight
     else:
       data["correlation_weight"]=np.array([])
-      t.toc(restart=True)
+
     return data
 
   def augment_images(self, loaded_images_augmented):
