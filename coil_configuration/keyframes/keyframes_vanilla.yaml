@@ -1,6 +1,5 @@
 ### General Configuration Parameters ####
-SAVE_SCHEDULE: range(0, 100001, 20000) # The iterations where training checkpoints are going to be saved
-NUMBER_OF_LOADING_WORKERS: 12   # Number of threads used in the data loader
+SAVE_SCHEDULE: range(0, 100001, 50000) # The iterations where training checkpoints are going to be saved
 
 #### Input related parameters ####
 # A dictionary with all the sensors that are going to be used as input
