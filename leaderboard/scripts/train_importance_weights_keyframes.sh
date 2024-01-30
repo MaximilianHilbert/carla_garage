@@ -18,7 +18,7 @@
 # export COIL_NETWORK=${WORK_DIR}/coil_network
 # export DATASET_ROOT=/home/maximilian/training_data_split
 #cluster tcml
-export WORK_DIR=/home/hilbert/carla_garage
+export WORK_DIR=/home/hilbert/keyframes_test/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
 export CARLA_ROOT=${WORK_DIR}/carla
