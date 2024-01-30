@@ -133,14 +133,29 @@
 
         },
         {
-            "name": "generate_importance_weights",
+            "name": "generate_importance_weights_training",
             "type": "python",
             "request": "launch",
-            "program": "/home/maximilian/Master/carla_garage/keyframes/get_importance_weights.py",
+            "program": "/home/maximilian/Master/carla_garage/keyframes/get_importance_weights_training.py",
             "args": [
-    "--baseline-folder-name", "keyframes",
-    "--baseline-name", "keyframes_vanilla_weights",
-"--number-of-workers", "1"],
+            "--baseline-folder-name", "keyframes",
+            "--baseline-name", "keyframes_vanilla_weights",
+            "--number-of-workers", "1",
+            "--seeds", "1","2"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "purpose": ["debug-in-terminal"],
+            "envFile": "${workspaceFolder}/dev.env"
+
+        },
+        {
+            "name": "generate_importance_weights_inference",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/maximilian/Master/carla_garage/keyframes/get_importance_weights_inference.py",
+            "args": [
+            "--baseline-folder-name", "keyframes",
+            "--baseline-name", "keyframes_vanilla_weights"],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "purpose": ["debug-in-terminal"],
