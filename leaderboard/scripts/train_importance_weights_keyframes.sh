@@ -1,12 +1,12 @@
 #!/bin/sh
 #SBATCH --job-name=reproduce_ARP_arp_vanilla_single
-#SBATCH --ntasks=2
+#SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --partition=day
 #SBATCH --time=00-01:00
 #SBATCH --gres=gpu:1080ti:1
 #SBATCH --mem=100GB
-#SBATCH --cpus-per-task=24
+#SBATCH --cpus-per-task=12
 #SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
 
@@ -50,4 +50,4 @@ source /home/hilbert/.bashrc
 eval "$(conda shell.bash hook)"
 conda activate garage
 
-python $WORK_DIR/keyframes/get_importance_weights_training.py --seeds 122 --baseline-folder-name keyframes --baseline-name keyframes_vanilla_weights --number-of-workers 24 --use-disk-cache 0
+python $WORK_DIR/keyframes/get_importance_weights_training.py --seeds 122 --baseline-folder-name keyframes --baseline-name keyframes_vanilla_weights --number-of-workers 12 --use-disk-cache 0
