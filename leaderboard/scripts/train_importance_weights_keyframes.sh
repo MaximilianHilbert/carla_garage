@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #SBATCH --job-name=reproduce_ARP_arp_vanilla_single
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
