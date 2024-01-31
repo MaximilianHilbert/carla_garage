@@ -2,7 +2,7 @@
 export WORK_DIR=/home/hilbert/keyframes_test/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
-export CARLA_ROOT=${WORK_DIR}/carla
+export CARLA_ROOT=/home/hilbert/carla_garage/carla
 export DATASET_ROOT=/home/hilbert/test
 export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
 
