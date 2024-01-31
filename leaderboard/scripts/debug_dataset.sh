@@ -15,8 +15,4 @@ export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
-source /home/hilbert/.bashrc
-eval "$(conda shell.bash hook)"
-conda activate garage
-
-python $WORK_DIR/debug_dataset.py --number-of-workers 12 
+python $WORK_DIR/debug_dataset.py --number-of-workers 12
