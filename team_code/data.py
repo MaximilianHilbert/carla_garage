@@ -21,25 +21,11 @@ from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
 from pytictoc import TicToc
-import turbojpeg
-tj = turbojpeg.TurboJPEG()
 timer=TicToc()
 zwischen=TicToc()
 #TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
 #TODO augmentations dont work for past images
-def read_img(img_path):
-    with open(str(img_path, encoding='utf-8'), 'rb') as file:
-        jpeg_data = file.read()
-
-    # Create a turbojpeg instance
-
-
-    # Decode the JPEG data to a numpy array
-    image = tj.decode(jpeg_data)
-
-    # Convert the image to RGB
-    image = image[:, :, ::-1]
-    return image
+from PIL import Image
 class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
   """
     Custom dataset that dynamically loads a CARLA dataset from disk.
@@ -872,8 +858,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     loaded_temporal_images_augmented = []
     if self.config.img_seq_len > 1 and not self.config.use_plant:
       for i in range(self.config.img_seq_len-1):
-        image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image_pil = Image.open(str(temporal_images[i], encoding='utf-8'))
+        image_rgb = image_pil.convert('RGB')
+        image= np.array(image_rgb)
         loaded_temporal_images.append(image)
         # loaded_temporal_images = [read_img(img) for img in temporal_images]
         # loaded_temporal_images.reverse()
