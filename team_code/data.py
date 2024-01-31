@@ -20,9 +20,10 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
+from pytictoc import TicToc
 
-
-
+timer=TicToc()
+zwischen=TicToc()
 #TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
 #TODO augmentations dont work for past images
 
@@ -264,7 +265,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
   def __getitem__(self, index):
     """Returns the item at index idx. """
-
+    timer.tic()
+    zwischen.tic()
     # Disable threading because the data loader will already split in threads.
     cv2.setNumThreads(0)
     data = {}
@@ -449,7 +451,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             loaded_temporal_lidars = change_axes_and_reverse(temporal_lidars)
           if self.config.img_seq_len > 1:
             loaded_temporal_images, loaded_temporal_images_augmented = self.load_temporal_images(
-          temporal_images, temporal_images_augmented)
+            temporal_images, temporal_images_augmented)
           if self.config.use_semantic:
             semantics_i = cv2.imread(str(semantics[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
           if self.config.use_bev_semantic:
@@ -542,7 +544,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       loaded_lidars.append(lidars_i)
       loaded_boxes.append(boxes_i)
       loaded_future_boxes.append(future_boxes_i)
-
+    zwischen.toc("After loaded", restart=True)
 
     if self.config.lidar_seq_len > 1 or self.config.number_previous_actions>0:
       loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
@@ -570,9 +572,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       aug_rotation = current_measurement['augmentation_rotation']
       aug_translation = current_measurement['augmentation_translation']
     else:
+
       augment_sample = False
       aug_rotation = 0.0
       aug_translation = 0.0
+    zwischen.toc("start augment", restart=True)
     try:
       if not self.config.use_plant:
         if self.config.augment and augment_sample:
@@ -611,7 +615,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                     interpolation=cv2.INTER_LINEAR)
     except TypeError:
       print("Tried to work on None Type images")
-    
+    zwischen.toc("after augment", restart=True)
     # The transpose change the image into pytorch (C,H,W) format
     def transpose_image(image):
       return np.transpose(image, (2, 0, 1))
@@ -659,7 +663,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         temporal_lidar_bev = np.concatenate(temporal_lidars_lst, axis=0)
 
-
+    zwischen.toc("after lidar", restart=True)
     if self.config.detect_boxes or self.config.use_plant:
       bounding_boxes, future_bounding_boxes = self.parse_bounding_boxes(loaded_boxes[self.config.seq_len - 1],
                                                                         loaded_future_boxes[self.config.seq_len - 1],
@@ -837,7 +841,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       data["correlation_weight"]=current_correlation_weight
     else:
       data["correlation_weight"]=np.array([])
-
+    timer.toc("Full Time", restart=True)
     return data
 
   def augment_images(self, loaded_images_augmented):
