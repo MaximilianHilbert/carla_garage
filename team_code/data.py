@@ -21,12 +21,25 @@ from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
 from pytictoc import TicToc
-
+import turbojpeg
+tj = turbojpeg.TurboJPEG()
 timer=TicToc()
 zwischen=TicToc()
 #TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
 #TODO augmentations dont work for past images
+def read_img(img_path):
+    with open(str(img_path, encoding='utf-8'), 'rb') as file:
+        jpeg_data = file.read()
 
+    # Create a turbojpeg instance
+
+
+    # Decode the JPEG data to a numpy array
+    image = tj.decode(jpeg_data)
+
+    # Convert the image to RGB
+    image = image[:, :, ::-1]
+    return image
 class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
   """
     Custom dataset that dynamically loads a CARLA dataset from disk.
@@ -851,20 +864,19 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       return np.array([self.image_augmenter_func(image=image_augmented) for image_augmented in loaded_images_augmented])
     else:
       return loaded_images_augmented
-#TODO Ask for clarification regarding transposing before augmenting; in my opinion no transpose is allowed, same for not temporal lidar values (N_seq, ...)
+  #TODO Ask for clarification regarding transposing before augmenting; in my opinion no transpose is allowed, same for not temporal lidar values (N_seq, ...)
   def augment_lidars(self, lidars_bev):
     return np.transpose(np.array(self.lidar_augmenter_func(image=np.transpose(lidars_bev, (1,2,0))) ), (2,0,1))
-
   def load_temporal_images(self, temporal_images, temporal_images_augmented):
     loaded_temporal_images = []
     loaded_temporal_images_augmented = []
     if self.config.img_seq_len > 1 and not self.config.use_plant:
-      #for i in range(self.config.img_seq_len-1):
-        # image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        # loaded_temporal_images.append(image)
-      loaded_temporal_images = cv2.imreadmulti([str(img_path, encoding='utf-8') for img_path in temporal_images], cv2.IMREAD_COLOR)[1]
-      loaded_temporal_images = [cv2.cvtColor(img, cv2.COLOR_BGR2RGB) for img in loaded_temporal_images]
+      for i in range(self.config.img_seq_len-1):
+        image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        loaded_temporal_images.append(image)
+        # loaded_temporal_images = [read_img(img) for img in temporal_images]
+        # loaded_temporal_images.reverse()
         # if self.config.augment:
         #   image_augmented = cv2.imread(str(temporal_images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
         #   image_augmented = cv2.cvtColor(image_augmented, cv2.COLOR_BGR2RGB)
