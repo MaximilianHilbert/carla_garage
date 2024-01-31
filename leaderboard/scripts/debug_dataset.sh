@@ -19,4 +19,4 @@ source /home/hilbert/.bashrc
 eval "$(conda shell.bash hook)"
 conda activate garage
 
-python $TEAM_CODE/debug_dataset.py --number_of_workers 12 
+python $WORK_DIR/debug_dataset.py --number-of-workers 12 
