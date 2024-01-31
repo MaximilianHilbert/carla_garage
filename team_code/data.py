@@ -26,6 +26,7 @@ zwischen=TicToc()
 #TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
 #TODO augmentations dont work for past images
 from PIL import Image
+import pyvips
 class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
   """
     Custom dataset that dynamically loads a CARLA dataset from disk.
@@ -858,7 +859,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     loaded_temporal_images_augmented = []
     if self.config.img_seq_len > 1 and not self.config.use_plant:
       for i in range(self.config.img_seq_len-1):
-        image = np.asarray(Image.open(str(temporal_images[i], encoding='utf-8')).convert("RGB"))
+        image = pyvips.Image.new_from_file(str(temporal_images[i], encoding='utf-8'), access='sequential').numpy()
+        image=image[:, :, ::-1]
+        # image = np.asarray(Image.open(str(temporal_images[i], encoding='utf-8')).convert("RGB"))
         # image_pil = Image.open(str(temporal_images[i], encoding='utf-8'))
         # image= np.array(image_rgb)
         loaded_temporal_images.append(image)
