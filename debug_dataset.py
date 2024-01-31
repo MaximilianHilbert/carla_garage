@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from coil_configuration.coil_config import g_conf, merge_with_yaml
 import timeit
 def main(args):
-    merge_with_yaml(os.path.join('coil_configuration', args.baseline_folder_name, args.baseline_name + '.yaml'))
+    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline_folder_name, args.baseline_name + '.yaml'))
     shared_configuration = GlobalConfig()
     shared_configuration.initialize(root_dir=shared_configuration.root_dir)
     #only set config_transfuser args to yaml/coiltraine args that matter for dataset generation
@@ -49,7 +49,7 @@ def main(args):
     shared_configuration.correlation_weights=g_conf.CORRELATION_WEIGHTS
     torch.manual_seed(123)
     data=CARLA_Data(root=shared_configuration.train_data,config=shared_configuration)
-    data_loader = DataLoader(data, batch_size=1, shuffle=True, num_workers=args.number_of_workers)
+    data_loader = DataLoader(data, batch_size=1, shuffle=True, num_workers=int(args.number_of_workers))
     def test(data_Loader):
         le=range(10)
         for idx, data in zip(le, data_loader):
