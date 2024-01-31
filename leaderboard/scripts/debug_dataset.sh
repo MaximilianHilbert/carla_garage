@@ -1,9 +1,9 @@
 #!/bin/bash
-export WORK_DIR=/home/hilbert/carla_garage
+export WORK_DIR=/home/hilbert/keyframes_test/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
 export CARLA_ROOT=${WORK_DIR}/carla
-export DATASET_ROOT=/home/hilbert/dataset_v08
+export DATASET_ROOT=/home/hilbert/test
 export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
 
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
@@ -16,4 +16,4 @@ export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
-python $WORK_DIR/debug_dataset.py --number-of-workers 12
+python $WORK_DIR/debug_dataset.py
