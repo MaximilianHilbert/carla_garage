@@ -11,7 +11,7 @@ def generate_and_place_batch_script(workers, seed, training_repetition, baseline
 #SBATCH --nodes=1
 #SBATCH --time=3-00:00
 #SBATCH --gres=gpu:1
-#SBATCH --partition=gpu-2080ti,gpu-2080ti-preemptable,gpu-v100,gpu-v100-preemptable
+#SBATCH --partition=gpu-2080ti,gpu-v100
 #SBATCH --cpus-per-task={workers}
 #SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
