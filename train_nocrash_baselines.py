@@ -9,8 +9,9 @@ def generate_and_place_batch_script(workers, seed, training_repetition, baseline
 #SBATCH --job-name=reproduce_{baseline_folder_name}_{baseline_name}_{training_repetition}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --time=03-00:00
+#SBATCH --time=3-00:00
 #SBATCH --gres=gpu:1
+#SBATCH --partition=gpu-2080ti,gpu-2080ti-preemptable,gpu-v100,gpu-v100-preemptable
 #SBATCH --cpus-per-task={workers}
 #SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
