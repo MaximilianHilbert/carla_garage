@@ -863,12 +863,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         image = cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         loaded_temporal_images.append(image)
-        if self.config.augment:
-          image_augmented = cv2.imread(str(temporal_images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-          image_augmented = cv2.cvtColor(image_augmented, cv2.COLOR_BGR2RGB)
-          loaded_temporal_images_augmented.append(image_augmented)
+        # if self.config.augment:
+        #   image_augmented = cv2.imread(str(temporal_images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
+        #   image_augmented = cv2.cvtColor(image_augmented, cv2.COLOR_BGR2RGB)
+        #   loaded_temporal_images_augmented.append(image_augmented)
       loaded_temporal_images.reverse()
-      loaded_temporal_images_augmented.reverse()
+      #loaded_temporal_images_augmented.reverse()
     return loaded_temporal_images,loaded_temporal_images_augmented
 
   def load_temporal_measurements(self, temporal_measurements, future=False):
