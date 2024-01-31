@@ -11,10 +11,10 @@ def generate_and_place_batch_script(workers, seed, training_repetition, baseline
 #SBATCH --nodes=1
 #SBATCH --time=03-00:00
 #SBATCH --partition=week
-#SBATCH --gres=gpu:A4000:1
+#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task={workers}
-#SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
-#SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
+#SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
+#SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
 
 #export WORK_DIR=/home/hilbert/carla_garage
 #export CONFIG_ROOT=$WORK_DIR/coil_configuration
@@ -23,6 +23,11 @@ def generate_and_place_batch_script(workers, seed, training_repetition, baseline
 #export DATASET_ROOT=/home/hilbert/dataset_v08
 #export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
 
+export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+export CONFIG_ROOT=$WORK_DIR/coil_config
+export CARLA_ROOT=$WORK_DIR/carla
+export DATASET_ROOT=/mnt/qb/work2/geiger0/bjaeger25/datasets/hb_dataset_v08_2023_05_10
+export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 
 export CARLA_SERVER=$CARLA_ROOT/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI
@@ -34,9 +39,11 @@ export PYTHONPATH=$PYTHONPATH:$COIL_NETWORK
 export PYTHONPATH=$PYTHONPATH:$TEAM_CODE
 export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 
-source /home/hilbert/.bashrc
-eval "$(conda shell.bash hook)"
-conda activate garage
+# source /home/hilbert/.bashrc
+# eval "$(conda shell.bash hook)"
+# conda activate garage
+source ~/.bashrc
+conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {workers}
         """
         f.write(command)
