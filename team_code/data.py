@@ -858,9 +858,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     loaded_temporal_images_augmented = []
     if self.config.img_seq_len > 1 and not self.config.use_plant:
       for i in range(self.config.img_seq_len-1):
-        image_pil = Image.open(str(temporal_images[i], encoding='utf-8'))
-        image_rgb = image_pil.convert('RGB')
-        image= np.array(image_rgb)
+        image = np.asarray(Image.open(str(temporal_images[i], encoding='utf-8')).convert("RGB"))
+        # image_pil = Image.open(str(temporal_images[i], encoding='utf-8'))
+        # image= np.array(image_rgb)
         loaded_temporal_images.append(image)
         # loaded_temporal_images = [read_img(img) for img in temporal_images]
         # loaded_temporal_images.reverse()
