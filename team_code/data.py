@@ -301,7 +301,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         temporal_images_augmented = self.temporal_images_augmented[index]
       else:
         temporal_images_augmented=[]
-  
+    zwischen.toc("reines laden", restart=True)
     # load measurements
       
     loaded_images = []
@@ -378,13 +378,13 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           self.data_cache[measurement_file] = measurements_i
 
       loaded_measurements.append(measurements_i)
-
+    zwischen.toc("Measurements", restart=True)
     for i in range(self.config.seq_len):
       if self.config.use_plant:
         cache_key = str(boxes[i], encoding='utf-8')
       else:
         cache_key = str(images[i], encoding='utf-8')
-
+    
       # Retrieve preprocessed and compressed data from the disc cache
       if not self.data_cache is None and cache_key in self.data_cache:
         boxes_i, future_boxes_i, images_i, images_augmented_i, semantics_i, semantics_augmented_i, bev_semantics_i,\
@@ -441,7 +441,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           if self.config.use_plant:
             with gzip.open(str(future_boxes[i], encoding='utf-8'), 'rt', encoding='utf-8') as f2:
               future_boxes_i = ujson.load(f2)
-
+        zwischen.toc("vor laspy", restart=True)
         if not self.config.use_plant:
           las_object = laspy.read(str(lidars[i], encoding='utf-8'))
           lidars_i = las_object.xyz
@@ -469,7 +469,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             if self.config.use_depth:
               depth_augmented_i = cv2.imread(str(depth_augmented[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
         # Store data inside disc cache
-        
+        zwischen.toc("nach laspy", restart=True)
         if not self.data_cache is None:
           # We want to cache the images in jpg format instead of uncompressed, to reduce memory usage
           compressed_image_i = None
