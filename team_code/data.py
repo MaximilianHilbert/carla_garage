@@ -441,7 +441,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           if self.config.use_plant:
             with gzip.open(str(future_boxes[i], encoding='utf-8'), 'rt', encoding='utf-8') as f2:
               future_boxes_i = ujson.load(f2)
-        zwischen.toc("vor laspy", restart=True)
+        zwischen.toc("LOADING+LASPY", restart=True)
         if not self.config.use_plant:
           las_object = laspy.read(str(lidars[i], encoding='utf-8'))
           lidars_i = las_object.xyz
@@ -450,8 +450,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           if self.config.lidar_seq_len > 1:
             loaded_temporal_lidars = change_axes_and_reverse(temporal_lidars)
           if self.config.img_seq_len > 1:
+            zwischen.toc("nur laden anfang", restart=True)
             loaded_temporal_images, loaded_temporal_images_augmented = self.load_temporal_images(
             temporal_images, temporal_images_augmented)
+            zwischen.toc("nur laden ende", restart=True)
           if self.config.use_semantic:
             semantics_i = cv2.imread(str(semantics[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
           if self.config.use_bev_semantic:
@@ -469,7 +471,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             if self.config.use_depth:
               depth_augmented_i = cv2.imread(str(depth_augmented[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
         # Store data inside disc cache
-        zwischen.toc("nach laspy", restart=True)
+        zwischen.toc("AFTER LOADING+LASPY", restart=True)
         if not self.data_cache is None:
           # We want to cache the images in jpg format instead of uncompressed, to reduce memory usage
           compressed_image_i = None
