@@ -125,7 +125,7 @@
             "type": "python",
             "request": "launch",
             "program": "/home/maximilian/Master/carla_garage/debug_dataset.py",
-            "args": ["--baseline_folder_name", "ARP", "--baseline_name", "arp_vanilla",],
+            "args": ["--baseline_folder_name", "ARP", "--baseline_name", "arp_vanilla","--number-of-workers", "1"],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "purpose": ["debug-in-terminal"],
