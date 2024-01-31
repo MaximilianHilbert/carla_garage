@@ -63,7 +63,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--baseline_name", default="arp_vanilla", dest='baseline_name',help="")
     parser.add_argument("--baseline_folder_name", default="ARP", dest='baseline_folder_name',help="")
-    parser.add_argument("--number-of-workers", dest='number_of_workers',help="")
+    parser.add_argument('--number-of-workers', dest="number_of_workers", default=12, type=int, required=True)
     
     args = parser.parse_args()
     
