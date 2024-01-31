@@ -859,7 +859,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     loaded_temporal_images_augmented = []
     if self.config.img_seq_len > 1 and not self.config.use_plant:
       for i in range(self.config.img_seq_len-1):
-        image= cv2.imread(str(loaded_temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
+        image= cv2.imread(str(temporal_images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         loaded_temporal_images.append(image)
         # loaded_temporal_images = [read_img(img) for img in temporal_images]
