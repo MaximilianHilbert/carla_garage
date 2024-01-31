@@ -27,4 +27,5 @@ export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 #seeds must match repetition number
+#watch out with dataloading bottlenecks, when seeds are same for all baselines
 python $WORK_DIR/train_nocrash_baselines.py --repetitions 1 --seeds 1 --gpu 0 --baseline_folder_names ARP bcoh bcso --baseline_names arp_vanilla bcoh_vanilla bcso_vanilla --number_of_workers 12 --use-disk-cache 1
