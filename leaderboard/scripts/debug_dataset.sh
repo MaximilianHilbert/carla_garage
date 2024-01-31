@@ -1,3 +1,4 @@
+#!/bin/bash
 export WORK_DIR=/home/hilbert/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
