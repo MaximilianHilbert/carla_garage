@@ -18,19 +18,18 @@
 # export COIL_NETWORK=${WORK_DIR}/coil_network
 # export DATASET_ROOT=/home/maximilian/training_data_split
 #cluster tcml
-export WORK_DIR=/home/hilbert/carla_garage
-export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-export TEAM_CODE=$WORK_DIR/team_code
+# export WORK_DIR=/home/hilbert/carla_garage
+# export CONFIG_ROOT=${WORK_DIR}/coil_configuration
+# export TEAM_CODE=$WORK_DIR/team_code
+# export CARLA_ROOT=${WORK_DIR}/carla
+# export DATASET_ROOT=/home/hilbert/dataset_v08
+# export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
+#mlcloud
+export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+export CONFIG_ROOT=${WORK_DIR}/coil_config
 export CARLA_ROOT=${WORK_DIR}/carla
-export DATASET_ROOT=/home/hilbert/dataset_v08
-export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
-#cluster
-#export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
-#export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-#export TEAM_CODE=$WORK_DIR/team_code
-#export CARLA_ROOT=${WORK_DIR}/carla
-#export DATASET_ROOT=/mnt/qb/work/geiger/gwb629/datasets/hb_dataset_v08_2023_05_10
-#export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+export DATASET_ROOT=/mnt/qb/work2/geiger0/bjaeger25/datasets/hb_dataset_v08_2023_05_10
+export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
@@ -43,11 +42,11 @@ export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
 #mlcloud
-# source ~/.bashrc
-# conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+source ~/.bashrc
+conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 #tcml
-source /home/hilbert/.bashrc
-eval "$(conda shell.bash hook)"
-conda activate garage
+# source /home/hilbert/.bashrc
+# eval "$(conda shell.bash hook)"
+# conda activate garage
 
 python $TEAM_CODE/coil_train.py --seed 1 --gpu 0 --baseline_folder_name ARP --baseline_name arp_vanilla --number_of_workers 12 --training_repetition 0 --use-disk-cache 0
