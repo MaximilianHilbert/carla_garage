@@ -142,7 +142,7 @@ class CoILICRA(nn.Module):
         # We concatenate speed with the rest.
         return branch_outputs + [speed_branch_output]
 
-    def forward_branch(self, x, a, branch_number):
+    def forward_branch(self, x, a, branch_number, pa=None):
         """
         DO a forward operation and return a single branch.
 
@@ -150,6 +150,7 @@ class CoILICRA(nn.Module):
             x: the image input
             a: speed measurement
             branch_number: the branch number to be returned
+            pa: previous actions, optional
 
         Returns:
             the forward operation on the selected branch
@@ -157,7 +158,10 @@ class CoILICRA(nn.Module):
         """
         # Convert to integer just in case .
         # TODO: take four branches, this is hardcoded
-        output_vec = torch.stack(self.forward(x, a)[0:4])
+        output = self.forward(x, a, pa)
+        self.predicted_speed = output[-1]
+        control = output[0:4]
+        output_vec = torch.stack(control)
 
         return self.extract_branch(output_vec, branch_number)
 
@@ -178,4 +182,6 @@ class CoILICRA(nn.Module):
 
         return output_vec[branch_number[0], branch_number[1], :]
 
-
+    def extract_predicted_speed(self):
+        # return the speed predicted in forward_branch()
+        return self.predicted_speed
