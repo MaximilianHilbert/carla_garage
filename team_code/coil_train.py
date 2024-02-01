@@ -186,7 +186,7 @@ def main(args, suppress_output=False):
         print("Loaded dataset")
 
         data_loader = select_balancing_strategy(dataset, iteration, args.number_of_workers)
-        if args.baseline_folder_name=="ARP":
+        if args.baseline_folder_name=="arp":
             policy = CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
             policy.cuda()
 
@@ -196,13 +196,13 @@ def main(args, suppress_output=False):
             model=CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
             model.cuda()
         if merged_config_object.optimizer == 'Adam':
-            if args.baseline_folder_name=="ARP":
+            if args.baseline_folder_name=="arp":
                 policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
                 mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate)
             else:
                 optimizer= optim.Adam(model.parameters(), lr=merged_config_object.learning_rate)
         elif merged_config_object.optimizer == 'SGD':
-            if args.baseline_folder_name=="ARP":
+            if args.baseline_folder_name=="arp":
                 policy_optimizer = optim.SGD(policy.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
                 mem_extract_optimizer = optim.SGD(mem_extract.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
             else:
@@ -212,7 +212,7 @@ def main(args, suppress_output=False):
 
         if checkpoint_file is not None or merged_config_object.preload_model_alias is not None:
             accumulated_time = checkpoint['total_time']
-            if args.baseline_folder_name=="ARP":
+            if args.baseline_folder_name=="arp":
 
                 policy.load_state_dict(checkpoint['policy_state_dict'])
                 policy_optimizer.load_state_dict(checkpoint['policy_optimizer'])
@@ -228,7 +228,7 @@ def main(args, suppress_output=False):
                 loss_window = coil_logger.recover_loss_window('train', iteration)
         else:  # We accumulate iteration time and keep the average speed
             accumulated_time = 0
-            if args.baseline_folder_name=="ARP":
+            if args.baseline_folder_name=="arp":
                 policy_loss_window = []
                 mem_extract_loss_window = []
             else:
@@ -254,18 +254,16 @@ def main(args, suppress_output=False):
             capture_time = time.time()
             controls = get_controls_from_data(merged_config_object, data)
             iteration += 1
-            if args.baseline_folder_name=="ARP":
+            if args.baseline_folder_name=="arp":
                 if iteration % 1000 == 0:
                     adjust_learning_rate_auto(policy_optimizer, policy_loss_window)
                     adjust_learning_rate_auto(mem_extract_optimizer, mem_extract_loss_window)
-                if merged_config_object.blank_frames_type == 'black':
-                    blank_images_tensor = torch.cat([torch.zeros_like(data['rgb']) for _ in range(merged_config_object.all_frames_including_blank - merged_config_object.img_seq_len)], dim=1).cuda()
-
-                obs_history = torch.cat([blank_images_tensor,data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1).to(torch.float32).cuda()
+                obs_history = data['temporal_rgb'].cuda()
                 obs_history=obs_history/255.
-                obs_history=obs_history.view(merged_config_object.batch_size, 30, merged_config_object.camera_height, merged_config_object.camera_width)
-                current_obs = torch.zeros_like(obs_history).cuda()
-                current_obs[:, -3:] = obs_history[:, -3:]
+                current_obs=data['rgb'].cuda()
+                current_obs=current_obs/255.
+                obs_history=obs_history.reshape(merged_config_object.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
+                
                 if merged_config_object.speed_input:
                     current_speed =dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()                    
                 else:
@@ -288,7 +286,7 @@ def main(args, suppress_output=False):
                 mem_extract_optimizer.step()
                 #TODO watch out with implementation of previous action tensor
                 policy.zero_grad()
-                policy_branches = policy(current_obs, current_speed, memory)
+                policy_branches = policy(torch.squeeze(current_obs), current_speed, memory)
                 loss_function_params = {
                     'branches': policy_branches,
                     'targets': dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
@@ -424,7 +422,8 @@ def main(args, suppress_output=False):
                 accumulated_time += time.time() - capture_time
                 loss_window.append(loss.data.tolist())
                 coil_logger.write_on_error_csv('train', loss.data)
-                print("Iteration: %d  Loss: %f" % (iteration, loss.data))
+                if iteration%100==0:
+                    print("Iteration: %d  Loss: %f" % (iteration, loss.data))
             torch.cuda.empty_cache()
         
         

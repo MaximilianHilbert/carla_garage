@@ -18,7 +18,7 @@ class CoILMemExtract(nn.Module):
         number_first_layer_channels = 0
 
         for _, sizes in g_conf.SENSORS.items():
-            number_first_layer_channels += sizes[0] * g_conf.ALL_FRAMES_INCLUDING_BLANK
+            number_first_layer_channels += sizes[0]
 
         # Get one item from the dict
         sensor_input_shape = next(iter(g_conf.SENSORS.values()))
@@ -32,7 +32,7 @@ class CoILMemExtract(nn.Module):
             resnet_module = getattr(resnet_module, params['perception']['res']['name'])
             self.perception = resnet_module(
                                     pretrained=g_conf.PRE_TRAINED,
-                                    input_channels=number_first_layer_channels,
+                                    input_channels=number_first_layer_channels*(g_conf.IMAGE_SEQ_LEN-1),
                                     num_classes=params['perception']['res']['num_classes']
                                 )
 
