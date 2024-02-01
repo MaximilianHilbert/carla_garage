@@ -9,7 +9,7 @@ def generate_and_place_batch_script(workers, seed, training_repetition, baseline
 #SBATCH --job-name=reproduce_{baseline_folder_name}_{baseline_name}_{training_repetition}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --time=3-00:00
+#SBATCH --time=1-00:00
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpu-2080ti,gpu-v100
 #SBATCH --cpus-per-task={workers}
