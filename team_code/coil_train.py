@@ -26,10 +26,10 @@ def set_seed(seed):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-def merge_config_files():
+def merge_config_files(baseline_folder_name, baseline_name):
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
 
-    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline_folder_name, args.baseline_name + '.yaml'))
+    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name, baseline_name + '.yaml'))
     
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
@@ -71,11 +71,15 @@ def merge_config_files():
     shared_configuration.speed_input=g_conf.SPEED_INPUT
     shared_configuration.train_with_actions_as_input=g_conf.TRAIN_WITH_ACTIONS_AS_INPUT
     shared_configuration.correlation_weights=g_conf.CORRELATION_WEIGHTS
+    shared_configuration.baseline_folder_name=baseline_folder_name
+    shared_configuration.baseline_name=baseline_name
+    
+    
     return shared_configuration
 
 
 def main(args, suppress_output=False):
-    merged_config_object=merge_config_files()
+    merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name)
     create_log_folder(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
     erase_logs(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
     create_exp_path(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name,args.baseline_name, repetition=args.training_repetition)
@@ -339,14 +343,23 @@ def main(args, suppress_output=False):
                 else:
                     current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
                 #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
-                if merged_config_object.train_with_actions_as_input:
-                    branches = model(torch.squeeze(data['rgb'].to(torch.float32)).cuda(),
-                             current_speed,
-                             data['previous_actions'].reshape(merged_config_object.batch_size, -1).to(torch.float32).cuda())
+                if args.baseline_folder_name=="bcso":
+                    if merged_config_object.train_with_actions_as_input:
+                        branches = model(torch.squeeze(data['rgb'].to(torch.float32)).cuda(),
+                                current_speed,
+                                data['previous_actions'].reshape(merged_config_object.batch_size, -1).to(torch.float32).cuda())
+                    else:
+                        branches = model(input,
+                                    current_speed)
                 else:
-                    branches = model(input,
-                                current_speed)
-                    
+                    if merged_config_object.train_with_actions_as_input:
+                        input=torch.cat([data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1).to(torch.float32).reshape(merged_config_object.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width).cuda()
+                        branches = model(input,
+                                current_speed,
+                                data['previous_actions'].reshape(merged_config_object.batch_size, -1).to(torch.float32).cuda())
+                    else:
+                        branches = model(input,
+                                    current_speed)
                     ########################################################introduce importance weight adding to the temporal images/lidars and the current one################
                 if args.baseline_name=="keyframes_vanilla":
                     reweight_params = {'importance_sampling_softmax_temper': merged_config_object.softmax_temper,

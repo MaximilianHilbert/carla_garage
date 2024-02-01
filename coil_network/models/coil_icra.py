@@ -51,6 +51,7 @@ class CoILICRA(nn.Module):
             resnet_module = importlib.import_module('coil_network.models.building_blocks.resnet')
             resnet_module = getattr(resnet_module, params['perception']['res']['name'])
             self.perception = resnet_module(pretrained=g_conf.PRE_TRAINED,
+                                            input_channels=number_first_layer_channels,
                                              num_classes=params['perception']['res']['num_classes'])
 
             number_output_neurons = params['perception']['res']['num_classes']
