@@ -2,11 +2,11 @@
 #SBATCH --job-name=reproduce_ARP_arp_vanilla_single
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --partition=day
+#SBATCH --partition=gpu-2080ti,gpu-v100
 #SBATCH --time=01-00:00
-#SBATCH --gres=gpu:A4000:1
+#SBATCH --gres=gpu:1
 #SBATCH --mem=100GB
-#SBATCH --cpus-per-task=12
+#SBATCH --cpus-per-task=20
 #SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
 
