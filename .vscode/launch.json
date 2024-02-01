@@ -142,7 +142,7 @@
             "--baseline-folder-name", "keyframes",
             "--baseline-name", "keyframes_vanilla_weights",
             "--number-of-workers", "1",
-            "--seeds", "1","2"],
+            "--seeds", "1435"],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "purpose": ["debug-in-terminal"],
