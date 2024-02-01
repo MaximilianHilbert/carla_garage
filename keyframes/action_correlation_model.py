@@ -157,7 +157,7 @@ def train_ape_model(args, seed,repetition, merged_config_object, checkpoint_full
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
     loss_func = partial(weighted_loss, weight=torch.Tensor([0.5, 0.45, 0.05]*(merged_config_object.number_future_actions+1)).cuda())
 
-    result_dir = os.path.join(os.environ.get("WORK_DIR"), "action_correlation","results", f"prev{merged_config_object.number_previous_actions}-curr{merged_config_object.number_future_actions+1}-repetition-{repetition}-{identifier}")
+    result_dir = os.path.join(os.environ.get("WORK_DIR"), "_logs","keyframes","results", f"prev{merged_config_object.number_previous_actions}-curr{merged_config_object.number_future_actions+1}-repetition-{repetition}-{identifier}")
 
     log_dir = os.path.join(result_dir, 'run')
     os.makedirs(log_dir)
@@ -173,6 +173,6 @@ def train_ape_model(args, seed,repetition, merged_config_object, checkpoint_full
             adjustlr(optimizer, 0.1)
 
     if if_save:
-        os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "action_correlation", "checkpoints"), exist_ok=True)
+        os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "_logs","keyframes", "checkpoints"), exist_ok=True)
         checkpoint = {'state_dict': model.state_dict(), 'min_loss': min_loss, 'max_loss': max_loss}
         torch.save(checkpoint, checkpoint_full_path)
