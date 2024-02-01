@@ -179,19 +179,19 @@ class CoILAgent(AutonomousAgent):
         directions_tensor = torch.cuda.LongTensor([directions])
         single_image, observation_history = self._process_sensors(current_image, original_image_list)
     
-        if self.config.baseline_name=="arp":
-            _, memory = self._mem_extract(observation_history)
-            model_outputs = self._policy.forward_branch(single_image, measurement_input, directions_tensor, memory)
+        if self.config.baseline_folder_name=="arp":
+            _, memory = self._mem_extract(torch.unsqueeze(observation_history,0))
+            model_outputs = self._policy.forward_branch(torch.unsqueeze(single_image,0), measurement_input, directions_tensor, memory)
 
             predicted_speed = self._policy.extract_predicted_speed().cpu().detach().numpy()
         else:
-            if self.config.baseline_name=="bcoh":
-                merged_history_and_current=torch.cat([single_image, observation_history], dim=1)
+            if self.config.baseline_folder_name=="bcoh":
+                merged_history_and_current=torch.cat([single_image, observation_history], dim=0)
                 if self.config.train_with_actions_as_input:
-                    model_outputs = self.model.forward_branch(merged_history_and_current, measurement_input,
+                    model_outputs = self.model.forward_branch(torch.unsqueeze(merged_history_and_current,0), measurement_input,
                                                         directions_tensor,torch.from_numpy(np.array(self.previous_actions).astype(np.float)).type(torch.FloatTensor).unsqueeze(0).cuda())
                 else:
-                    model_outputs = self.model.forward_branch(merged_history_and_current, measurement_input,
+                    model_outputs = self.model.forward_branch(torch.unsqueeze(merged_history_and_current,0), measurement_input,
                                                         directions_tensor)
             else:
                 if self.config.train_with_actions_as_input:
