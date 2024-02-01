@@ -336,8 +336,11 @@ def main(args, suppress_output=False):
                 if iteration % 1000 == 0:
                     adjust_learning_rate_auto(optimizer,loss_window)
                 model.zero_grad()
-                input=torch.squeeze(data['rgb'].to(torch.float32).cuda())
-                input=input/255.
+                single_frame_input=torch.squeeze(data['rgb'].to(torch.float32).cuda())
+                single_frame_input=single_frame_input/255.
+                single_frame_input=single_frame_input.to(torch.float32).reshape(merged_config_object.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width).cuda()
+                
+                
                 if merged_config_object.speed_input:
                     current_speed =dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
                 else:
@@ -345,20 +348,21 @@ def main(args, suppress_output=False):
                 #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
                 if args.baseline_folder_name=="bcso":
                     if merged_config_object.train_with_actions_as_input:
-                        branches = model(torch.squeeze(data['rgb'].to(torch.float32)).cuda(),
+                        branches = model(single_frame_input,
                                 current_speed,
                                 data['previous_actions'].reshape(merged_config_object.batch_size, -1).to(torch.float32).cuda())
                     else:
-                        branches = model(input,
+                        branches = model(single_frame_input,
                                     current_speed)
                 else:
+                    multi_frame_input=torch.cat([data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1)/255.
+                    multi_frame_input=multi_frame_input.reshape(merged_config_object.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width)
                     if merged_config_object.train_with_actions_as_input:
-                        input=torch.cat([data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1).to(torch.float32).reshape(merged_config_object.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width).cuda()
-                        branches = model(input,
+                        branches = model(multi_frame_input,
                                 current_speed,
                                 data['previous_actions'].reshape(merged_config_object.batch_size, -1).to(torch.float32).cuda())
                     else:
-                        branches = model(input,
+                        branches = model(multi_frame_input,
                                     current_speed)
                     ########################################################introduce importance weight adding to the temporal images/lidars and the current one################
                 if args.baseline_name=="keyframes_vanilla":
