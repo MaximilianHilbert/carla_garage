@@ -12,16 +12,18 @@ NUMBER_ITERATIONS: 100000
 TARGETS: ['steer', 'throttle', 'brake']  # From the float data, the ones that the network should estimate
 INPUTS: ['speed'] # From the float data, the ones that are input to the neural network
 IMAGE_SEQ_LEN: 1  # Number of frames fuseUMBER_IMAGES_SEQUENCE: 1  # Number of frames sent in sequence
+ALL_FRAMES_INCLUDING_BLANK: 1
 SEQUENCE_STRIDE: 1  # Number of frames skipped when reading the data
 AUGMENT_LATERAL_STEERINGS: 6  # Depending on this value there is a constant multiplying lateral steers
 SPEED_FACTOR: 12.0  # The constant that is divides the speed_module in order to make it from 0-1
-
+NUMBER_PREVIOUS_ACTIONS: 0
 AUGMENTATION: None  # The image augmentation applied on every input image
 DATA_USED: 'all'  # The part of the data to be used
 USE_NOISE_DATA: True  # If we use the noise data.
 
 CORRELATION_WEIGHTS: False
-
+SPEED_INPUT: True
+TRAIN_WITH_ACTIONS_AS_INPUT: True
 #### Model Related Parameters ####
 # Network Parameters #
 MODEL_TYPE: 'coil-icra' # The type of model. Defines which modules the model has.
