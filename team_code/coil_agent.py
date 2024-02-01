@@ -9,7 +9,6 @@ import random
 import time
 import cv2
 from collections import deque
-from skimage import io
 from coil_configuration.coil_config import g_conf
 import matplotlib.pyplot as plt
 from leaderboard.envs.sensor_interface import SensorInterface
@@ -20,7 +19,7 @@ from coil_network.coil_model import CoILModel
 from coil_planner.planner import Planner
 from team_code.transfuser_utils import preprocess_compass, inverse_conversion_2d
 import carla
-
+from team_code.coil_train import merge_config_files
 
 def get_entry_point():
   return 'CoILAgent'
@@ -28,15 +27,30 @@ def get_entry_point():
 class CoILAgent(AutonomousAgent):
     #TODO check for double image input in original_image_list; change from priviledged input to gps/velocity dont forget to correctly transform to new ego vehicle 
     #TODO Before retraining, adapt to modern logging 
-    def __init__(self, checkpoint, city_name="Town01", carla_version='0.9'):
+    def __init__(self, checkpoint, city_name="Town01", baseline_folder_name="arp", baseline_name="arp_vanilla", carla_version='0.9'):
         # Set the carla version that is going to be used by the interface
         self._carla_version = carla_version
         self.checkpoint = checkpoint  # We save the checkpoint for some interesting future use.
-        self._policy = CoILModel("coil-policy", g_conf.MODEL_CONFIGURATION)
-        self._mem_extract = CoILModel("coil-memory", g_conf.MEM_EXTRACT_MODEL_CONFIGURATION)
+        self.config=merge_config_files(baseline_folder_name, baseline_name)
+        if baseline_folder_name in ["bcoh", "bcso"]:
+            self.model=CoILModel("coil-icra", g_conf.MODEL_CONFIGURATION)
+            self.model.load_state_dict(checkpoint['state_dict'])
+            self.model.cuda()
+            self.model.eval()
+        else:
+            self._policy = CoILModel("coil-policy", g_conf.MODEL_CONFIGURATION)
+            self._mem_extract = CoILModel("coil-memory", g_conf.MEM_EXTRACT_MODEL_CONFIGURATION)
+            self._policy.load_state_dict(checkpoint['policy_state_dict'])
+            self._mem_extract.load_state_dict(checkpoint['mem_extract_state_dict'])
+            self._mem_extract.cuda()
+            self._mem_extract.eval()
+            self._policy.cuda()
+            self._policy.eval()
+        
         self.first_iter = True
         #self.rgb_queue=deque(maxlen=g_conf.NUMBER_FRAMES_FUSION)
-        self.rgb_queue=deque(maxlen=g_conf.IMAGE_SEQ_LEN)
+        self.rgb_queue=deque(maxlen=self.config.img_seq_len-1)
+        self.previous_actions=deque(maxlen=self.config.number_previous_actions)
 
         #TODO watch out, this is the old planner from coiltraine!
         self._planner=Planner(city_name)
@@ -50,18 +64,12 @@ class CoILAgent(AutonomousAgent):
         self.mean = np.array([0.0, 0.0])
         self.scale = np.array([111324.60662786, 111319.490945])
         # Load the model and prepare set it for evaluation
-        self._policy.load_state_dict(checkpoint['policy_state_dict'])
-        self._policy.cuda()
-        self._policy.eval()
-        self._mem_extract.load_state_dict(checkpoint['mem_extract_state_dict'])
-        self._mem_extract.cuda()
-        self._mem_extract.eval()
         self.latest_image = None
         self.latest_image_tensor = None
         self.target_point_prev=0
     def sensors(self):
-        return [{'type': 'sensor.camera.rgb', 'x': 2.0, 'y': 0.0, 'z': 1.4, 'roll': 0.0, 'pitch': -15.0, 'yaw': 0.0,
-                      'width': 800, 'height': 600, 'fov': 100, 'id': 'CentralRGB', 'sensor_tick': g_conf.CARLA_FRAME_RATE},
+        return [{'type': 'sensor.camera.rgb', 'x': self.config.camera_pos[0], 'y': self.config.camera_pos[1], 'z': self.config.camera_pos[2], 'roll': self.config.camera_rot_0[0], 'pitch': self.config.camera_rot_0[1], 'yaw': self.config.camera_rot_0[2],
+                      'width': self.config.camera_width, 'height': self.config.camera_height, 'fov': self.config.camera_fov, 'id': 'CentralRGB', 'sensor_tick': self.config.carla_fps},
                        {
         'type': 'sensor.other.imu',
         'x': 0.0,
@@ -70,7 +78,7 @@ class CoILAgent(AutonomousAgent):
         'roll': 0.0,
         'pitch': 0.0,
         'yaw': 0.0,
-        'sensor_tick': g_conf.CARLA_FRAME_RATE,
+        'sensor_tick': self.config.carla_fps,
         'id': 'imu'
     },
     ]
@@ -89,10 +97,20 @@ class CoILAgent(AutonomousAgent):
             self.wallclock_t0 = GameTime.get_wallclocktime()
         wallclock = GameTime.get_wallclocktime()
         wallclock_diff = (wallclock - self.wallclock_t0).total_seconds()
-
-        control, current_image = self.run_step(current_data, list(self.rgb_queue), timestamp)
+        if timestamp<1:
+            control = carla.VehicleControl()
+            control.steer=0.
+            control.brake=0.
+            control.throttle=0.
+            current_image=current_data.get("CentralRGB")[1][...,:3]
+            current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
+            past_actions=[0.,0.,0.]
+        else:
+            control, current_image = self.run_step(current_data, list(self.rgb_queue), timestamp)
         control.manual_gear_shift = False
+        past_actions=(control.steer, control.throttle, control.brake)
         self.rgb_queue.append(current_image)
+        self.previous_actions.extend(past_actions)
         return control
     def yaw_to_orientation(self, yaw):
         # Calculate the orientation vector in old carla convention
@@ -100,7 +118,7 @@ class CoILAgent(AutonomousAgent):
         y=np.sin(yaw)
         z=0
         return x, y, z
-    def run_step(self, sensor_data, original_image_list,timestamp,avoid_stop=True, perturb_speed=False):
+    def run_step(self, sensor_data,original_image_list,timestamp,avoid_stop=True, perturb_speed=False):
         """
             Run a step on the benchmark simulation
         Args:
@@ -117,7 +135,6 @@ class CoILAgent(AutonomousAgent):
 
         """
         #retrieve location data from sensors and normalize/transform to ego vehicle system
-
         measurements=sensor_data.get("imu")
         current_location=self.vehicle.get_location()
         current_location=np.array([current_location.x, current_location.y])
@@ -155,18 +172,36 @@ class CoILAgent(AutonomousAgent):
         if perturb_speed and norm_speed < 0.01:
             norm_speed += random.uniform(0.05, 0.15)
         norm_speed = torch.cuda.FloatTensor([norm_speed]).unsqueeze(0)
+        if self.config.speed_input:
+            measurement_input = norm_speed
+        else:
+            measurement_input = torch.zeros_like(norm_speed)
         directions_tensor = torch.cuda.LongTensor([directions])
-        input_tensor = self._process_sensors(current_image, original_image_list,timestamp)
+        single_image, observation_history = self._process_sensors(current_image, original_image_list)
+    
+        if self.config.baseline_name=="arp":
+            _, memory = self._mem_extract(observation_history)
+            model_outputs = self._policy.forward_branch(single_image, measurement_input, directions_tensor, memory)
+
+            predicted_speed = self._policy.extract_predicted_speed().cpu().detach().numpy()
+        else:
+            if self.config.baseline_name=="bcoh":
+                merged_history_and_current=torch.cat([single_image, observation_history], dim=1)
+                if self.config.train_with_actions_as_input:
+                    model_outputs = self.model.forward_branch(merged_history_and_current, measurement_input,
+                                                        directions_tensor,torch.from_numpy(np.array(self.previous_actions).astype(np.float)).type(torch.FloatTensor).unsqueeze(0).cuda())
+                else:
+                    model_outputs = self.model.forward_branch(merged_history_and_current, measurement_input,
+                                                        directions_tensor)
+            else:
+                if self.config.train_with_actions_as_input:
+                    model_outputs = self.model.forward_branch(torch.unsqueeze(single_image,0), measurement_input,directions_tensor,
+                                                              torch.from_numpy(np.array(self.previous_actions).astype(np.float)).type(torch.FloatTensor).unsqueeze(0).cuda())
+                else:
+                    model_outputs = self.model.forward_branch(torch.unsqueeze(single_image,0), measurement_input,
+                                                        directions_tensor)
+            predicted_speed = self.model.extract_predicted_speed().cpu().detach().numpy()
         
-        obs_history = input_tensor
-        measurement_input = torch.zeros_like(norm_speed)
-        current_obs = torch.zeros_like(obs_history).cuda()
-        current_obs[:, -3:] = obs_history[:, -3:]
-        _, memory = self._mem_extract(obs_history)
-        model_outputs = self._policy.forward_branch(current_obs, measurement_input, directions_tensor, memory)
-
-        predicted_speed = self._policy.extract_predicted_speed()
-
         steer, throttle, brake = self._process_model_outputs(model_outputs[0], norm_speed, predicted_speed, avoid_stop)
         control = carla.VehicleControl()
         control.steer = float(steer)
@@ -180,7 +215,7 @@ class CoILAgent(AutonomousAgent):
         self.first_iter = False
 
        
-        print(steer, throttle, brake, directions, norm_speed)
+        print(steer, throttle, brake, directions)
         print("target")
         print(target_point_location)
         print("current location")
@@ -223,46 +258,26 @@ class CoILAgent(AutonomousAgent):
             (end_point_location_ego_system[0], end_point_location_ego_system[1], 0.22),
             (end_point_orientation_ego_system[0], end_point_orientation_ego_system[1], end_point_orientation_ego_system[2]))
         return directions
-    def _process_sensors(self, current_image, original_image_list,timestamp):
-        original_image_list.append(current_image)
-        frame_sequence = original_image_list[g_conf.PREFRAME_PROCESS_NUM*g_conf.SEQUENCE_STRIDE::g_conf.SEQUENCE_STRIDE]
-        iteration = 0
-        for idx, sensor in enumerate(frame_sequence):
-            # if timestamp >10:
-            #     io.imsave('/home/maximilian/Master/carla_garage/test_Frames/{}.png'.format(idx), sensor)
+    def _process_single_frame(self, current_image):
+        self.latest_image = current_image
+        current_image = np.swapaxes(current_image, 0, 1)
+        current_image = np.transpose(current_image, (2, 1, 0))
+        current_image = torch.from_numpy(current_image / 255.0).type(torch.FloatTensor).cuda()
+        return current_image
 
-            sensor = sensor[g_conf.IMAGE_CUT[0]:g_conf.IMAGE_CUT[1], ...]
-            sensor = cv2.resize(sensor, (g_conf.SENSORS['rgb'][2], g_conf.SENSORS['rgb'][1]))
 
-            self.latest_image = sensor
-
-            sensor = np.swapaxes(sensor, 0, 1)
-
-            sensor = np.transpose(sensor, (2, 1, 0))
-
-            sensor = torch.from_numpy(sensor / 255.0).type(torch.FloatTensor).cuda()
-
-            if iteration == 0:
-                image_input = sensor
-            else:
-                image_input = torch.cat((image_input, sensor), dim=0)
-
-            iteration += 1
-
-        if len(frame_sequence) != g_conf.ALL_FRAMES_INCLUDING_BLANK:
-            # stack the blank frames
-            if g_conf.BLANK_FRAMES_TYPE == 'black':
-                image_input = torch.cat((torch.zeros((3*(g_conf.ALL_FRAMES_INCLUDING_BLANK - len(frame_sequence)),
-                                                      g_conf.SENSORS['rgb'][1], g_conf.SENSORS['rgb'][2])).cuda(),
-                                         image_input), 0)
-            elif g_conf.BLANK_FRAMES_TYPE == 'copy':
-                image_input = torch.cat((image_input[:3, ...].repeat(g_conf.ALL_FRAMES_INCLUDING_BLANK - len(frame_sequence), 1, 1),
-                                         image_input), 0)
-
-        image_input = image_input.unsqueeze(0)
-
-        self.latest_image_tensor = image_input
-        return image_input
+    def _process_sensors(self, current_image, image_list):
+        processed_images=[]
+        current_image=self._process_single_frame(current_image)
+        for image in image_list:
+            processed_image=self._process_single_frame(image)
+            processed_images.append(processed_image)
+        if processed_images:
+            multi_image_input=torch.cat(processed_images, dim=0)
+        else:
+            multi_image_input=torch.empty((1,1))
+        self.latest_image_tensor=multi_image_input
+        return current_image, multi_image_input
 
     def _process_model_outputs(self, outputs, norm_speed, predicted_speed, avoid_stop=True):
         """
