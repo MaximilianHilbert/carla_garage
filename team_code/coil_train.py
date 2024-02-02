@@ -8,7 +8,6 @@ import torch.optim as optim
 from diskcache import Cache
 from coil_configuration.coil_config import set_type_of_process, merge_with_yaml, g_conf
 from coil_network.coil_model import CoILModel
-from coil_network.loss import Loss
 from coil_network.optimizer import adjust_learning_rate_auto
 from coil_input import Augmenter, select_balancing_strategy
 from coil_logger import coil_logger
@@ -366,6 +365,7 @@ def main(args, suppress_output=False):
                 if args.baseline_name=="keyframes_vanilla":
                     reweight_params = {'importance_sampling_softmax_temper': merged_config_object.softmax_temper,
                                    'importance_sampling_threshold': action_predict_threshold,
+                                   'importance_sampling_method': merged_config_object.importance_sample_method,
                                    'importance_sampling_threshold_weight': merged_config_object.threshold_weight,
                                    'action_predict_loss': data["correlation_weight"].squeeze().cuda()}
                 else:
@@ -376,7 +376,6 @@ def main(args, suppress_output=False):
                 'targets': dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
                 'controls': controls.cuda(),
                 'inputs': dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
-                'importance_sampling_method': merged_config_object.importance_sample_method,
                 **reweight_params,
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
