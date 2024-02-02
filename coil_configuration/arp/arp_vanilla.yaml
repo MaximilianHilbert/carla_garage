@@ -20,7 +20,7 @@ SPEED_FACTOR: 12.0  # The constant that is divides the speed_module in order to 
 AUGMENTATION: None  # The image augmentation applied on every input image
 DATA_USED: 'all'  # The part of the data to be used
 USE_NOISE_DATA: True  # If we use the noise data.
-NO_SPEED_INPUT: False
+SPEED_INPUT: False
 CORRELATION_WEIGHTS: False
 VALIDATE_SCHEDULE: range(20000, 100001, 20000)
 
