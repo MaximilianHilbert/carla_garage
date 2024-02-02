@@ -67,24 +67,32 @@ def compute_branches_masks(controls, number_targets):
 
     """ A vector with a mask for each of the control branches"""
     controls_masks = []
+    #hardcoded and changes due to new carla dataset
+    #0: LEFT, 1: RIGHT, 2: STRAIGHT, 3: LANEFOLLOW
+    #original documentation of baseline
+    #new documentation
 
-    # when command = 2, branch 1 (follow lane) is activated
-    controls_b1 = (controls == 2)
+    # ORIG: when command = 2, branch 1 (follow lane) is activated
+    # NEW: when command =3, branch 1 (follow lane) is activated
+    controls_b1 = (controls == 3)
     controls_b1 = torch.tensor(controls_b1, dtype=torch.float32).cuda()
     controls_b1 = torch.cat([controls_b1] * number_targets, 1)
     controls_masks.append(controls_b1)
-    # when command = 3, branch 2 (turn left) is activated
-    controls_b2 = (controls == 3)
+    # ORIG: when command = 3, branch 2 (turn left) is activated
+    # NEW: when command=0,  branch 2 (turn left) is activated
+    controls_b2 = (controls == 0)
     controls_b2 = torch.tensor(controls_b2, dtype=torch.float32).cuda()
     controls_b2 = torch.cat([controls_b2] * number_targets, 1)
     controls_masks.append(controls_b2)
-    # when command = 4, branch 3 (turn right) is activated
-    controls_b3 = (controls == 4)
+    # ORIG: when command = 4, branch 3 (turn right) is activated
+    #NEW: when command = 1, branch 3 (turn right) is activated
+    controls_b3 = (controls == 1)
     controls_b3 = torch.tensor(controls_b3, dtype=torch.float32).cuda()
     controls_b3 = torch.cat([controls_b3] * number_targets, 1)
     controls_masks.append(controls_b3)
-    # when command = 5, branch 4 (go strange) is activated
-    controls_b4 = (controls == 5)
+    # ORIG: when command = 5, branch 4 (go strange) is activated
+    #NEW: when command = 2, branch 3 (turn right) is activated
+    controls_b4 = (controls == 2)
     controls_b4 = torch.tensor(controls_b4, dtype=torch.float32).cuda()
     controls_b4 = torch.cat([controls_b4] * number_targets, 1)
     controls_masks.append(controls_b4)
