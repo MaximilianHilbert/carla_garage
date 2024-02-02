@@ -27,7 +27,6 @@ _g_conf.SENSORS = {'rgb': (3, 88, 200)}
 _g_conf.MEASUREMENTS = {'float_data': (31)}
 _g_conf.TARGETS = ['steer', 'throttle', "brake"]
 #keyframes related
-_g_conf.NO_SPEED_INPUT=False
 _g_conf.LIDAR_SEQ_LEN=1
 
 
@@ -99,12 +98,12 @@ _g_conf.MEM_EXTRACT_MODEL_CONFIGURATION = {}
 _g_conf.PRE_TRAINED = False
 _g_conf.WEIGHT_INIT_SEED = None  # the random seed dedicated to weight initialization
 #keyframes related
-_g_conf.TRAIN_WITH_ACTIONS_AS_INPUT=True
+_g_conf.TRAIN_WITH_ACTIONS_AS_INPUT=False
 _g_conf.IMPORTANCE_SAMPLE_METHOD = 'mean'  # mean / softmax / threshold
 _g_conf.SOFTMAX_TEMPER = 1.0
 _g_conf.THRESHOLD_RATIO = 0.1  # set top 10% as THRESHOLD_WEIGHT and others as 1
 _g_conf.THRESHOLD_WEIGHT = 5.0
-_g_conf.SPEED_INPUT=True #also relevant for ARP!
+_g_conf.SPEED_INPUT=False #also relevant for ARP!
 
 _g_conf.OPTIMIZER = 'Adam'
 _g_conf.LEARNING_RATE_DECAY_INTERVAL = 50000
