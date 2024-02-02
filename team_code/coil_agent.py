@@ -165,7 +165,6 @@ class CoILAgent(AutonomousAgent):
        
         directions = self._get_directions(current_location, current_orientation_ego_system, target_point_location, end_point_orientation_ego_system)
         
-        
         velocity_vector=self.vehicle.get_velocity()
         # Take the forward speed and normalize it for it to go from 0-1
         norm_speed=np.sqrt(np.square(velocity_vector.x)+np.square(velocity_vector.y))/g_conf.SPEED_FACTOR
@@ -177,8 +176,8 @@ class CoILAgent(AutonomousAgent):
         else:
             measurement_input = torch.zeros_like(norm_speed)
         directions_tensor = torch.cuda.LongTensor([directions])
+        
         single_image, observation_history = self._process_sensors(current_image, original_image_list)
-    
         if self.config.baseline_folder_name=="arp":
             _, memory = self._mem_extract(torch.unsqueeze(observation_history,0))
             model_outputs = self._policy.forward_branch(torch.unsqueeze(single_image,0), measurement_input, directions_tensor, memory)
@@ -186,7 +185,7 @@ class CoILAgent(AutonomousAgent):
             predicted_speed = self._policy.extract_predicted_speed().cpu().detach().numpy()
         else:
             if self.config.baseline_folder_name=="bcoh":
-                merged_history_and_current=torch.cat([single_image, observation_history], dim=0)
+                merged_history_and_current=torch.cat([observation_history, single_image], dim=0)
                 if self.config.train_with_actions_as_input:
                     model_outputs = self.model.forward_branch(torch.unsqueeze(merged_history_and_current,0), measurement_input,
                                                         directions_tensor,torch.from_numpy(np.array(self.previous_actions).astype(np.float)).type(torch.FloatTensor).unsqueeze(0).cuda())
@@ -215,7 +214,7 @@ class CoILAgent(AutonomousAgent):
         self.first_iter = False
 
        
-        print(steer, throttle, brake, directions)
+        print(timestamp, steer, throttle, brake, directions)
         print("target")
         print(target_point_location)
         print("current location")
