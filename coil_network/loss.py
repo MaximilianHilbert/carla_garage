@@ -55,8 +55,7 @@ def branched_loss(loss_function, params):
 
     # Apply the variable weights
     # This is applied to all branches except the last one, that is the speed branch...
-
-    for i in range(4):
+    for i in range(6):
         if loss_branches_vec[i].shape[1] == 3:
             loss_branches_vec[i] = loss_branches_vec[i][:, 0] * params['variable_weights']['Steer'] \
                                    + loss_branches_vec[i][:, 1] * params['variable_weights']['Gas'] \
@@ -66,9 +65,9 @@ def branched_loss(loss_function, params):
                                    + loss_branches_vec[i][:, 1] * params['variable_weights']['Gas_Brake']
 
     loss_function = loss_branches_vec[0] + loss_branches_vec[1] + loss_branches_vec[2] + \
-                    loss_branches_vec[3]
+                    loss_branches_vec[3]+loss_branches_vec[4]+loss_branches_vec[5]
 
-    speed_loss = loss_branches_vec[4]/(params['branches'][0].shape[0])
+    speed_loss = loss_branches_vec[-1]
 
     return torch.sum(loss_function) / (params['branches'][0].shape[0])\
                 + torch.sum(speed_loss) / (params['branches'][0].shape[0]),\
