@@ -18,6 +18,7 @@ from coil_utils.general import create_log_folder, create_exp_path, erase_logs
 from coil_utils.checkpoint_schedule import is_ready_to_save, get_latest_saved_checkpoint, \
                                     check_loss_validation_stopped
 import numpy as np
+import matplotlib.pyplot as plt
 import heapq
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -183,8 +184,21 @@ def main(args, suppress_output=False):
             dataset.set_correlation_weights(path="/home/maximilian/Master/carla_garage/_prev3_curr1_layer300.npy")
             action_predict_threshold=get_action_predict_loss_threshold(dataset.get_correlation_weights(),merged_config_object.threshold_ratio)
         print("Loaded dataset")
-
+        #from torch.utils.data import DataLoader, SequentialSampler
+#         data_loader=DataLoader(
+#      dataset=dataset,
+#      batch_size=1,
+#      sampler=SequentialSampler(dataset),
+#      num_workers=0,
+#      pin_memory=True
+#  )    
         data_loader = select_balancing_strategy(dataset, iteration, args.number_of_workers)
+        # from torch.utils.data import DataLoader, RandomSampler
+        # sampler = RandomSampler(dataset)
+        # data_loader = torch.utils.data.DataLoader(dataset, batch_size=merged_config_object.batch_size,
+        #                                       sampler=sampler,
+        #                                       num_workers=args.number_of_workers,
+        #                                       pin_memory=True)
         if args.baseline_folder_name=="arp":
             policy = CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
             policy.cuda()
@@ -239,19 +253,23 @@ def main(args, suppress_output=False):
         else:
             from coil_network.loss import Loss
         criterion = Loss(merged_config_object.loss_function)
-        
-        
+        #from itertools import islice
+        #for iterations in range(10000):
+            # from torch.optim.lr_scheduler import StepLR
+            # scheduler = StepLR(optimizer, step_size=100, gamma=2)
         for data in data_loader:
+            #data=next(islice(iter(data_loader), 1))
             """
             ####################################
                 Main optimization loop
             ####################################
             """
-            if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
-                    check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
-                break
+            # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
+            #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
+            #     break
             capture_time = time.time()
             controls = get_controls_from_data(merged_config_object, data)
+            #controls=torch.FloatTensor([[4]]).cuda()
             iteration += 1
             if args.baseline_folder_name=="arp":
                 if iteration % 1000 == 0:
@@ -330,9 +348,10 @@ def main(args, suppress_output=False):
                     print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
 
             else:
-                if iteration % 1000 == 0:
+                if iteration % 200 == 0:
                     adjust_learning_rate_auto(optimizer,loss_window)
                 model.zero_grad()
+                optimizer.zero_grad()
                 single_frame_input=torch.squeeze(data['rgb'].to(torch.float32).cuda())
                 single_frame_input=single_frame_input/255.
                 single_frame_input=single_frame_input.to(torch.float32).reshape(merged_config_object.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width).cuda()
@@ -364,10 +383,10 @@ def main(args, suppress_output=False):
                     ########################################################introduce importance weight adding to the temporal images/lidars and the current one################
                 if args.baseline_name=="keyframes_vanilla":
                     reweight_params = {'importance_sampling_softmax_temper': merged_config_object.softmax_temper,
-                                   'importance_sampling_threshold': action_predict_threshold,
-                                   'importance_sampling_method': merged_config_object.importance_sample_method,
-                                   'importance_sampling_threshold_weight': merged_config_object.threshold_weight,
-                                   'action_predict_loss': data["correlation_weight"].squeeze().cuda()}
+                                    'importance_sampling_threshold': action_predict_threshold,
+                                    'importance_sampling_method': merged_config_object.importance_sample_method,
+                                    'importance_sampling_threshold_weight': merged_config_object.threshold_weight,
+                                    'action_predict_loss': data["correlation_weight"].squeeze().cuda()}
                 else:
                     reweight_params={}
 
@@ -376,7 +395,6 @@ def main(args, suppress_output=False):
                 'targets': dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
                 'controls': controls.cuda(),
                 'inputs': dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
-                **reweight_params,
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
@@ -421,10 +439,11 @@ def main(args, suppress_output=False):
                 accumulated_time += time.time() - capture_time
                 loss_window.append(loss.data.tolist())
                 coil_logger.write_on_error_csv('train', loss.data)
-                if iteration%100==0:
-                    print("Iteration: %d  Loss: %f" % (iteration, loss.data))
+                #scheduler.step()
+                #print(optimizer.param_groups[0]['lr'])
+                print("Iteration: %d  Loss: %f" % (iteration, loss.data))
             torch.cuda.empty_cache()
-        
+    
         
         coil_logger.add_message('Finished', {})
 

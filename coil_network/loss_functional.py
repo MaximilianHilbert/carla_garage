@@ -68,7 +68,7 @@ def compute_branches_masks(controls, number_targets):
     """ A vector with a mask for each of the control branches"""
     controls_masks = []
     #hardcoded and changes due to new carla dataset
-    #0: LEFT, 1: RIGHT, 2: STRAIGHT, 3: LANEFOLLOW
+    #0: LEFT, 1: RIGHT, 2: STRAIGHT, 3: LANEFOLLOW, 4: CHANGELANELEFT, 5: CHANGELANERIGHT
     #original documentation of baseline
     #new documentation
 
@@ -96,7 +96,18 @@ def compute_branches_masks(controls, number_targets):
     controls_b4 = torch.tensor(controls_b4, dtype=torch.float32).cuda()
     controls_b4 = torch.cat([controls_b4] * number_targets, 1)
     controls_masks.append(controls_b4)
-
+    #ORIG: not avail
+    #NEW: 4 change left
+    controls_b5 = (controls == 4)
+    controls_b5 = torch.tensor(controls_b5, dtype=torch.float32).cuda()
+    controls_b5 = torch.cat([controls_b5] * number_targets, 1)
+    controls_masks.append(controls_b5)
+    #ORIG: not avail
+    #NEW: 5 change left
+    controls_b6 = (controls == 5)
+    controls_b6 = torch.tensor(controls_b6, dtype=torch.float32).cuda()
+    controls_b6 = torch.cat([controls_b6] * number_targets, 1)
+    controls_masks.append(controls_b6)
 
     return controls_masks
 

@@ -32,13 +32,13 @@ class FC(nn.Module):
         for i in range(0, len(params['neurons']) -1):
 
             fc = nn.Linear(params['neurons'][i], params['neurons'][i+1])
-            dropout = nn.Dropout2d(p=params['dropouts'][i])
+            #dropout = nn.Dropout2d(p=params['dropouts'][i])
             relu = nn.ReLU(inplace=True)
 
             if i == len(params['neurons'])-2 and params['end_layer']:
-                self.layers.append(nn.Sequential(*[fc, dropout]))
+                self.layers.append(nn.Sequential(*[fc]))
             else:
-                self.layers.append(nn.Sequential(*[fc, dropout, relu]))
+                self.layers.append(nn.Sequential(*[fc, relu]))
 
 
         self.layers = nn.Sequential(*self.layers)
