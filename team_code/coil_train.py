@@ -255,8 +255,8 @@ def main(args, suppress_output=False):
         criterion = Loss(merged_config_object.loss_function)
         #from itertools import islice
         #for iterations in range(10000):
-            # from torch.optim.lr_scheduler import StepLR
-            # scheduler = StepLR(optimizer, step_size=100, gamma=2)
+        #from torch.optim.lr_scheduler import StepLR
+        #scheduler = StepLR(optimizer, step_size=50, gamma=0.5)
         for data in data_loader:
             #data=next(islice(iter(data_loader), 1))
             """
@@ -348,7 +348,7 @@ def main(args, suppress_output=False):
                     print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
 
             else:
-                if iteration % 200 == 0:
+                if iteration % 1000 == 0:
                     adjust_learning_rate_auto(optimizer,loss_window)
                 model.zero_grad()
                 optimizer.zero_grad()
@@ -361,6 +361,7 @@ def main(args, suppress_output=False):
                     current_speed =dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
                 else:
                     current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+
                 #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
                 if args.baseline_folder_name=="bcso":
                     if merged_config_object.train_with_actions_as_input:
@@ -440,7 +441,7 @@ def main(args, suppress_output=False):
                 loss_window.append(loss.data.tolist())
                 coil_logger.write_on_error_csv('train', loss.data)
                 #scheduler.step()
-                #print(optimizer.param_groups[0]['lr'])
+                print(optimizer.param_groups[0]['lr'])
                 print("Iteration: %d  Loss: %f" % (iteration, loss.data))
             torch.cuda.empty_cache()
     
