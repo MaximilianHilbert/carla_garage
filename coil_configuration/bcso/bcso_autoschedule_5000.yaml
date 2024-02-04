@@ -54,12 +54,13 @@ PRE_TRAINED: True  # If the weights are started with imagenet.
 
 # Optimizer Parameters #
 # For now we use only use adam
-LEARNING_RATE: 0.0002  # First learning rate
-LEARNING_RATE_DECAY_INTERVAL: 75000 # Number of iterations where the learning rate is reduced
-LEARNING_RATE_THRESHOLD: 1000 # Number of iterations without going down to reduce learning rate
+#LEARNING_RATE: 0.0002  # First learning rate
+#LEARNING_RATE_DECAY_INTERVAL: 75000 # Number of iterations where the learning rate is reduced
+#LEARNING_RATE_THRESHOLD: 1000 # Number of iterations without going down to reduce learning rate
 #5000
-LEARNING_RATE_DECAY_LEVEL: 0.5 # Th factor of reduction applied to the learning rate
-
+#LEARNING_RATE_DECAY_LEVEL: 0.5 # Th factor of reduction applied to the learning rate
+AUTO_LR: True
+AUTO_LR_STEP: 5000
 # Loss Parameters #
 #added 2 new weights for changes in left and right
 BRANCH_LOSS_WEIGHT: [0.95, 0.95, 0.95, 0.95, 0.95, 0.95,0.05] # how much each branch is weighted when computing loss

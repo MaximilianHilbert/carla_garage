@@ -56,6 +56,8 @@ _g_conf.PROCESS_NAME = "None"
 _g_conf.NUMBER_ITERATIONS = 20000
 _g_conf.SAVE_SCHEDULE = range(0, 2000, 200)
 #arp related
+_g_conf.AUTO_LR=False
+_g_conf.AUTO_LR_STEP=1000
 _g_conf.ACTION_CORRELATION_MODEL_TYPE= 'prev9actions_weight'
 _g_conf.ALL_FRAMES_INCLUDING_BLANK = None
 _g_conf.IMAGE_SEQ_LEN = 1
