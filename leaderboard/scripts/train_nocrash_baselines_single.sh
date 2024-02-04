@@ -7,8 +7,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mem=100GB
 #SBATCH --cpus-per-task=20
-#SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
-#SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
+#SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
+#SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
 
 #local
 # export WORK_DIR=/home/maximilian/Master/carla_garage
