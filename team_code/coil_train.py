@@ -255,8 +255,8 @@ def main(args, suppress_output=False):
         criterion = Loss(merged_config_object.loss_function)
         #from itertools import islice
         #for iterations in range(10000):
-        #from torch.optim.lr_scheduler import StepLR
-        #scheduler = StepLR(optimizer, step_size=50, gamma=0.5)
+        from torch.optim.lr_scheduler import StepLR
+        scheduler = StepLR(optimizer, step_size=5000, gamma=0.5)
         for data in data_loader:
             #data=next(islice(iter(data_loader), 1))
             """
@@ -348,8 +348,8 @@ def main(args, suppress_output=False):
                     print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
 
             else:
-                if iteration % 1000 == 0:
-                    adjust_learning_rate_auto(optimizer,loss_window)
+                # if iteration % 1000 == 0:
+                #     adjust_learning_rate_auto(optimizer,loss_window)
                 model.zero_grad()
                 optimizer.zero_grad()
                 single_frame_input=torch.squeeze(data['rgb'].to(torch.float32).cuda())
@@ -440,7 +440,7 @@ def main(args, suppress_output=False):
                 accumulated_time += time.time() - capture_time
                 loss_window.append(loss.data.tolist())
                 coil_logger.write_on_error_csv('train', loss.data)
-                #scheduler.step()
+                scheduler.step()
                 print(optimizer.param_groups[0]['lr'])
                 print("Iteration: %d  Loss: %f" % (iteration, loss.data))
             torch.cuda.empty_cache()
