@@ -29,7 +29,7 @@ def set_seed(seed):
 def merge_config_files(baseline_folder_name, baseline_name):
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
 
-    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name, baseline_name))
+    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name, baseline_name+".yaml"))
     
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
@@ -78,10 +78,10 @@ def merge_config_files(baseline_folder_name, baseline_name):
 
 
 def main(args, suppress_output=False):
-    merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name)
-    create_log_folder(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
-    erase_logs(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name)
-    create_exp_path(f'{os.environ.get("WORK_DIR")}/_logs',args.baseline_folder_name,args.baseline_name, repetition=args.training_repetition)
+    merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""))
+    create_log_folder(f'{os.environ.get("WORK_DIR")}/_logs',merged_config_object.baseline_folder_name)
+    erase_logs(f'{os.environ.get("WORK_DIR")}/_logs',merged_config_object.baseline_folder_name)
+    create_exp_path(f'{os.environ.get("WORK_DIR")}/_logs',merged_config_object.baseline_folder_name,merged_config_object.baseline_name, repetition=args.training_repetition)
     
     """
         The main training function. This functions loads the latest checkpoint
@@ -316,7 +316,7 @@ def main(args, suppress_output=False):
                     torch.save(
                         state, 
                         os.path.join(
-                            os.environ.get("WORK_DIR"), "_logs", args.baseline_folder_name, args.baseline_name, str(args.training_repetition),
+                            os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, str(args.training_repetition),
                                 'checkpoints', str(iteration) + '.pth'
                         )
                     )
