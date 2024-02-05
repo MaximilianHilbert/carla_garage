@@ -185,8 +185,8 @@ def set_type_of_process(process_type, shared_config_object,args=None, training_r
     if process_type == "drive":  # FOR drive param is city name.
         shared_config_object.CITY_NAME = param.split('_')[-1]
         shared_config_object.process_name = process_type + '_' + param
-    create_log(args.baseline_folder_name,
-            args.baseline_name,
+    create_log(shared_config_object.baseline_folder_name,
+            shared_config_object.baseline_name,
             training_rep,
             shared_config_object.process_name,
             shared_config_object.log_scalar_writing_frequency,
