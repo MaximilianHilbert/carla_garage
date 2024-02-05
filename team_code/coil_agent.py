@@ -164,7 +164,6 @@ class CoILAgent(AutonomousAgent):
 
        
         directions = self._get_directions(current_location, current_orientation_ego_system, target_point_location, end_point_orientation_ego_system)
-        
         velocity_vector=self.vehicle.get_velocity()
         # Take the forward speed and normalize it for it to go from 0-1
         norm_speed=np.sqrt(np.square(velocity_vector.x)+np.square(velocity_vector.y))/g_conf.SPEED_FACTOR

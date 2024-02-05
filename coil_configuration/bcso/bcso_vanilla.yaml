@@ -7,7 +7,7 @@ SENSORS:
   rgb: [3, 256, 1024] # A RGB input sensor with three channels that is resized to 200x88
 MEASUREMENTS:
   float_data: [31]  # Number of float data that must be read from the dataset
-BATCH_SIZE: 30
+BATCH_SIZE: 120
 NUMBER_ITERATIONS: 100000
 TARGETS: ['steer', 'throttle', 'brake']  # From the float data, the ones that the network should estimate
 INPUTS: ['speed'] # From the float data, the ones that are input to the neural network
@@ -22,7 +22,7 @@ DATA_USED: 'all'  # The part of the data to be used
 USE_NOISE_DATA: True  # If we use the noise data.
 
 CORRELATION_WEIGHTS: False
-SPEED_INPUT: True
+SPEED_INPUT: False
 TRAIN_WITH_ACTIONS_AS_INPUT: False
 #### Model Related Parameters ####
 # Network Parameters #
@@ -44,25 +44,27 @@ MODEL_CONFIGURATION:  # Based on the MODEL_TYPE, we specify the structure
   speed_branch:  # The prediction branch speed branch
     fc:
       neurons: [256, 256]
-      dropouts: [0.0, 0.0]
+      dropouts: [0.0, 0.5]
   branches:  # The output branches for the different possible directions ( Straight, Left, Right, None)
     number_of_branches: 6
     fc:
       neurons: [256, 256]
-      dropouts: [0.0, 0.0]
+      dropouts: [0.0, 0.5]
 PRE_TRAINED: True  # If the weights are started with imagenet.
 
 # Optimizer Parameters #
 # For now we use only use adam
+#0.000002
 LEARNING_RATE: 0.0002  # First learning rate
 LEARNING_RATE_DECAY_INTERVAL: 75000 # Number of iterations where the learning rate is reduced
-LEARNING_RATE_THRESHOLD: 1000 # Number of iterations without going down to reduce learning rate
+LEARNING_RATE_THRESHOLD: 5000 # Number of iterations without going down to reduce learning rate
 #5000
-LEARNING_RATE_DECAY_LEVEL: 0.5 # Th factor of reduction applied to the learning rate
+LEARNING_RATE_DECAY_LEVEL: 0.1 # Th factor of reduction applied to the learning rate
 
 # Loss Parameters #
 #added 2 new weights for changes in left and right
-BRANCH_LOSS_WEIGHT: [0.95, 0.95, 0.95, 0.95, 0.95, 0.95,0.05] # how much each branch is weighted when computing loss
+BRANCH_LOSS_WEIGHT: [0.95, 0.95, 0.95, 0.95, 0.95, 0.95,0.05]  # how much each branch is weighted when computing loss
+
 LOSS_FUNCTION: 'L1' # The loss function used
 VARIABLE_WEIGHT: # how much each of the outputs specified on TARGETS are weighted for learning.
   Steer: 0.5
