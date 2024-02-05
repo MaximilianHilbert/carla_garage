@@ -13,6 +13,7 @@ def generate_and_place_batch_script(args, seed, training_repetition, baseline_fo
 #SBATCH --gres=gpu:1
 #SBATCH --partition=a100-galvani
 #SBATCH --cpus-per-task={args.number_of_workers}
+#SBATCH --mem=100G
 #SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
 
