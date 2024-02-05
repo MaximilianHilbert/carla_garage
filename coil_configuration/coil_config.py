@@ -37,7 +37,6 @@ _g_conf.STEERING_DIVISION = [0.05, 0.05, 0.1, 0.3, 0.3, 0.1, 0.05, 0.05]
 _g_conf.PEDESTRIAN_PERCENTAGE = 0
 _g_conf.SPEED_DIVISION = []
 _g_conf.LABELS_DIVISION = [[0, 2, 5], [3], [4]]
-_g_conf.BATCH_SIZE = 120
 _g_conf.SPLIT = None
 _g_conf.REMOVE = None
 _g_conf.AUGMENTATION = None

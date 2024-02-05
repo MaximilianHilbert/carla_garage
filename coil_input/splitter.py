@@ -407,7 +407,7 @@ def get_inverse_freq_weights(keys, dataset_size):
     return softmax(np.array(invers_freq_weights))
 
 
-def select_balancing_strategy(dataset, iteration, number_of_workers):
+def select_balancing_strategy(args, dataset, iteration):
 
     # Creates the sampler, this part is responsible for managing the keys. It divides
     # all keys depending on the measurements and produces a set of keys for each bach.
@@ -436,14 +436,14 @@ def select_balancing_strategy(dataset, iteration, number_of_workers):
                                                - g_conf.NUMBER_IMAGES_SEQUENCE)
         else:
             weights = params['weights']
-        sampler = PreSplittedSampler(keys_splitted, iteration * g_conf.BATCH_SIZE, weights)
+        sampler = PreSplittedSampler(keys_splitted, iteration * args.batch_size, weights)
     else:
-        sampler = RandomSampler(keys, iteration * g_conf.BATCH_SIZE)
+        sampler = RandomSampler(args,keys, iteration * args.batch_size)
 
     # The data loader is the multi threaded module from pytorch that release a number of
     # workers to get all the data.
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=g_conf.BATCH_SIZE,
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                               sampler=sampler,
-                                              num_workers=number_of_workers,
+                                              num_workers=args.number_of_workers,
                                               pin_memory=True)
     return data_loader
