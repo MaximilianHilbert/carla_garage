@@ -184,21 +184,7 @@ def main(args, suppress_output=False):
             dataset.set_correlation_weights(path="/home/maximilian/Master/carla_garage/_prev3_curr1_layer300.npy")
             action_predict_threshold=get_action_predict_loss_threshold(dataset.get_correlation_weights(),merged_config_object.threshold_ratio)
         print("Loaded dataset")
-        #from torch.utils.data import DataLoader, SequentialSampler
-#         data_loader=DataLoader(
-#      dataset=dataset,
-#      batch_size=1,
-#      sampler=SequentialSampler(dataset),
-#      num_workers=0,
-#      pin_memory=True
-#  )    
         data_loader = select_balancing_strategy(dataset, iteration, args.number_of_workers)
-        # from torch.utils.data import DataLoader, RandomSampler
-        # sampler = RandomSampler(dataset)
-        # data_loader = torch.utils.data.DataLoader(dataset, batch_size=merged_config_object.batch_size,
-        #                                       sampler=sampler,
-        #                                       num_workers=args.number_of_workers,
-        #                                       pin_memory=True)
         if args.baseline_folder_name=="arp":
             policy = CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
             policy.cuda()
@@ -253,8 +239,6 @@ def main(args, suppress_output=False):
         else:
             from coil_network.loss import Loss
         criterion = Loss(merged_config_object.loss_function)
-        #from itertools import islice
-        #for iterations in range(10000):
         if merged_config_object.auto_lr:
             from torch.optim.lr_scheduler import StepLR
             scheduler = StepLR(optimizer, step_size=merged_config_object.auto_lr_step, gamma=0.5)
@@ -270,7 +254,6 @@ def main(args, suppress_output=False):
             #     break
             capture_time = time.time()
             controls = get_controls_from_data(merged_config_object, data)
-            #controls=torch.FloatTensor([[4]]).cuda()
             iteration += 1
             if args.baseline_folder_name=="arp":
                 if iteration % 1000 == 0:
@@ -289,27 +272,31 @@ def main(args, suppress_output=False):
 
                 mem_extract.zero_grad()
                 mem_extract_branches, memory = mem_extract(obs_history)
-                previous_action=data["previous_actions"].cuda()
+                previous_action=data["previous_actions"].to(torch.float32)
+                steer=torch.unsqueeze(data["steer"], 1)
+                throttle=torch.unsqueeze(data["throttle"], 1)
+                brake=torch.unsqueeze(data["brake"] , 1)
+                current_targets=torch.concat([steer, throttle, brake], dim=1).to(torch.float32)
+                mem_extract_targets=current_targets-previous_action
                 loss_function_params = {
                 'branches': mem_extract_branches,
-                #we get only bool values from our expert, so we have to convert them back to floats, so that the baseline can work with it
-                'targets': (dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda() -previous_action),
-                'controls': controls.cuda(),
-                'inputs': data["speed"].cuda(),
+                'targets': mem_extract_targets.cuda(),
+                'controls': controls,
+                'inputs': current_speed,
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
+
                 mem_extract_loss, _ = criterion(loss_function_params)
                 mem_extract_loss.backward()
                 mem_extract_optimizer.step()
-                #TODO watch out with implementation of previous action tensor
                 policy.zero_grad()
                 policy_branches = policy(torch.squeeze(current_obs), current_speed, memory)
                 loss_function_params = {
                     'branches': policy_branches,
-                    'targets': dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
-                    'controls': controls.cuda(),
-                    'inputs': dataset.extract_inputs(data, merged_config_object).cuda(),
+                    'targets':current_targets.cuda(),
+                    'controls': controls,
+                    'inputs': current_speed,
                     'branch_weights': merged_config_object.branch_loss_weight,
                     'variable_weights': merged_config_object.variable_weight
                 }
@@ -361,6 +348,7 @@ def main(args, suppress_output=False):
                 
                 if merged_config_object.speed_input:
                     current_speed =dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+
                 else:
                     current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
 
@@ -392,12 +380,15 @@ def main(args, suppress_output=False):
                                     'action_predict_loss': data["correlation_weight"].squeeze().cuda()}
                 else:
                     reweight_params={}
-
+                steer=torch.unsqueeze(data["steer"], 1)
+                throttle=torch.unsqueeze(data["throttle"], 1)
+                brake=torch.unsqueeze(data["brake"] , 1)
+                targets=torch.concat([steer, throttle, brake], dim=1).to(torch.float32)
                 loss_function_params = {
                 'branches': branches,
-                'targets': dataset.extract_targets(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
-                'controls': controls.cuda(),
-                'inputs': dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, -1).cuda(),
+                'targets': targets.cuda(),
+                'controls': controls,
+                'inputs': dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, -1).to(torch.float32).cuda(),
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
@@ -444,8 +435,9 @@ def main(args, suppress_output=False):
                 coil_logger.write_on_error_csv('train', loss.data)
                 if merged_config_object.auto_lr:
                     scheduler.step()
-                print(optimizer.param_groups[0]['lr'])
-                print("Iteration: %d  Loss: %f" % (iteration, loss.data))
+                if iteration%100==0:
+                    print(optimizer.param_groups[0]['lr'])
+                    print("Iteration: %d  Loss: %f" % (iteration, loss.data))
             torch.cuda.empty_cache()
     
         
@@ -463,9 +455,9 @@ def main(args, suppress_output=False):
         coil_logger.add_message('Error', {'Message': 'Something Happened'})
 
 def get_controls_from_data(merged_config_object, data):
-    one_hot_tensor=data["next_command"]
+    one_hot_tensor=data["command"]
     indices = torch.argmax(one_hot_tensor, dim=1).numpy()
-    controls=torch.cuda.FloatTensor(indices).reshape(merged_config_object.batch_size, 1)
+    controls=indices.reshape(merged_config_object.batch_size, 1)
     return controls
 def get_action_predict_loss_threshold(correlation_weights, ratio):
     _action_predict_loss_threshold = {}
