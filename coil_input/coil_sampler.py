@@ -29,8 +29,8 @@ class RandomSampler(Sampler):
         indices (list): a list of indices
     """
 
-    def __init__(self, keys, executed_iterations):
-        self.iterations_to_execute = ((g_conf.NUMBER_ITERATIONS) * g_conf.BATCH_SIZE) -\
+    def __init__(self, args, keys, executed_iterations):
+        self.iterations_to_execute = ((g_conf.NUMBER_ITERATIONS) * args.batch_size) -\
                                      (executed_iterations)
 
 

@@ -1,18 +1,18 @@
 import os
 import subprocess
-def generate_and_place_batch_script(workers, seed, training_repetition, baseline_folder_name, baseline_name):
+def generate_and_place_batch_script(args, seed, training_repetition, baseline_folder_name, baseline_name):
     job_path=os.path.join(os.environ.get("WORK_DIR"), "job_files")
     os.makedirs(job_path, exist_ok=True)
-    job_full_path=os.path.join(job_path, f"{baseline_folder_name}_{baseline_name}_{str(training_repetition)}.sh")
+    job_full_path=os.path.join(job_path, f"{baseline_folder_name}_{baseline_name.replace('.yaml', '')}_{str(training_repetition)}.sh")
     with open(job_full_path, 'w', encoding='utf-8') as f:
         command=f"""#!/bin/bash
 #SBATCH --job-name=reproduce_{baseline_folder_name}_{baseline_name}_{training_repetition}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --time=1-00:00
+#SBATCH --time=2-00:00
 #SBATCH --gres=gpu:1
-#SBATCH --partition=gpu-2080ti,gpu-v100
-#SBATCH --cpus-per-task={workers}
+#SBATCH --partition=a100-galvani
+#SBATCH --cpus-per-task={args.number_of_workers}
 #SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
 
@@ -44,7 +44,7 @@ export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 # conda activate garage
 source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
-python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {workers}
+python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {args.number_of_workers} --batch-size {args.batch_size}
         """
         f.write(command)
     out=subprocess.check_output(f'chmod u+x {job_full_path}', shell=True)
@@ -52,13 +52,13 @@ python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --train
     print(out)
 def main(args):
     for training_repetition, seed in enumerate(args.seeds):
-        for baseline_folder_name,baseline_name in zip(args.baseline_folder_names, args.baseline_names):
-            generate_and_place_batch_script(args.number_of_workers,seed, training_repetition, baseline_folder_name, baseline_name)
+        for baseline_folder_name in args.baseline_folder_names:
+            for baseline_name in os.listdir(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name)):
+                generate_and_place_batch_script(args,seed, training_repetition, baseline_folder_name, baseline_name)
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', default=0, required=True)
-    parser.add_argument("--baseline_names", nargs='+', type=str, dest='baseline_names',help="")
     parser.add_argument("--baseline_folder_names", nargs='+', type=str, dest='baseline_folder_names',help="")
     parser.add_argument('--seeds', nargs='+', type=int, help='List of seed values')
     parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=int, default=0)
@@ -74,5 +74,12 @@ if __name__ == '__main__':
         type=int,
         default=1
     )
+    parser.add_argument(
+        '--batch-size',
+        dest='batch_size',
+        type=int,
+        default=30
+    )
+    
     args = parser.parse_args()
     main(args)

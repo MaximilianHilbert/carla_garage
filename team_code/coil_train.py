@@ -29,7 +29,7 @@ def set_seed(seed):
 def merge_config_files(baseline_folder_name, baseline_name):
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
 
-    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name, baseline_name + '.yaml'))
+    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name, baseline_name))
     
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
@@ -40,7 +40,6 @@ def merge_config_files(baseline_folder_name, baseline_name):
     shared_configuration.img_seq_len=g_conf.IMAGE_SEQ_LEN 
     shared_configuration.all_frames_including_blank=g_conf.ALL_FRAMES_INCLUDING_BLANK
     shared_configuration.targets=g_conf.TARGETS
-    shared_configuration.batch_size=g_conf.BATCH_SIZE
     shared_configuration.inputs=g_conf.INPUTS
     shared_configuration.optimizer=g_conf.OPTIMIZER
     shared_configuration.process_name=g_conf.PROCESS_NAME
@@ -184,7 +183,7 @@ def main(args, suppress_output=False):
             dataset.set_correlation_weights(path="/home/maximilian/Master/carla_garage/_prev3_curr1_layer300.npy")
             action_predict_threshold=get_action_predict_loss_threshold(dataset.get_correlation_weights(),merged_config_object.threshold_ratio)
         print("Loaded dataset")
-        data_loader = select_balancing_strategy(dataset, iteration, args.number_of_workers)
+        data_loader = select_balancing_strategy(args,dataset, iteration)
         if args.baseline_folder_name=="arp":
             policy = CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
             policy.cuda()
@@ -263,12 +262,12 @@ def main(args, suppress_output=False):
                 obs_history=obs_history/255.
                 current_obs=data['rgb'].cuda()
                 current_obs=current_obs/255.
-                obs_history=obs_history.reshape(merged_config_object.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
+                obs_history=obs_history.reshape(args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
                 
                 if merged_config_object.speed_input:
-                    current_speed =dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()                    
+                    current_speed =dataset.extract_inputs(data, merged_config_object).reshape(args.batch_size, 1).to(torch.float32).cuda()                    
                 else:
-                    current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+                    current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(args.batch_size, 1).to(torch.float32).cuda()
 
                 mem_extract.zero_grad()
                 mem_extract_branches, memory = mem_extract(obs_history)
@@ -343,31 +342,31 @@ def main(args, suppress_output=False):
                 optimizer.zero_grad()
                 single_frame_input=torch.squeeze(data['rgb'].to(torch.float32).cuda())
                 single_frame_input=single_frame_input/255.
-                single_frame_input=single_frame_input.to(torch.float32).reshape(merged_config_object.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width).cuda()
+                single_frame_input=single_frame_input.to(torch.float32).reshape(args.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width).cuda()
                 
                 
                 if merged_config_object.speed_input:
-                    current_speed =dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+                    current_speed =dataset.extract_inputs(data, merged_config_object).reshape(args.batch_size, 1).to(torch.float32).cuda()
 
                 else:
-                    current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(merged_config_object.batch_size, 1).to(torch.float32).cuda()
+                    current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(args.batch_size, 1).to(torch.float32).cuda()
 
                 #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
                 if args.baseline_folder_name=="bcso":
                     if merged_config_object.train_with_actions_as_input:
                         branches = model(single_frame_input,
                                 current_speed,
-                                data['previous_actions'].reshape(merged_config_object.batch_size, -1).to(torch.float32).cuda())
+                                data['previous_actions'].reshape(args.batch_size, -1).to(torch.float32).cuda())
                     else:
                         branches = model(single_frame_input,
                                     current_speed)
                 else:
                     multi_frame_input=torch.cat([data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1)/255.
-                    multi_frame_input=multi_frame_input.reshape(merged_config_object.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width)
+                    multi_frame_input=multi_frame_input.reshape(args.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width)
                     if merged_config_object.train_with_actions_as_input:
                         branches = model(multi_frame_input,
                                 current_speed,
-                                data['previous_actions'].reshape(merged_config_object.batch_size, -1).to(torch.float32).cuda())
+                                data['previous_actions'].reshape(args.batch_size, -1).to(torch.float32).cuda())
                     else:
                         branches = model(multi_frame_input,
                                     current_speed)
@@ -388,7 +387,7 @@ def main(args, suppress_output=False):
                 'branches': branches,
                 'targets': targets.cuda(),
                 'controls': controls,
-                'inputs': dataset.extract_inputs(data, merged_config_object).reshape(merged_config_object.batch_size, -1).to(torch.float32).cuda(),
+                'inputs': dataset.extract_inputs(data, merged_config_object).reshape(args.batch_size, -1).to(torch.float32).cuda(),
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
@@ -457,7 +456,7 @@ def main(args, suppress_output=False):
 def get_controls_from_data(merged_config_object, data):
     one_hot_tensor=data["command"]
     indices = torch.argmax(one_hot_tensor, dim=1).numpy()
-    controls=indices.reshape(merged_config_object.batch_size, 1)
+    controls=indices.reshape(args.batch_size, 1)
     return controls
 def get_action_predict_loss_threshold(correlation_weights, ratio):
     _action_predict_loss_threshold = {}
@@ -478,5 +477,6 @@ if __name__=="__main__":
     parser.add_argument('--baseline_name', dest="baseline_name", default=None, required=True)
     parser.add_argument('--number_of_workers', dest="number_of_workers", default=12, type=int, required=True)
     parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=int, default=0)
+    parser.add_argument('--batch-size', dest="batch_size", type=int, default=30)
     args = parser.parse_args()
     main(args)

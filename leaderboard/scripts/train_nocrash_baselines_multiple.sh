@@ -1,9 +1,9 @@
-# export WORK_DIR=/home/maximilian/Master/carla_garage
-# export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-# export TEAM_CODE=$WORK_DIR/team_code
-# export CARLA_ROOT=${WORK_DIR}/carla
-# export COIL_NETWORK=${WORK_DIR}/coil_network
-# export DATASET_ROOT=/home/maximilian/training_data_split
+export WORK_DIR=/home/maximilian/Master/carla_garage
+export CONFIG_ROOT=${WORK_DIR}/coil_configuration
+export TEAM_CODE=$WORK_DIR/team_code
+export CARLA_ROOT=${WORK_DIR}/carla
+export COIL_NETWORK=${WORK_DIR}/coil_network
+export DATASET_ROOT=/home/maximilian/training_data_split
 #mlcloud
 export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
@@ -31,4 +31,4 @@ export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 #seeds must match repetition number
-python $WORK_DIR/train_nocrash_baselines.py --repetitions 1 --seeds 1014 --gpu 0 --baseline_folder_names arp bcoh bcso --baseline_names arp_vanilla bcoh_vanilla bcso_vanilla --number_of_workers 25 --use-disk-cache 0
+python $WORK_DIR/train_nocrash_baselines.py --repetitions 1 --seeds 1014 --gpu 0 --baseline_folder_names arp bcoh bcso --number_of_workers 25 --use-disk-cache 0 --batch-size 120
