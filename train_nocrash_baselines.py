@@ -1,11 +1,14 @@
 import os
 import subprocess
-def generate_and_place_batch_script(args, seed, training_repetition, baseline_folder_name, baseline_name):
-    job_path=os.path.join(os.environ.get("WORK_DIR"), "job_files")
-    os.makedirs(job_path, exist_ok=True)
-    job_full_path=os.path.join(job_path, f"{baseline_folder_name}_{baseline_name.replace('.yaml', '')}_{str(training_repetition)}.sh")
-    with open(job_full_path, 'w', encoding='utf-8') as f:
-        command=f"""#!/bin/bash
+def generate_batch_script(args, seed, training_repetition, baseline_folder_name, baseline_name):
+    if args.train_local:
+        print("dummy train")
+    else:
+        job_path=os.path.join(os.environ.get("WORK_DIR"), "job_files")
+        os.makedirs(job_path, exist_ok=True)
+        job_full_path=os.path.join(job_path, f"{baseline_folder_name}_{baseline_name.replace('.yaml', '')}_{str(training_repetition)}.sh")
+        with open(job_full_path, 'w', encoding='utf-8') as f:
+            command=f"""#!/bin/sh
 #SBATCH --job-name=reproduce_{baseline_folder_name}_{baseline_name}_{training_repetition}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
@@ -47,15 +50,21 @@ source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 python3 $WORK_DIR/team_code/coil_train.py --gpu {args.gpu} --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {args.number_of_workers} --batch-size {args.batch_size}
         """
-        f.write(command)
-    out=subprocess.check_output(f'chmod u+x {job_full_path}', shell=True)
-    out=subprocess.check_output(f"sbatch {job_full_path}", shell=True)
-    print(out)
+            f.write(command)
+def place_batch_scripts():
+    root=os.path.join(os.environ.get("WORK_DIR"), "job_files")
+    for file in os.listdir(root):
+        full_path=os.path.join(root, file)
+        out=subprocess.check_output(f'chmod u+x {full_path}', shell=True)
+        out=subprocess.check_output(f"sbatch {full_path}", shell=True)
+        print(out)
 def main(args):
     for training_repetition, seed in enumerate(args.seeds):
         for baseline_folder_name in args.baseline_folder_names:
             for baseline_name in os.listdir(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name)):
-                generate_and_place_batch_script(args,seed, training_repetition, baseline_folder_name, baseline_name)
+                generate_batch_script(args,seed, training_repetition, baseline_folder_name, baseline_name)
+    if not args.train_local:
+        place_batch_scripts()
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
@@ -81,6 +90,11 @@ if __name__ == '__main__':
         type=int,
         default=30
     )
-    
+    parser.add_argument(
+        '--train-local',
+        dest='train_local',
+        type=int,
+        default=0
+    )
     args = parser.parse_args()
     main(args)
