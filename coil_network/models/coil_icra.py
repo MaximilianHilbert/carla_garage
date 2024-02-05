@@ -10,7 +10,6 @@ from .building_blocks.conv import Conv
 from .building_blocks import Branching
 from .building_blocks import FC
 from .building_blocks import Join
-
 class CoILICRA(nn.Module):
 
     def __init__(self, params):
@@ -59,11 +58,10 @@ class CoILICRA(nn.Module):
         else:
 
             raise ValueError("invalid convolution layer type")
-
         self.measurements = FC(params={'neurons': [len(g_conf.INPUTS)] +
-                                                   params['measurements']['fc']['neurons'],
-                                       'dropouts': params['measurements']['fc']['dropouts'],
-                                       'end_layer': False})
+                                                params['measurements']['fc']['neurons'],
+                                    'dropouts': params['measurements']['fc']['dropouts'],
+                                    'end_layer': False})
         if 'previous_actions' in params:
             self.use_previous_actions = True
             self.previous_actions = FC(params={'neurons': [len(g_conf.TARGETS)*g_conf.NUMBER_PREVIOUS_ACTIONS] +
@@ -74,17 +72,18 @@ class CoILICRA(nn.Module):
         else:
             self.use_previous_actions = False
             number_preaction_neurons = 0
+
         self.join = Join(
             params={'after_process':
-                         FC(params={'neurons':
+                        FC(params={'neurons':
                                         [params['measurements']['fc']['neurons'][-1] +
-                                         + number_preaction_neurons + number_output_neurons] +
+                                        + number_preaction_neurons + number_output_neurons] +
                                         params['join']['fc']['neurons'],
-                                     'dropouts': params['join']['fc']['dropouts'],
-                                     'end_layer': False}),
-                     'mode': 'cat'
+                                    'dropouts': params['join']['fc']['dropouts'],
+                                    'end_layer': False}),
+                    'mode': 'cat'
                     }
-         )
+        )
 
         self.speed_branch = FC(params={'neurons': [number_output_neurons] +
                                                   params['speed_branch']['fc']['neurons'] + [1],
@@ -119,29 +118,27 @@ class CoILICRA(nn.Module):
         x, inter = self.perception(x)
         ## Not a variable, just to store intermediate layers for future vizualization
         #self.intermediate_layers = inter
-
         """ ###### APPLY THE MEASUREMENT MODULE """
         if self.measurements is not None:
             m = self.measurements(a)
         else:
             m = None
+        
         """ ###### APPLY THE PREVIOUS ACTIONS MODULE, IF THIS MODULE EXISTS"""
         if self.use_previous_actions and m is not None:
             n = self.previous_actions(pa)
             m = torch.cat((m, n), 1)
+
         """ Join measurements and perception"""
         if self.join is not None and m is not None:
             j = self.join(x, m)
         else:
             j = x
-
         branch_outputs = self.branches(j)
-
         speed_branch_output = self.speed_branch(x)
-
         # We concatenate speed with the rest.
         return branch_outputs + [speed_branch_output]
-
+###########################################################################watch out during inference
     def forward_branch(self, x, a, branch_number, pa=None):
         """
         DO a forward operation and return a single branch.
@@ -160,7 +157,7 @@ class CoILICRA(nn.Module):
         # TODO: take four branches, this is hardcoded
         output = self.forward(x, a, pa)
         self.predicted_speed = output[-1]
-        control = output[0:4]
+        control = output[0:6]
         output_vec = torch.stack(control)
 
         return self.extract_branch(output_vec, branch_number)
@@ -170,7 +167,6 @@ class CoILICRA(nn.Module):
 
     def extract_branch(self, output_vec, branch_number):
 
-        branch_number = command_number_to_index(branch_number)
 
         if len(branch_number) > 1:
             branch_number = torch.squeeze(branch_number.type(torch.cuda.LongTensor))
