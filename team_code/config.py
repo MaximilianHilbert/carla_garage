@@ -109,7 +109,7 @@ class GlobalConfig:
     # Dataloader
     # -----------------------------------------------------------------------------
     # config values for the coiltraine legacy/baseline implementation for nocrash
-
+    self.keyframes=None
     self.carla_fps = 20  # Simulator Frames per second
     self.seq_len =1  # length of the sequence loaded (into the future)
     # use different seq len for image and lidar

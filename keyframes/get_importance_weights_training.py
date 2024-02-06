@@ -55,6 +55,7 @@ def merge_config_files(baseline_folder_name,baseline_name):
     shared_configuration.baseline_folder_name=baseline_folder_name
     shared_configuration.baseline_name=baseline_name
     shared_configuration.correlation_weights=g_conf.CORRELATION_WEIGHTS
+    shared_configuration.keyframes=True
     return shared_configuration
 
 def get_prev_actions(index, img_path_list, prev_action_num, measurements_list):

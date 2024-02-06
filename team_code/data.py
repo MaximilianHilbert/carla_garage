@@ -267,8 +267,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     # Disable threading because the data loader will already split in threads.
     cv2.setNumThreads(0)
     data = {}
-
-    images = self.images[index]
+    if self.config.keyframes is None:
+      images = self.images[index]
     if self.config.augment:
       images_augmented = self.images_augmented[index]
     else:
@@ -374,160 +374,160 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
           self.data_cache[measurement_file] = measurements_i
 
       loaded_measurements.append(measurements_i)
-
-    for i in range(self.config.seq_len):
-      if self.config.use_plant:
-        cache_key = str(boxes[i], encoding='utf-8')
-      else:
-        cache_key = str(images[i], encoding='utf-8')
-    
-      # Retrieve preprocessed and compressed data from the disc cache
-      if not self.data_cache is None and cache_key in self.data_cache:
-        boxes_i, future_boxes_i, images_i, images_augmented_i, semantics_i, semantics_augmented_i, bev_semantics_i,\
-        bev_semantics_augmented_i, depth_i, depth_augmented_i, lidars_i, temporal_lidars_i, temporal_images_i, temporal_images_augmented_i= self.data_cache[cache_key]
-        if not self.config.use_plant:
-          images_i = cv2.imdecode(images_i, cv2.IMREAD_UNCHANGED)
-          for temporal_image in temporal_images_i:
-            temporal_image = cv2.imdecode(temporal_image, cv2.IMREAD_UNCHANGED)
-            loaded_temporal_images.append(temporal_image)
-          loaded_temporal_images=np.array(loaded_temporal_images)
-          if self.config.use_semantic:
-            semantics_i = cv2.imdecode(semantics_i, cv2.IMREAD_UNCHANGED)
-          if self.config.use_bev_semantic:
-            bev_semantics_i = cv2.imdecode(bev_semantics_i, cv2.IMREAD_UNCHANGED)
-          if self.config.use_depth:
-            depth_i = cv2.imdecode(depth_i, cv2.IMREAD_UNCHANGED)
-          if self.config.augment:
-            images_augmented_i = cv2.imdecode(images_augmented_i, cv2.IMREAD_UNCHANGED)
-            for image_augmented in temporal_images_augmented_i:
-              image_augmented = cv2.imdecode(image_augmented, cv2.IMREAD_UNCHANGED)
-              loaded_temporal_images_augmented.append(image_augmented)
-            loaded_temporal_images_augmented=np.array(loaded_temporal_images_augmented)
+    if self.config.keyframes is None:
+      for i in range(self.config.seq_len):
+        if self.config.use_plant:
+          cache_key = str(boxes[i], encoding='utf-8')
+        else:
+          cache_key = str(images[i], encoding='utf-8')
+      
+        # Retrieve preprocessed and compressed data from the disc cache
+        if not self.data_cache is None and cache_key in self.data_cache:
+          boxes_i, future_boxes_i, images_i, images_augmented_i, semantics_i, semantics_augmented_i, bev_semantics_i,\
+          bev_semantics_augmented_i, depth_i, depth_augmented_i, lidars_i, temporal_lidars_i, temporal_images_i, temporal_images_augmented_i= self.data_cache[cache_key]
+          if not self.config.use_plant:
+            images_i = cv2.imdecode(images_i, cv2.IMREAD_UNCHANGED)
+            for temporal_image in temporal_images_i:
+              temporal_image = cv2.imdecode(temporal_image, cv2.IMREAD_UNCHANGED)
+              loaded_temporal_images.append(temporal_image)
+            loaded_temporal_images=np.array(loaded_temporal_images)
             if self.config.use_semantic:
-              semantics_augmented_i = cv2.imdecode(semantics_augmented_i, cv2.IMREAD_UNCHANGED)
+              semantics_i = cv2.imdecode(semantics_i, cv2.IMREAD_UNCHANGED)
             if self.config.use_bev_semantic:
-              bev_semantics_augmented_i = cv2.imdecode(bev_semantics_augmented_i, cv2.IMREAD_UNCHANGED)
+              bev_semantics_i = cv2.imdecode(bev_semantics_i, cv2.IMREAD_UNCHANGED)
             if self.config.use_depth:
-              depth_augmented_i = cv2.imdecode(depth_augmented_i, cv2.IMREAD_UNCHANGED)
-          
-          las_object_new = laspy.read(lidars_i)
-          lidars_i = las_object_new.xyz
-          for temporal_lidar in temporal_lidars_i:
-            las_object_temporal = laspy.read(temporal_lidar)
-            loaded_temporal_lidars.append(las_object_temporal.xyz)
-        # Complete else branch only when data is not already cached, update cache with preprocessed data + compression
-      else:
-        semantics_i = None
-        semantics_augmented_i = None
-        bev_semantics_i = None
-        bev_semantics_augmented_i = None
-        depth_i = None
-        depth_augmented_i = None
-        images_i = None
-        images_augmented_i = None
-        lidars_i = None
-        future_boxes_i = None
-        boxes_i = None
-        
-
-        # Load bounding boxes
-        if self.config.detect_boxes or self.config.use_plant:
-          with gzip.open(str(boxes[i], encoding='utf-8'), 'rt', encoding='utf-8') as f2:
-            boxes_i = ujson.load(f2)
-          if self.config.use_plant:
-            with gzip.open(str(future_boxes[i], encoding='utf-8'), 'rt', encoding='utf-8') as f2:
-              future_boxes_i = ujson.load(f2)
-
-        if not self.config.use_plant:
-          las_object = laspy.read(str(lidars[i], encoding='utf-8'))
-          lidars_i = las_object.xyz
-          images_i = cv2.imread(str(images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-          images_i = cv2.cvtColor(images_i, cv2.COLOR_BGR2RGB)
-          if self.config.lidar_seq_len > 1:
-            loaded_temporal_lidars = change_axes_and_reverse(temporal_lidars)
-          if self.config.img_seq_len > 1:
-
-            loaded_temporal_images, loaded_temporal_images_augmented = self.load_temporal_images(
-            temporal_images, temporal_images_augmented)
-
-          if self.config.use_semantic:
-            semantics_i = cv2.imread(str(semantics[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
-          if self.config.use_bev_semantic:
-            bev_semantics_i = cv2.imread(str(bev_semantics[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
-          if self.config.use_depth:
-            depth_i = cv2.imread(str(depth[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
-          if self.config.augment:
-            images_augmented_i = cv2.imread(str(images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
-            images_augmented_i = cv2.cvtColor(images_augmented_i, cv2.COLOR_BGR2RGB)
-            if self.config.use_semantic:
-              semantics_augmented_i = cv2.imread(str(semantics_augmented[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
-            if self.config.use_bev_semantic:
-              bev_semantics_augmented_i = cv2.imread(str(bev_semantics_augmented[i], encoding='utf-8'),
-                                                     cv2.IMREAD_UNCHANGED)
-            if self.config.use_depth:
-              depth_augmented_i = cv2.imread(str(depth_augmented[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
-        # Store data inside disc cache
-
-        if not self.data_cache is None:
-          # We want to cache the images in jpg format instead of uncompressed, to reduce memory usage
-          compressed_image_i = None
-          compressed_image_augmented_i = None
-          compressed_semantic_i = None
-          compressed_semantic_augmented_i = None
-          compressed_bev_semantic_i = None
-          compressed_bev_semantic_augmented_i = None
-          compressed_depth_i = None
-          compressed_depth_augmented_i = None
-          compressed_lidar_i = None
-          compressed_temporal_lidars_i = []
-          compressed_temporal_images_i=[]
-          compressed_temporal_images_augmented_i=[]
-          try:
-            if not self.config.use_plant:
-              _, compressed_image_i = cv2.imencode('.jpg', images_i)
-              for temporal_image in loaded_temporal_images:
-                _, compressed_temporal_frame = cv2.imencode('.jpg', temporal_image)
-                compressed_temporal_images_i.append(compressed_temporal_frame)
+              depth_i = cv2.imdecode(depth_i, cv2.IMREAD_UNCHANGED)
+            if self.config.augment:
+              images_augmented_i = cv2.imdecode(images_augmented_i, cv2.IMREAD_UNCHANGED)
+              for image_augmented in temporal_images_augmented_i:
+                image_augmented = cv2.imdecode(image_augmented, cv2.IMREAD_UNCHANGED)
+                loaded_temporal_images_augmented.append(image_augmented)
+              loaded_temporal_images_augmented=np.array(loaded_temporal_images_augmented)
               if self.config.use_semantic:
-                _, compressed_semantic_i = cv2.imencode('.png', semantics_i)
+                semantics_augmented_i = cv2.imdecode(semantics_augmented_i, cv2.IMREAD_UNCHANGED)
               if self.config.use_bev_semantic:
-                _, compressed_bev_semantic_i = cv2.imencode('.png', bev_semantics_i)
+                bev_semantics_augmented_i = cv2.imdecode(bev_semantics_augmented_i, cv2.IMREAD_UNCHANGED)
               if self.config.use_depth:
-                _, compressed_depth_i = cv2.imencode('.png', depth_i)
-              if self.config.augment:
-                _, compressed_image_augmented_i = cv2.imencode('.jpg', images_augmented_i)
-                for temporal_image_augmented in loaded_temporal_images_augmented:
-                  _, compressed_temporal_image_augmented = cv2.imencode('.jpg', temporal_image_augmented)
-                  compressed_temporal_images_augmented_i.append(compressed_temporal_image_augmented)
+                depth_augmented_i = cv2.imdecode(depth_augmented_i, cv2.IMREAD_UNCHANGED)
+            
+            las_object_new = laspy.read(lidars_i)
+            lidars_i = las_object_new.xyz
+            for temporal_lidar in temporal_lidars_i:
+              las_object_temporal = laspy.read(temporal_lidar)
+              loaded_temporal_lidars.append(las_object_temporal.xyz)
+          # Complete else branch only when data is not already cached, update cache with preprocessed data + compression
+        else:
+          semantics_i = None
+          semantics_augmented_i = None
+          bev_semantics_i = None
+          bev_semantics_augmented_i = None
+          depth_i = None
+          depth_augmented_i = None
+          images_i = None
+          images_augmented_i = None
+          lidars_i = None
+          future_boxes_i = None
+          boxes_i = None
+          
 
+          # Load bounding boxes
+          if self.config.detect_boxes or self.config.use_plant:
+            with gzip.open(str(boxes[i], encoding='utf-8'), 'rt', encoding='utf-8') as f2:
+              boxes_i = ujson.load(f2)
+            if self.config.use_plant:
+              with gzip.open(str(future_boxes[i], encoding='utf-8'), 'rt', encoding='utf-8') as f2:
+                future_boxes_i = ujson.load(f2)
+
+          if not self.config.use_plant or self.config.keyframes is None:
+            las_object = laspy.read(str(lidars[i], encoding='utf-8'))
+            lidars_i = las_object.xyz
+            images_i = cv2.imread(str(images[i], encoding='utf-8'), cv2.IMREAD_COLOR)
+            images_i = cv2.cvtColor(images_i, cv2.COLOR_BGR2RGB)
+            if self.config.lidar_seq_len > 1:
+              loaded_temporal_lidars = change_axes_and_reverse(temporal_lidars)
+            if self.config.img_seq_len > 1:
+
+              loaded_temporal_images, loaded_temporal_images_augmented = self.load_temporal_images(
+              temporal_images, temporal_images_augmented)
+
+            if self.config.use_semantic:
+              semantics_i = cv2.imread(str(semantics[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
+            if self.config.use_bev_semantic:
+              bev_semantics_i = cv2.imread(str(bev_semantics[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
+            if self.config.use_depth:
+              depth_i = cv2.imread(str(depth[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
+            if self.config.augment:
+              images_augmented_i = cv2.imread(str(images_augmented[i], encoding='utf-8'), cv2.IMREAD_COLOR)
+              images_augmented_i = cv2.cvtColor(images_augmented_i, cv2.COLOR_BGR2RGB)
+              if self.config.use_semantic:
+                semantics_augmented_i = cv2.imread(str(semantics_augmented[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
+              if self.config.use_bev_semantic:
+                bev_semantics_augmented_i = cv2.imread(str(bev_semantics_augmented[i], encoding='utf-8'),
+                                                      cv2.IMREAD_UNCHANGED)
+              if self.config.use_depth:
+                depth_augmented_i = cv2.imread(str(depth_augmented[i], encoding='utf-8'), cv2.IMREAD_UNCHANGED)
+          # Store data inside disc cache
+
+          if not self.data_cache is None:
+            # We want to cache the images in jpg format instead of uncompressed, to reduce memory usage
+            compressed_image_i = None
+            compressed_image_augmented_i = None
+            compressed_semantic_i = None
+            compressed_semantic_augmented_i = None
+            compressed_bev_semantic_i = None
+            compressed_bev_semantic_augmented_i = None
+            compressed_depth_i = None
+            compressed_depth_augmented_i = None
+            compressed_lidar_i = None
+            compressed_temporal_lidars_i = []
+            compressed_temporal_images_i=[]
+            compressed_temporal_images_augmented_i=[]
+            try:
+              if not self.config.use_plant:
+                _, compressed_image_i = cv2.imencode('.jpg', images_i)
+                for temporal_image in loaded_temporal_images:
+                  _, compressed_temporal_frame = cv2.imencode('.jpg', temporal_image)
+                  compressed_temporal_images_i.append(compressed_temporal_frame)
                 if self.config.use_semantic:
-                  _, compressed_semantic_augmented_i = cv2.imencode('.png', semantics_augmented_i)
+                  _, compressed_semantic_i = cv2.imencode('.png', semantics_i)
                 if self.config.use_bev_semantic:
-                  _, compressed_bev_semantic_augmented_i = cv2.imencode('.png', bev_semantics_augmented_i)
+                  _, compressed_bev_semantic_i = cv2.imencode('.png', bev_semantics_i)
                 if self.config.use_depth:
-                  _, compressed_depth_augmented_i = cv2.imencode('.png', depth_augmented_i)
+                  _, compressed_depth_i = cv2.imencode('.png', depth_i)
+                if self.config.augment:
+                  _, compressed_image_augmented_i = cv2.imencode('.jpg', images_augmented_i)
+                  for temporal_image_augmented in loaded_temporal_images_augmented:
+                    _, compressed_temporal_image_augmented = cv2.imencode('.jpg', temporal_image_augmented)
+                    compressed_temporal_images_augmented_i.append(compressed_temporal_image_augmented)
 
-              compressed_lidar_i = compress_lidar_frame(self, lidars_i)
-              if self.config.lidar_seq_len > 1:
-                compressed_temporal_lidars_i = compress_temporal_lidar_frames(self, loaded_temporal_lidars)
-                
-            self.data_cache[cache_key] = (
-                boxes_i,
-                future_boxes_i,
-                compressed_image_i,
-                compressed_image_augmented_i,
-                compressed_semantic_i,
-                compressed_semantic_augmented_i,
-                compressed_bev_semantic_i,
-                compressed_bev_semantic_augmented_i,
-                compressed_depth_i,
-                compressed_depth_augmented_i,
-                compressed_lidar_i,
-                compressed_temporal_lidars_i,
-                compressed_temporal_images_i,
-                compressed_temporal_images_augmented_i)
-          except cv2.error:
-            print(f"This path threw an error in the caching compression stage:{str(images[i].decode('utf-8'))}")
+                  if self.config.use_semantic:
+                    _, compressed_semantic_augmented_i = cv2.imencode('.png', semantics_augmented_i)
+                  if self.config.use_bev_semantic:
+                    _, compressed_bev_semantic_augmented_i = cv2.imencode('.png', bev_semantics_augmented_i)
+                  if self.config.use_depth:
+                    _, compressed_depth_augmented_i = cv2.imencode('.png', depth_augmented_i)
+
+                compressed_lidar_i = compress_lidar_frame(self, lidars_i)
+                if self.config.lidar_seq_len > 1:
+                  compressed_temporal_lidars_i = compress_temporal_lidar_frames(self, loaded_temporal_lidars)
+                  
+              self.data_cache[cache_key] = (
+                  boxes_i,
+                  future_boxes_i,
+                  compressed_image_i,
+                  compressed_image_augmented_i,
+                  compressed_semantic_i,
+                  compressed_semantic_augmented_i,
+                  compressed_bev_semantic_i,
+                  compressed_bev_semantic_augmented_i,
+                  compressed_depth_i,
+                  compressed_depth_augmented_i,
+                  compressed_lidar_i,
+                  compressed_temporal_lidars_i,
+                  compressed_temporal_images_i,
+                  compressed_temporal_images_augmented_i)
+            except cv2.error:
+              print(f"This path threw an error in the caching compression stage:{str(images[i].decode('utf-8'))}")
       loaded_images.append(images_i)
       loaded_images_augmented.append(images_augmented_i)
       if self.config.use_semantic:
@@ -623,20 +623,21 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     #data["rgb"] is now of shape (N_seq, C, H, W)
     # need to concatenate seq data here and align to the same coordinate
     lidars = []
-    if not self.config.use_plant:
-      for i in range(self.config.seq_len):
-        lidar = loaded_lidars[i]
+    if self.config.keyframes is None:
+      if not self.config.use_plant:
+        for i in range(self.config.seq_len):
+          lidar = loaded_lidars[i]
 
-        # transform lidar to lidar seq-1
-        lidar = self.align(lidar,
-                           loaded_measurements[i],
-                           current_measurement,
-                           y_augmentation=aug_translation,
-                           yaw_augmentation=aug_rotation)
-        lidar_bev = self.lidar_to_histogram_features(lidar, use_ground_plane=self.config.use_ground_plane)
-        lidars.append(lidar_bev)
+          # transform lidar to lidar seq-1
+          lidar = self.align(lidar,
+                            loaded_measurements[i],
+                            current_measurement,
+                            y_augmentation=aug_translation,
+                            yaw_augmentation=aug_rotation)
+          lidar_bev = self.lidar_to_histogram_features(lidar, use_ground_plane=self.config.use_ground_plane)
+          lidars.append(lidar_bev)
 
-      lidar_bev = np.concatenate(lidars, axis=0)
+        lidar_bev = np.concatenate(lidars, axis=0)
 #TODO check before using it for lidar realignment is necessary to current frame not most recent past frame; currently only aligns for seq_len=1 correctly
       if self.config.lidar_seq_len > 1:
         temporal_lidars_lst = []
@@ -779,60 +780,60 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       target_speed_index = F.softmax(torch.tensor(logits), dim=0).numpy()
 
     data['target_speed'] = target_speed_index
+    if self.config.keyframes is None:
+      if not self.config.use_plant:
+        lidar_bev = self.lidar_augmenter_func(image=np.transpose(lidar_bev, (1, 2, 0)))
+        data['lidar'] = np.transpose(lidar_bev, (2, 0, 1))
 
-    if not self.config.use_plant:
-      lidar_bev = self.lidar_augmenter_func(image=np.transpose(lidar_bev, (1, 2, 0)))
-      data['lidar'] = np.transpose(lidar_bev, (2, 0, 1))
+      if self.config.detect_boxes or self.config.use_plant:
+        data['bounding_boxes'] = bounding_boxes_padded
+        if self.config.use_plant:
+          data['future_bounding_boxes'] = future_bounding_boxes_padded
 
-    if self.config.detect_boxes or self.config.use_plant:
-      data['bounding_boxes'] = bounding_boxes_padded
-      if self.config.use_plant:
-        data['future_bounding_boxes'] = future_bounding_boxes_padded
+      if self.config.lidar_seq_len > 1 and not self.config.use_plant:
+        temporal_lidar_bev = self.augment_lidars(temporal_lidar_bev)
+        data['temporal_lidar'] = temporal_lidar_bev
+      #temporal lidar gets tensor of shape (lidar_seq, bev1, bev2) ####################################check x,y #TODO watch out with shape!
 
-    if self.config.lidar_seq_len > 1 and not self.config.use_plant:
-      temporal_lidar_bev = self.augment_lidars(temporal_lidar_bev)
-      data['temporal_lidar'] = temporal_lidar_bev
-    #temporal lidar gets tensor of shape (lidar_seq, bev1, bev2) ####################################check x,y #TODO watch out with shape!
-
-   
-    data['light'] = current_measurement['light_hazard']
-    data['stop_sign'] = current_measurement['stop_sign_hazard']
-    data['junction'] = current_measurement['junction']
-    data['speed'] = current_measurement['speed']
-    data['theta'] = current_measurement['theta']
-    data['command'] = t_u.command_to_one_hot(current_measurement['command'])
-    data['next_command'] = t_u.command_to_one_hot(current_measurement['next_command'])
-
-    if self.config.use_plant_labels:
-      if augment_sample:
-        data['route'] = np.array(current_measurement['plant_route_aug'])
+    
+      data['light'] = current_measurement['light_hazard']
+      data['stop_sign'] = current_measurement['stop_sign_hazard']
+      data['junction'] = current_measurement['junction']
+      data['speed'] = current_measurement['speed']
+      data['theta'] = current_measurement['theta']
+      data['command'] = t_u.command_to_one_hot(current_measurement['command'])
+      data['next_command'] = t_u.command_to_one_hot(current_measurement['next_command'])
+    if self.config.keyframes is None:
+      if self.config.use_plant_labels:
+        if augment_sample:
+          data['route'] = np.array(current_measurement['plant_route_aug'])
+        else:
+          data['route'] = np.array(current_measurement['plant_route'])
       else:
-        data['route'] = np.array(current_measurement['plant_route'])
-    else:
-      route = current_measurement['route']
-      if len(route) < self.config.num_route_points:
-        num_missing = self.config.num_route_points - len(route)
-        route = np.array(route)
-        # Fill the empty spots by repeating the last point.
-        route = np.vstack((route, np.tile(route[-1], (num_missing, 1))))
-      else:
-        route = np.array(route[:self.config.num_route_points])
+        route = current_measurement['route']
+        if len(route) < self.config.num_route_points:
+          num_missing = self.config.num_route_points - len(route)
+          route = np.array(route)
+          # Fill the empty spots by repeating the last point.
+          route = np.vstack((route, np.tile(route[-1], (num_missing, 1))))
+        else:
+          route = np.array(route[:self.config.num_route_points])
 
-      route = self.augment_route(route, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
-      if self.config.smooth_route:
-        data['route'] = self.smooth_path(route)
-      else:
-        data['route'] = route
+        route = self.augment_route(route, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
+        if self.config.smooth_route:
+          data['route'] = self.smooth_path(route)
+        else:
+          data['route'] = route
+    if self.config.keyframes is None:
+      target_point = np.array(current_measurement['target_point'])
+      target_point = self.augment_target_point(target_point,
+                                              y_augmentation=aug_translation,
+                                              yaw_augmentation=aug_rotation)
+      data['target_point'] = target_point
 
-    target_point = np.array(current_measurement['target_point'])
-    target_point = self.augment_target_point(target_point,
-                                             y_augmentation=aug_translation,
-                                             yaw_augmentation=aug_rotation)
-    data['target_point'] = target_point
-
-    aim_wp = np.array(current_measurement['aim_wp'])
-    aim_wp = self.augment_target_point(aim_wp, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
-    data['aim_wp'] = aim_wp
+      aim_wp = np.array(current_measurement['aim_wp'])
+      aim_wp = self.augment_target_point(aim_wp, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
+      data['aim_wp'] = aim_wp
 
     #for keyframes baseline get the corresponding importance weight
     if self.config.correlation_weights:
