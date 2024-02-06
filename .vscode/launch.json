@@ -108,7 +108,7 @@
             "--training_repetition", "0",
             "--baseline_folder_name", "arp",
             "--baseline_name", "arp_vanilla.yaml",
-            "--number_of_workers", "10","--batch-size", "10"],
+            "--number_of_workers", "0","--batch-size", "10"],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
@@ -207,7 +207,8 @@
             "args": [
             "--baseline-folder-name", "keyframes",
             "--baseline-name", "keyframes_vanilla_weights",
-            "--number-of-workers", "1",
+            "--number-of-workers", "0",
+            "--batch-size" ,"1",
             "--seeds", "1435"],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
@@ -222,7 +223,9 @@
             "program": "/home/maximilian/Master/carla_garage/keyframes/get_importance_weights_inference.py",
             "args": [
             "--baseline-folder-name", "keyframes",
-            "--baseline-name", "keyframes_vanilla_weights"],
+            "--baseline-name", "keyframes_vanilla_weights",
+        "--repetition", "0",
+    "--batch-size" ,"1"],
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "purpose": ["debug-in-terminal"],
