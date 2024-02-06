@@ -149,7 +149,7 @@ def main(args, suppress_output=False):
         if checkpoint_file is not None:
             checkpoint = torch.load(
                                     os.path.join(
-                                        os.environ.get("WORK_DIR"), '_logs', args.baseline_folder_name, args.baseline_name,str(args.training_repetition),
+                                        os.environ.get("WORK_DIR"), '_logs', merged_config_object.baseline_folder_name, merged_config_object.baseline_name,str(args.training_repetition),
                                         'checkpoints', get_latest_saved_checkpoint(repetition=args.training_repetition)
                                     )
                                 )
@@ -252,7 +252,7 @@ def main(args, suppress_output=False):
             #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
             #     break
             capture_time = time.time()
-            controls = get_controls_from_data(merged_config_object, data)
+            controls = get_controls_from_data(data)
             iteration += 1
             if args.baseline_folder_name=="arp":
                 if iteration % 1000 == 0:
@@ -263,7 +263,7 @@ def main(args, suppress_output=False):
                 current_obs=data['rgb'].cuda()
                 current_obs=current_obs/255.
                 obs_history=obs_history.reshape(args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
-                
+                current_obs=current_obs.reshape(args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
                 if merged_config_object.speed_input:
                     current_speed =dataset.extract_inputs(data, merged_config_object).reshape(args.batch_size, 1).to(torch.float32).cuda()                    
                 else:
@@ -290,7 +290,7 @@ def main(args, suppress_output=False):
                 mem_extract_loss.backward()
                 mem_extract_optimizer.step()
                 policy.zero_grad()
-                policy_branches = policy(torch.squeeze(current_obs), current_speed, memory)
+                policy_branches = policy(current_obs, current_speed, memory)
                 loss_function_params = {
                     'branches': policy_branches,
                     'targets':current_targets.cuda(),
@@ -330,9 +330,9 @@ def main(args, suppress_output=False):
                 mem_extract_loss_window.append(mem_extract_loss.data.tolist())
                 coil_logger.write_on_error_csv('policy_train', policy_loss.data)
                 coil_logger.write_on_error_csv('mem_extract_train', mem_extract_loss.data)
-                if iteration%100==0:
-                    print("Iteration: %d  Policy_Loss: %f" % (iteration, policy_loss.data))
-                    print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
+
+                print("Iteration: %d  Policy_Loss: %f" % (iteration, policy_loss.data))
+                print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
 
             else:
                 if not merged_config_object.auto_lr:
@@ -453,7 +453,7 @@ def main(args, suppress_output=False):
         traceback.print_exc()
         coil_logger.add_message('Error', {'Message': 'Something Happened'})
 
-def get_controls_from_data(merged_config_object, data):
+def get_controls_from_data(data):
     one_hot_tensor=data["command"]
     indices = torch.argmax(one_hot_tensor, dim=1).numpy()
     controls=indices.reshape(args.batch_size, 1)
