@@ -115,14 +115,14 @@ class CoILPolicy(nn.Module):
     
         output = self.forward(x, v, memory)
         self.predicted_speed = output[-1]
-        control = output[0:4]
+        control = output[0:6]
         output_vec = torch.stack(control)
 
         return self.extract_branch(output_vec, branch_number)
 
     def extract_branch(self, output_vec, branch_number):
 
-        branch_number = command_number_to_index(branch_number)
+        #branch_number = command_number_to_index(branch_number)
 
         if len(branch_number) > 1:
             branch_number = torch.squeeze(branch_number.type(torch.cuda.LongTensor))
