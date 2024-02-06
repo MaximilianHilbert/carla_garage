@@ -41,7 +41,7 @@ def create_log(exp_batch_name: object, exp_name: object, training_rep:object,pro
     root_path = f'{os.environ.get("WORK_DIR")}/_logs'
 
 
-    dir_name = os.path.join(root_path, exp_batch_name, exp_name, str(training_rep))
+    dir_name = os.path.join(root_path, exp_batch_name, exp_name, f"repetition_{str(training_rep)}")
     full_name = os.path.join(dir_name, process_name)
 
     if os.path.isfile(full_name):
@@ -56,7 +56,7 @@ def create_log(exp_batch_name: object, exp_name: object, training_rep:object,pro
     PROCESS_NAME = process_name
     LOG_FREQUENCY = log_frequency
     IMAGE_LOG_FREQUENCY = image_log_frequency
-    tl = Logger(os.path.join(root_path, exp_batch_name, exp_name, 'tensorboard_logs_'+process_name))
+    tl = Logger(os.path.join(root_path, exp_batch_name, exp_name,f"repetition_{str(training_rep)}",'tensorboard_logs_'+process_name))
 
 def close():
 

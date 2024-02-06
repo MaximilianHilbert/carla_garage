@@ -48,13 +48,13 @@ def is_ready_to_save(iteration):
     else:
         return False
 
-def get_latest_saved_checkpoint(repetition):
+def get_latest_saved_checkpoint(shared_config_object, repetition):
     """
         Returns the , latest checkpoint number that was saved
 
     """
-    checkpoint_files = os.listdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', g_conf.EXPERIMENT_BATCH_NAME,
-                                               g_conf.EXPERIMENT_NAME,str(repetition), 'checkpoints'))
+    checkpoint_files = os.listdir(os.path.join(f'{os.environ.get("WORK_DIR")}','_logs', shared_config_object.baseline_folder_name,
+                                               shared_config_object.baseline_name, f"repetition_{str(repetition)}", 'checkpoints'))
     if checkpoint_files == []:
         return None
     else:
