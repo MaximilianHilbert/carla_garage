@@ -138,7 +138,6 @@ class CoILICRA(nn.Module):
         speed_branch_output = self.speed_branch(x)
         # We concatenate speed with the rest.
         return branch_outputs + [speed_branch_output]
-###########################################################################watch out during inference
     def forward_branch(self, x, a, branch_number, pa=None):
         """
         DO a forward operation and return a single branch.
