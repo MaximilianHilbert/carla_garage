@@ -1,5 +1,3 @@
-BATCH_SIZE: 512
-
 IMAGE_SEQ_LEN: 1  # at least 1, because later in the baseline the action prediction error is calculated over the full list of images in the dataset
 LIDAR_SEQ_LEN: 0
 USE_COLOR_AUG: 0
@@ -9,7 +7,7 @@ SEQUENCE_STRIDE: 1  # Number of frames skipped when reading the data
 
 AUGMENTATION: None  # The image augmentation applied on every input image
 USE_NOISE_DATA: True  # If we use the noise data.
-NO_SPEED_INPUT: True  # not input speed
+SPEED_INPUT: False  # not input speed
 MODEL_TYPE: "MLP"
 NUMBER_PREVIOUS_ACTIONS: 3 # three past actions
 NUMBER_FUTURE_ACTIONS: 0 # 0 means that just the current action is predicted by the baseline
