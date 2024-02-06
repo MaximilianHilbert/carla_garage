@@ -346,10 +346,10 @@ def main(args, suppress_output=False):
                 
                 
                 if merged_config_object.speed_input:
-                    current_speed =dataset.extract_inputs(data, merged_config_object).reshape(args.batch_size, 1).to(torch.float32).cuda()
+                    current_speed =data["speed"].reshape(args.batch_size, -1).to(torch.float32).cuda()
 
                 else:
-                    current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(args.batch_size, 1).to(torch.float32).cuda()
+                    current_speed =torch.zeros_like(data["speed"]).reshape(args.batch_size, -1).to(torch.float32).cuda()
 
                 #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
                 if args.baseline_folder_name=="bcso":
@@ -387,7 +387,7 @@ def main(args, suppress_output=False):
                 'branches': branches,
                 'targets': targets.cuda(),
                 'controls': controls,
-                'inputs': dataset.extract_inputs(data, merged_config_object).reshape(args.batch_size, -1).to(torch.float32).cuda(),
+                'inputs': current_speed,
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
@@ -434,9 +434,8 @@ def main(args, suppress_output=False):
                 coil_logger.write_on_error_csv('train', loss.data)
                 if merged_config_object.auto_lr:
                     scheduler.step()
-                if iteration%100==0:
-                    print(optimizer.param_groups[0]['lr'])
-                    print("Iteration: %d  Loss: %f" % (iteration, loss.data))
+                print(optimizer.param_groups[0]['lr'])
+                print("Iteration: %d  Loss: %f" % (iteration, loss.data))
             torch.cuda.empty_cache()
     
         
