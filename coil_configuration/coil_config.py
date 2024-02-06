@@ -193,10 +193,10 @@ def set_type_of_process(process_type, shared_config_object,args=None, training_r
             shared_config_object.log_image_writing_frequency)
     if process_type == "train":
         if not os.path.exists(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.experiment_batch_name,
-                                            shared_config_object.experiment_name,str(training_rep),
+                                            shared_config_object.experiment_name,f"repetition_{str(training_rep)}",
                                             'checkpoints') ):
                 os.mkdir(os.path.join(f'{os.environ.get("WORK_DIR")}/_logs', shared_config_object.experiment_batch_name,
-                                      shared_config_object.experiment_name,str(training_rep),
+                                      shared_config_object.experiment_name,f"repetition_{str(training_rep)}",
                                       'checkpoints'))
 
     if process_type == "validation" or process_type == 'drive':

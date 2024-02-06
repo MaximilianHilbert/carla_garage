@@ -134,23 +134,14 @@ def main(args, suppress_output=False):
             coil_logger.add_message('Finished', {})
             return
 
-        # Preload option
-        if merged_config_object.preload_model_alias is not None:
-            checkpoint = torch.load(
-                                os.path.join(
-                                    '_logs', merged_config_object.preload_model_batch, merged_config_object.preload_model_alias,
-                                    'checkpoints', str(merged_config_object.preload_model_checkpoint) + '.pth'
-                                )
-                            )
-
         # Get the latest checkpoint to be loaded
         # returns none if there are no checkpoints saved for this model
-        checkpoint_file = get_latest_saved_checkpoint(repetition=args.training_repetition)
+        checkpoint_file = get_latest_saved_checkpoint(merged_config_object,repetition=args.training_repetition)
         if checkpoint_file is not None:
             checkpoint = torch.load(
                                     os.path.join(
-                                        os.environ.get("WORK_DIR"), '_logs', merged_config_object.baseline_folder_name, merged_config_object.baseline_name,str(args.training_repetition),
-                                        'checkpoints', get_latest_saved_checkpoint(repetition=args.training_repetition)
+                                        os.environ.get("WORK_DIR"), '_logs', merged_config_object.baseline_folder_name, merged_config_object.baseline_name,f"repetition_{str(args.training_repetition)}",
+                                        'checkpoints', get_latest_saved_checkpoint(merged_config_object,repetition=args.training_repetition)
                                     )
                                 )
             iteration = checkpoint['iteration']
@@ -316,7 +307,7 @@ def main(args, suppress_output=False):
                     torch.save(
                         state, 
                         os.path.join(
-                            os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, str(args.training_repetition),
+                            os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, f"repetition_{str(args.training_repetition)}",
                                 'checkpoints', str(iteration) + '.pth'
                         )
                     )
@@ -328,11 +319,13 @@ def main(args, suppress_output=False):
                 accumulated_time += time.time() - capture_time
                 policy_loss_window.append(policy_loss.data.tolist())
                 mem_extract_loss_window.append(mem_extract_loss.data.tolist())
-                coil_logger.write_on_error_csv('policy_train', policy_loss.data)
-                coil_logger.write_on_error_csv('mem_extract_train', mem_extract_loss.data)
-
-                print("Iteration: %d  Policy_Loss: %f" % (iteration, policy_loss.data))
-                print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
+                coil_logger.write_on_error_csv(os.path.join(
+                            os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, f"repetition_{str(args.training_repetition)}",'policy_train'), policy_loss.data)
+                coil_logger.write_on_error_csv(os.path.join(
+                            os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, f"repetition_{str(args.training_repetition)}",'mem_extract_train'), mem_extract_loss.data)
+                if iteration%100==0:
+                    print("Iteration: %d  Policy_Loss: %f" % (iteration, policy_loss.data))
+                    print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
 
             else:
                 if not merged_config_object.auto_lr:
@@ -435,7 +428,8 @@ def main(args, suppress_output=False):
                 if merged_config_object.auto_lr:
                     scheduler.step()
                 print(optimizer.param_groups[0]['lr'])
-                print("Iteration: %d  Loss: %f" % (iteration, loss.data))
+                if iteration%100==0:
+                    print("Iteration: %d  Loss: %f" % (iteration, loss.data))
             torch.cuda.empty_cache()
     
         
