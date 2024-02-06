@@ -412,7 +412,7 @@ def main(args, suppress_output=False):
                     torch.save(
                         state, 
                         os.path.join(
-                            os.environ.get("WORK_DIR"), "_logs", args.baseline_folder_name, args.baseline_name, str(args.training_repetition),
+                            os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, str(args.training_repetition),
                                 'checkpoints', str(iteration) + '.pth'
                         )
                     )
