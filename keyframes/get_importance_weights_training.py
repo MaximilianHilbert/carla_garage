@@ -5,13 +5,14 @@ import os
 from action_correlation_model import train_ape_model
 from team_code.config import GlobalConfig
 from team_code.data import CARLA_Data
+from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from coil_configuration.coil_config import merge_with_yaml, g_conf
 from action_correlation_model import ActionModel
-def merge_config_files(args):
+def merge_config_files(baseline_folder_name,baseline_name):
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
 
-    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline_folder_name, args.baseline_name + '.yaml'))
+    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name, baseline_name+".yaml"))
     
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
@@ -21,7 +22,6 @@ def merge_config_files(args):
     shared_configuration.img_seq_len=g_conf.IMAGE_SEQ_LEN 
     shared_configuration.all_frames_including_blank=g_conf.ALL_FRAMES_INCLUDING_BLANK
     shared_configuration.targets=g_conf.TARGETS
-    shared_configuration.batch_size=g_conf.BATCH_SIZE
     shared_configuration.inputs=g_conf.INPUTS
     shared_configuration.optimizer=g_conf.OPTIMIZER
     shared_configuration.process_name=g_conf.PROCESS_NAME
@@ -46,12 +46,14 @@ def merge_config_files(args):
     shared_configuration.log_scalar_writing_frequency=g_conf.LOG_SCALAR_WRITING_FREQUENCY
     shared_configuration.log_image_writing_frequency=g_conf.LOG_IMAGE_WRITING_FREQUENCY
     shared_configuration.number_future_actions=g_conf.NUMBER_FUTURE_ACTIONS
-    shared_configuration.no_speed_input=g_conf.NO_SPEED_INPUT
+    shared_configuration.speed_input=g_conf.SPEED_INPUT
     shared_configuration.action_correlation_model_type=g_conf.ACTION_CORRELATION_MODEL_TYPE
     shared_configuration.lidar_seq_len=g_conf.LIDAR_SEQ_LEN
     shared_configuration.epochs=g_conf.EPOCHS
     shared_configuration.use_color_aug=g_conf.USE_COLOR_AUG
     shared_configuration.augment=g_conf.AUGMENT
+    shared_configuration.baseline_folder_name=baseline_folder_name
+    shared_configuration.baseline_name=baseline_name
     shared_configuration.correlation_weights=g_conf.CORRELATION_WEIGHTS
     return shared_configuration
 
@@ -95,10 +97,10 @@ def get_target_actions(index, img_path_list, target_action_num, measurements_lis
 
 
 def main(args):
-    merged_config_object=merge_config_files(args)
-    checkpoint_path=os.path.join(os.environ.get("WORK_DIR"), "_logs","keyframes", "checkpoints")
-    for seed, repetition in enumerate(args.seeds):
-        checkpoint_name=f"correlation_weights_prev{merged_config_object.number_previous_actions}_curr{merged_config_object.number_future_actions+1}_rep{repetition}_neurons{args.neurons}.npy"
+    merged_config_object=merge_config_files(args.baseline_folder_name,args.baseline_name)
+    checkpoint_path=os.path.join(os.environ.get("WORK_DIR"), "_logs","keyframes", f"repetition_{str(args.training_repetition)}","checkpoints")
+    for repetition, seed in enumerate(tqdm(args.seeds)):
+        checkpoint_name=f"correlation_weights_prev{merged_config_object.number_previous_actions}_curr{merged_config_object.number_future_actions+1}_rep{repetition}_neurons{args.neurons[0]}.npy"
         checkpoint_full_path=os.path.join(checkpoint_path, checkpoint_name)
         train_ape_model(args, seed, repetition,merged_config_object, checkpoint_full_path, if_save=True)
     
@@ -107,11 +109,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--neurons', type=int, nargs='+', default=[300], help='the dimensions of the FC layers')
     parser.add_argument('--baseline-folder-name', dest="baseline_folder_name", type=str, default="keyframes", help='name of the folder that gets created for the baseline')
-    parser.add_argument('--baseline-name', dest="baseline_name", type=str, default="keyframes_vanilla_weights", help='name of the experiment/subfoldername that gets created for the baseline')
+    parser.add_argument('--baseline-name', dest="baseline_name", type=str, default="keyframes_vanilla_weights.yaml", help='name of the experiment/subfoldername that gets created for the baseline')
     parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=int, default=0, help='use caching on /scratch')
     parser.add_argument('--number-of-workers', dest="number_of_workers", type=int, default=12, help='dataloader workers')
     parser.add_argument('--seeds', dest="seeds", type=int, nargs="+", help='seeds for training, also determining the retrain amount')
-    
+    parser.add_argument('--batch-size', dest="batch_size", type=int, help='batch')
+    parser.add_argument('--training-repetition', dest="training_repetition", type=int, default=0)
     
     args = parser.parse_args()
     main(args)

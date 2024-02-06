@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from team_code.data import CARLA_Data
 class ActionModel(nn.Module):
@@ -75,28 +76,26 @@ class ActionModel(nn.Module):
 
 #     def get_std(self):
 #         return self.std
-
+from pytictoc import TicToc
 
 def train(model, optimizer, train_loader, loss_func, epoch, all_epochs, logger):
     model.train()
     optimizer.zero_grad()
     accumulate_loss = []
     all_iterations=len(train_loader)-1
-    for idx, data in enumerate(train_loader):
-        print(f"Epoch: {epoch} of {all_epochs} // Iteration {idx+1} of {all_iterations}")
+    for idx, data in enumerate(tqdm(train_loader)):
         previous_values=data["previous_actions"].cuda()
         current_and_future_values=data["current_and_future_actions"].cuda()
         
         model.zero_grad()
         output = model(previous_values)
         loss = loss_func(output, current_and_future_values).mean()
-
         accumulate_loss.append(float(loss.item()))
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
     logger.add_scalar('train_loss', np.mean(accumulate_loss), epoch)
-    print('iter: {} train loss: {}'.format(epoch, np.mean(accumulate_loss)))
+    print('epoch: {} train loss: {}'.format(epoch, np.mean(accumulate_loss)))
 
 
 def test(model, test_loader, loss_func, epoch, logger):
@@ -148,8 +147,8 @@ def train_ape_model(args, seed,repetition, merged_config_object, checkpoint_full
     torch.manual_seed(seed)
     trainset, testset = torch.utils.data.random_split(dataset, [int(len(dataset)*0.8), len(dataset)-int(len(dataset)*0.8)])
 
-    trainloader = DataLoader(dataset=trainset, batch_size=merged_config_object.batch_size, num_workers=args.number_of_workers, shuffle=True)
-    testloader = DataLoader(dataset=testset, batch_size=merged_config_object.batch_size, num_workers=args.number_of_workers, shuffle=False)
+    trainloader = DataLoader(dataset=trainset, batch_size=args.batch_size, num_workers=args.number_of_workers, shuffle=True)
+    testloader = DataLoader(dataset=testset, batch_size=args.batch_size, num_workers=args.number_of_workers, shuffle=False)
 
     model = ActionModel(input_dim=merged_config_object.number_previous_actions*3, output_dim=(merged_config_object.number_future_actions+1)*3, neurons=args.neurons)
     model.cuda()
@@ -157,7 +156,7 @@ def train_ape_model(args, seed,repetition, merged_config_object, checkpoint_full
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
     loss_func = partial(weighted_loss, weight=torch.Tensor([0.5, 0.45, 0.05]*(merged_config_object.number_future_actions+1)).cuda())
 
-    result_dir = os.path.join(os.environ.get("WORK_DIR"), "_logs","keyframes","results", f"prev{merged_config_object.number_previous_actions}-curr{merged_config_object.number_future_actions+1}-repetition-{repetition}-{identifier}")
+    result_dir = os.path.join(os.environ.get("WORK_DIR"), "_logs","keyframes",f"repetition_{str(repetition)}","results", f"prev{merged_config_object.number_previous_actions}-curr{merged_config_object.number_future_actions+1}-repetition-{repetition}-{identifier}")
 
     log_dir = os.path.join(result_dir, 'run')
     os.makedirs(log_dir)
@@ -173,6 +172,6 @@ def train_ape_model(args, seed,repetition, merged_config_object, checkpoint_full
             adjustlr(optimizer, 0.1)
 
     if if_save:
-        os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "_logs","keyframes", "checkpoints"), exist_ok=True)
+        os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "_logs","keyframes", f"repetition_{str(repetition)}","checkpoints"), exist_ok=True)
         checkpoint = {'state_dict': model.state_dict(), 'min_loss': min_loss, 'max_loss': max_loss}
         torch.save(checkpoint, checkpoint_full_path)
