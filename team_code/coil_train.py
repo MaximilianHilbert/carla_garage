@@ -80,7 +80,6 @@ def merge_config_files(baseline_folder_name, baseline_name):
 def main(args, suppress_output=False):
     merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""))
     create_log_folder(f'{os.environ.get("WORK_DIR")}/_logs',merged_config_object.baseline_folder_name)
-    erase_logs(f'{os.environ.get("WORK_DIR")}/_logs',merged_config_object.baseline_folder_name)
     create_exp_path(f'{os.environ.get("WORK_DIR")}/_logs',merged_config_object.baseline_folder_name,merged_config_object.baseline_name, repetition=args.training_repetition)
     
     """
@@ -169,13 +168,17 @@ def main(args, suppress_output=False):
             shared_dict = None
         #introduce new dataset from the Paper TransFuser++
         dataset=CARLA_Data(root=merged_config_object.train_data, config=merged_config_object, shared_dict=shared_dict)
-        if args.baseline_name=="keyframes_vanilla":
+        if "keyframes" in args.baseline_name:
             #load the correlation weights and reshape them, that the last 3 elements that do not fit into the batch size dimension get dropped, because the dataloader of Carla_Dataset does the same, it should fit
-            dataset.set_correlation_weights(path="/home/maximilian/Master/carla_garage/_prev3_curr1_layer300.npy")
+            list_of_files_path=os.path.join(os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, f"repetition_{str(args.training_repetition)}")
+            for file in os.listdir(list_of_files_path):
+                full_filename=os.path.join(list_of_files_path, file)
+                if f"rep{str(args.training_repetition)}" in file:
+                    dataset.set_correlation_weights(path=full_filename)
             action_predict_threshold=get_action_predict_loss_threshold(dataset.get_correlation_weights(),merged_config_object.threshold_ratio)
         print("Loaded dataset")
         data_loader = select_balancing_strategy(args,dataset, iteration)
-        if args.baseline_folder_name=="arp":
+        if "arp" in args.baseline_name:
             policy = CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
             policy.cuda()
 
@@ -185,13 +188,13 @@ def main(args, suppress_output=False):
             model=CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
             model.cuda()
         if merged_config_object.optimizer == 'Adam':
-            if args.baseline_folder_name=="arp":
+            if "arp" in args.baseline_name:
                 policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
                 mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate)
             else:
                 optimizer= optim.Adam(model.parameters(), lr=merged_config_object.learning_rate)
         elif merged_config_object.optimizer == 'SGD':
-            if args.baseline_folder_name=="arp":
+            if "arp" in args.baseline_name:
                 policy_optimizer = optim.SGD(policy.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
                 mem_extract_optimizer = optim.SGD(mem_extract.parameters(), lr=merged_config_object.learning_rate, momentum=0.9)
             else:
@@ -201,7 +204,7 @@ def main(args, suppress_output=False):
 
         if checkpoint_file is not None or merged_config_object.preload_model_alias is not None:
             accumulated_time = checkpoint['total_time']
-            if args.baseline_folder_name=="arp":
+            if "arp" in args.baseline_name:
 
                 policy.load_state_dict(checkpoint['policy_state_dict'])
                 policy_optimizer.load_state_dict(checkpoint['policy_optimizer'])
@@ -217,14 +220,14 @@ def main(args, suppress_output=False):
                 loss_window = coil_logger.recover_loss_window('train', iteration)
         else:  # We accumulate iteration time and keep the average speed
             accumulated_time = 0
-            if args.baseline_folder_name=="arp":
+            if "arp" in args.baseline_name:
                 policy_loss_window = []
                 mem_extract_loss_window = []
             else:
                 loss_window = []
 
         print("Before the loss")
-        if args.baseline_name=="keyframes_vanilla":
+        if "keyframes" in args.baseline_name:
             from coil_network.keyframes_loss import Loss
         else:
             from coil_network.loss import Loss
@@ -245,7 +248,7 @@ def main(args, suppress_output=False):
             capture_time = time.time()
             controls = get_controls_from_data(data)
             iteration += 1
-            if args.baseline_folder_name=="arp":
+            if "arp" in args.baseline_name:
                 if iteration % 1000 == 0:
                     adjust_learning_rate_auto(policy_optimizer, policy_loss_window)
                     adjust_learning_rate_auto(mem_extract_optimizer, mem_extract_loss_window)
@@ -345,7 +348,7 @@ def main(args, suppress_output=False):
                     current_speed =torch.zeros_like(data["speed"]).reshape(args.batch_size, -1).to(torch.float32).cuda()
 
                 #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
-                if args.baseline_folder_name=="bcso":
+                if "bcso" in args.baseline_name:
                     if merged_config_object.train_with_actions_as_input:
                         branches = model(single_frame_input,
                                 current_speed,
@@ -364,7 +367,7 @@ def main(args, suppress_output=False):
                         branches = model(multi_frame_input,
                                     current_speed)
                     ########################################################introduce importance weight adding to the temporal images/lidars and the current one################
-                if args.baseline_name=="keyframes_vanilla":
+                if "keyframes" in args.baseline_name:
                     reweight_params = {'importance_sampling_softmax_temper': merged_config_object.softmax_temper,
                                     'importance_sampling_threshold': action_predict_threshold,
                                     'importance_sampling_method': merged_config_object.importance_sample_method,
@@ -379,12 +382,13 @@ def main(args, suppress_output=False):
                 loss_function_params = {
                 'branches': branches,
                 'targets': targets.cuda(),
+                **reweight_params,
                 'controls': controls,
                 'inputs': current_speed,
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
-                if args.baseline_name=="keyframes_vanilla":
+                if "keyframes" in args.baseline_name:
                     loss, loss_info, _ = criterion(loss_function_params)
                 else:
                     loss, _ = criterion(loss_function_params)
@@ -405,13 +409,13 @@ def main(args, suppress_output=False):
                     torch.save(
                         state, 
                         os.path.join(
-                            os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, str(args.training_repetition),
+                            os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, f"repetition_{str(args.training_repetition)}",
                                 'checkpoints', str(iteration) + '.pth'
                         )
                     )
 
                 coil_logger.add_scalar('Loss', loss.data, iteration)
-                if args.baseline_name=="keyframes_vanilla":
+                if "keyframes" in args.baseline_name:
                     for loss_name, loss_value in loss_info.items():
                         if loss_value.shape[0] > 0:
                             average_loss_value = (torch.sum(loss_value) / loss_value.shape[0]).data.item()
@@ -427,8 +431,8 @@ def main(args, suppress_output=False):
                 coil_logger.write_on_error_csv('train', loss.data)
                 if merged_config_object.auto_lr:
                     scheduler.step()
-                print(optimizer.param_groups[0]['lr'])
                 if iteration%100==0:
+                    print(optimizer.param_groups[0]['lr'])
                     print("Iteration: %d  Loss: %f" % (iteration, loss.data))
             torch.cuda.empty_cache()
     
@@ -470,6 +474,6 @@ if __name__=="__main__":
     parser.add_argument('--baseline_name', dest="baseline_name", default=None, required=True)
     parser.add_argument('--number_of_workers', dest="number_of_workers", default=12, type=int, required=True)
     parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=int, default=0)
-    parser.add_argument('--batch-size', dest="batch_size", type=int, default=30)
+    parser.add_argument('--batch-size', dest="batch_size", type=int, default=10)
     args = parser.parse_args()
     main(args)
