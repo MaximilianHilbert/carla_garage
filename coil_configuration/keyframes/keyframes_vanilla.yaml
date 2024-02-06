@@ -74,7 +74,7 @@ LEARNING_RATE_THRESHOLD: 5000 # Number of iterations without going down to reduc
 LEARNING_RATE_DECAY_LEVEL: 0.1 # Th factor of reduction applied to the learning rate
 
 # Loss Parameters #
-BRANCH_LOSS_WEIGHT: [0.95, 0.95, 0.95, 0.95, 0.05] # how much each branch is weighted when computing loss
+BRANCH_LOSS_WEIGHT: [0.95, 0.95, 0.95, 0.95, 0.95, 0.95,0.05] # how much each branch is weighted when computing loss
 LOSS_FUNCTION: 'L1' # The loss function used
 VARIABLE_WEIGHT: # how much each of the outputs specified on TARGETS are weighted for learning.
   Steer: 0.5
