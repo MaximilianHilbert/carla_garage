@@ -137,7 +137,7 @@ def main():
   weather="train"
   seed=123213
   baseline="arp"
-  yaml_path=f'{os.path.join(os.environ.get("CONFIG_ROOT"), baseline, experiment+".yaml")}'
+  yaml_path=f"{os.path.join('/mnt/qb/work/geiger/gwb629/carla_garage/coil_configuration', baseline, experiment+'.yaml')}"
 
   partition = 'gpu-2080ti'
   username = 'gwb629'
