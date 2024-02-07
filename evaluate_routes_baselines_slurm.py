@@ -165,7 +165,7 @@ def main():
     checkpoint_new_name = checkpoint + '_' + epoch
 
     # Links the model file into team_code
-    copy_model = True
+    copy_model = False
 
     if copy_model:
       # copy checkpoint to my folder
