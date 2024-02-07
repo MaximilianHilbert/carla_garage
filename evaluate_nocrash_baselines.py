@@ -6,8 +6,7 @@ def main(args):
     weather = args.weather
     
     port = args.port
-    tm_port = port + 2
-    runner = NoCrashEvalRunner(args, town, weather, port=port, tm_port=tm_port)
+    runner = NoCrashEvalRunner(args, town, weather, port=port, tm_port=args.tm_port)
     runner.run()
 
 
@@ -15,12 +14,12 @@ def main(args):
 if __name__ == '__main__':
 
     import argparse
-
+    import os
     parser = argparse.ArgumentParser()
     
     # Agent configs
-    parser.add_argument('--agent', default='autoagents/image_agent')
-    parser.add_argument('--agent-config', default='experiments/config_nocrash.yaml')
+    parser.add_argument('--agent', default=f"{os.path.join(os.environ.get('TEAM_CODE'), 'coil_agent.py')}")
+    parser.add_argument('--agent-config', default=f"{os.environ.get('CONFIG_ROOT')}, 'coil_config.py")
     parser.add_argument('--agent-yaml', dest="agent_yaml",default='experiments/config_nocrash.yaml')
     
     # Benchmark configs
@@ -31,11 +30,11 @@ if __name__ == '__main__':
                         help='IP of the host server (default: localhost)')
     parser.add_argument('--trafficManagerSeed', default='0',
                         help='Seed used by the TrafficManager (default: 0)')
-    parser.add_argument('--timeout', default="60.0",
+    parser.add_argument('--timeout', default="600.0",
                         help='Set the CARLA client timeout value in seconds')
                         
     parser.add_argument('--port', type=int, default=2000)
-
+    parser.add_argument('--tm_port', type=int, default=2002)
     parser.add_argument('--repetitions',
                         type=int,
                         default=1,
@@ -48,8 +47,8 @@ if __name__ == '__main__':
     parser.add_argument("--eval_id", default="id_000", help="Set this to be your evaluation id for the name of the log file")
     parser.add_argument("--log_path", required=True, help="Set this to be your path to the log file for evaluation")
     parser.add_argument("--coil_checkpoint", help="Set this to be your path to the previously recorded checkpoint file of the coiltraine framework")
-    parser.add_argument("--baseline-name", help="either arp bcoh bcso keyframes")
-    parser.add_argument("--baseline-folder-name", help="either arp bcoh bcso keyframes")
+    parser.add_argument("--experiment", help="either arp bcoh bcso keyframes")
+    parser.add_argument("--baseline", help="either arp bcoh bcso keyframes")
     args = parser.parse_args()
     
     main(args)
