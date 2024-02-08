@@ -222,7 +222,7 @@ def main():
         commands.append(
             f'SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0 {carla_root}/CarlaUE4.sh '
             f'-carla-rpc-port=${{FREE_WORLD_PORT}} -nosound -carla-streaming-port=${{FREE_STREAMING_PORT}} -opengl &')
-        commands.append('sleep 180')  # Waits for CARLA to finish starting
+        commands.append('sleep 30')  # Waits for CARLA to finish starting
         create_run_eval_bash(yaml_path,town, 
                              weather,
                              seed,
