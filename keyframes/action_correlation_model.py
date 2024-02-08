@@ -175,7 +175,7 @@ def train_ape_model(args, seed,repetition, merged_config_object, checkpoint_full
     writer = SummaryWriter(log_dir)
 
     min_loss, max_loss = 0, 0
-    for epoch in range(1, merged_config_object.epochs+1):
+    for epoch in tqdm(range(1, merged_config_object.epochs+1)):
         train(model, optimizer, trainloader, loss_func, epoch, merged_config_object.epochs, writer)
         min_loss, max_loss = test(model, testloader, loss_func, epoch, writer)
 
