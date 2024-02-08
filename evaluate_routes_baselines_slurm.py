@@ -36,7 +36,7 @@ export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=$WORK_DIR/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
 export COIL_NETWORK=$WORK_DIR/coil_network
-              
+
 
 export CARLA_ROOT={carla_root}
 export CARLA_SERVER=${{CARLA_ROOT}}/CarlaUE4.sh
@@ -46,6 +46,11 @@ export PYTHONPATH=$PYTHONPATH:${{CARLA_ROOT}}/PythonAPI/carla/dist/carla-0.9.10-
 export SCENARIO_RUNNER_ROOT=scenario_runner
 export LEADERBOARD_ROOT=leaderboard
 export PYTHONPATH="${{CARLA_ROOT}}/PythonAPI/carla/":"${{SCENARIO_RUNNER_ROOT}}":"${{LEADERBOARD_ROOT}}":${{PYTHONPATH}}
+export PYTHONPATH=$PYTHONPATH:$CONFIG_ROOT
+export PYTHONPATH=$PYTHONPATH:$COIL_NETWORK
+export PYTHONPATH=$PYTHONPATH:$TEAM_CODE
+export PYTHONPATH=$PYTHONPATH:$WORK_DIR
+
 ''')
     rsh.write(f"""
 export PORT=$1
