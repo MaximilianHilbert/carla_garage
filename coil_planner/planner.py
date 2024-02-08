@@ -19,12 +19,10 @@ def compare(x, y):
 
 # Constants Used for the high level commands
 
-
-#REACH_GOAL = 0.0
-GO_STRAIGHT = 2.0
-TURN_RIGHT = 1.0
-TURN_LEFT = 0.0
-LANE_FOLLOW = 3.0
+TURN_LEFT = 0
+TURN_RIGHT = 1
+GO_STRAIGHT = 2
+LANE_FOLLOW = 3
 
 
 # Auxiliary algebra function

@@ -69,45 +69,35 @@ def compute_branches_masks(controls, number_targets):
     controls_masks = []
     #hardcoded and changes due to new carla dataset
     #0: LEFT, 1: RIGHT, 2: STRAIGHT, 3: LANEFOLLOW, 4: CHANGELANELEFT, 5: CHANGELANERIGHT
-    #original documentation of baseline
-    #new documentation
+    controls_b0 = (controls == 0)
+    controls_b0 = torch.cuda.FloatTensor(controls_b0)
+    controls_b0 = torch.cat([controls_b0] * number_targets, 1)
+    controls_masks.append(controls_b0)
 
-    # ORIG: when command = 2, branch 1 (follow lane) is activated
-    # NEW: when command =3, branch 1 (follow lane) is activated
-    controls_b1 = (controls == 3)
+    controls_b1 = (controls == 1)
     controls_b1 = torch.cuda.FloatTensor(controls_b1)
     controls_b1 = torch.cat([controls_b1] * number_targets, 1)
     controls_masks.append(controls_b1)
-    # ORIG: when command = 3, branch 2 (turn left) is activated
-    # NEW: when command=0,  branch 2 (turn left) is activated
-    controls_b2 = (controls == 0)
+
+    controls_b2 = (controls == 2)
     controls_b2 = torch.cuda.FloatTensor(controls_b2)
     controls_b2 = torch.cat([controls_b2] * number_targets, 1)
     controls_masks.append(controls_b2)
-    # ORIG: when command = 4, branch 3 (turn right) is activated
-    #NEW: when command = 1, branch 3 (turn right) is activated
-    controls_b3 = (controls == 1)
+
+    controls_b3 = (controls == 3)
     controls_b3 = torch.cuda.FloatTensor(controls_b3)
     controls_b3 = torch.cat([controls_b3] * number_targets, 1)
     controls_masks.append(controls_b3)
-    # ORIG: when command = 5, branch 4 (go strange) is activated
-    #NEW: when command = 2, branch 3 (turn right) is activated
-    controls_b4 = (controls == 2)
+
+    controls_b4 = (controls == 4)
     controls_b4 = torch.cuda.FloatTensor(controls_b4)
     controls_b4 = torch.cat([controls_b4] * number_targets, 1)
     controls_masks.append(controls_b4)
-    #ORIG: not avail
-    #NEW: 4 change left
-    controls_b5 = (controls == 4)
+
+    controls_b5 = (controls == 5)
     controls_b5 = torch.cuda.FloatTensor(controls_b5)
     controls_b5 = torch.cat([controls_b5] * number_targets, 1)
     controls_masks.append(controls_b5)
-    #ORIG: not avail
-    #NEW: 5 change left
-    controls_b6 = (controls == 5)
-    controls_b6 = torch.cuda.FloatTensor(controls_b6)
-    controls_b6 = torch.cat([controls_b6] * number_targets, 1)
-    controls_masks.append(controls_b6)
 
     return controls_masks
 
