@@ -242,7 +242,7 @@ def main():
                              benchmark=benchmark,
                              carla_root=carla_root)
         commands.append(f'chmod u+x {bash_save_dir}/eval_{route}.sh')
-        commands.append(f'./{bash_save_dir}/eval_{route}.sh $FREE_WORLD_PORT')
+        commands.append(f'.{bash_save_dir}/eval_{route}.sh $FREE_WORLD_PORT')
         commands.append('sleep 2')
 
         carla_world_port_start += 50
