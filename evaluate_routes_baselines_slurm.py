@@ -134,16 +134,17 @@ def get_num_jobs(job_name, username):
 
 def main():
   num_repetitions = 1
+  code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
   benchmark = 'nocrash'
   experiment = 'arp_vanilla'
-  model_dir = '/home/maximilian/Master/carla_garage/_logs/arp/arp_vanilla/repetition_0/checkpoints/100000.pth'
-  code_root = '/home/maximilian/Master/carla_garage/'
-  carla_root = '/home/maximilian/Master/carla_garage/carla'
+  model_dir = os.path.join(code_root, "/_logs/arp/arp_vanilla/repetition_0/checkpoints/40000.pth")
+
+  carla_root = os.path.join(code_root, "carla")
   town="Town01"
   weather="train"
   seed=123213
   baseline="arp"
-  yaml_path=f"{os.path.join('/home/maximilian/Master/carla_garage/carla_garage/coil_configuration', baseline, experiment+'.yaml')}"
+  yaml_path=f'{os.path.join(code_root, "coil_configuration", baseline, experiment+".yaml")}'
 
   partition = 'gpu-2080ti'
   username = 'gwb629'
