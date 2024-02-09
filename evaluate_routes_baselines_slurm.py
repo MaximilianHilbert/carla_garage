@@ -134,7 +134,7 @@ def main():
   num_repetitions = 1
   benchmark = 'nocrash'
   experiment = 'arp_vanilla'
-  model_dir = '/mnt/qb/work/geiger/gwb629/carla_garage/_logs/arp/arp_vanilla/repetition_0/checkpoints/60000.pth'
+  model_dir = '/mnt/qb/work/geiger/gwb629/carla_garage/_logs/arp/arp_vanilla/repetition_0/checkpoints/40000.pth'
  
   code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
   carla_root = '/mnt/qb/work/geiger/gwb629/carla_garage/carla'
