@@ -27,12 +27,12 @@ def get_entry_point():
 class CoILAgent(AutonomousAgent):
     #TODO check for double image input in original_image_list; change from priviledged input to gps/velocity dont forget to correctly transform to new ego vehicle 
     #TODO Before retraining, adapt to modern logging 
-    def __init__(self, checkpoint, city_name="Town01", baseline_folder_name="arp", baseline_name="arp_vanilla", carla_version='0.9'):
+    def __init__(self, checkpoint, baseline, experiment, city_name="Town01",carla_version='0.9'):
         # Set the carla version that is going to be used by the interface
         self._carla_version = carla_version
         self.checkpoint = checkpoint  # We save the checkpoint for some interesting future use.
-        self.config=merge_config_files(baseline_folder_name, baseline_name)
-        if baseline_folder_name in ["bcoh", "bcso"]:
+        self.config=merge_config_files(baseline, experiment, training=False)
+        if baseline in ["bcoh", "bcso"]:
             self.model=CoILModel("coil-icra", g_conf.MODEL_CONFIGURATION)
             self.model.load_state_dict(checkpoint['state_dict'])
             self.model.cuda()
@@ -118,7 +118,7 @@ class CoILAgent(AutonomousAgent):
         y=np.sin(yaw)
         z=0
         return x, y, z
-    def run_step(self, sensor_data,original_image_list,timestamp,avoid_stop=True, perturb_speed=False):
+    def run_step(self, sensor_data,original_image_list,timestamp,avoid_stop=True, perturb_speed=True):
         """
             Run a step on the benchmark simulation
         Args:
