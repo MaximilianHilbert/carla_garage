@@ -21,7 +21,7 @@ import sys
 #   os.environ['LD_LIBRARY_PATH'] += ':' + newlib
 
 
-def create_run_eval_bash(yaml_path,
+def create_run_eval_bash(work_dir,yaml_path,
                             town, 
                              weather,
                              seed,
@@ -32,7 +32,7 @@ def create_run_eval_bash(yaml_path,
   Path(f'{results_save_dir}').mkdir(parents=True, exist_ok=True)
   with open(f'{bash_save_dir}/eval_{route}.sh', 'w', encoding='utf-8') as rsh:
     rsh.write(f'''\
-export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+export WORK_DIR={work_dir}
 export CONFIG_ROOT=$WORK_DIR/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
 export COIL_NETWORK=$WORK_DIR/coil_network
@@ -70,6 +70,8 @@ export SEED={seed}
 export CHALLENGE_TRACK_CODENAME=SENSORS
 export REPETITIONS=1
 export RESUME=1
+source ~/.bashrc
+conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 """)
     rsh.write('''
 python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
@@ -134,15 +136,14 @@ def main():
   num_repetitions = 1
   benchmark = 'nocrash'
   experiment = 'arp_vanilla'
-  model_dir = '/mnt/qb/work/geiger/gwb629/carla_garage/_logs/arp/arp_vanilla/repetition_0/checkpoints/40000.pth'
- 
-  code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
-  carla_root = '/mnt/qb/work/geiger/gwb629/carla_garage/carla'
+  model_dir = '/home/maximilian/Master/carla_garage/_logs/arp/arp_vanilla/repetition_0/checkpoints/100000.pth'
+  code_root = '/home/maximilian/Master/carla_garage/'
+  carla_root = '/home/maximilian/Master/carla_garage/carla'
   town="Town01"
   weather="train"
   seed=123213
   baseline="arp"
-  yaml_path=f"{os.path.join('/mnt/qb/work/geiger/gwb629/carla_garage/coil_configuration', baseline, experiment+'.yaml')}"
+  yaml_path=f"{os.path.join('/home/maximilian/Master/carla_garage/carla_garage/coil_configuration', baseline, experiment+'.yaml')}"
 
   partition = 'gpu-2080ti'
   username = 'gwb629'
@@ -223,7 +224,7 @@ def main():
             f'SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0 {carla_root}/CarlaUE4.sh '
             f'-carla-rpc-port=${{FREE_WORLD_PORT}} -nosound -carla-streaming-port=${{FREE_STREAMING_PORT}} -opengl &')
         commands.append('sleep 30')  # Waits for CARLA to finish starting
-        create_run_eval_bash(yaml_path,town, 
+        create_run_eval_bash(code_root,yaml_path,town, 
                              weather,
                              seed,
                              exp_name,
