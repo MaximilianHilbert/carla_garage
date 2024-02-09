@@ -32,6 +32,7 @@ def create_run_eval_bash(work_dir,yaml_path,
   Path(f'{results_save_dir}').mkdir(parents=True, exist_ok=True)
   with open(f'{bash_save_dir}/eval_{route}.sh', 'w', encoding='utf-8') as rsh:
     rsh.write(f'''\
+              
 export WORK_DIR={work_dir}
 export CONFIG_ROOT=$WORK_DIR/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
@@ -137,7 +138,7 @@ def main():
   code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
   benchmark = 'nocrash'
   experiment = 'arp_vanilla'
-  model_dir = os.path.join(code_root, "/_logs/arp/arp_vanilla/repetition_0/checkpoints/40000.pth")
+  model_dir = os.path.join(code_root, "_logs/arp/arp_vanilla/repetition_0/checkpoints/40000.pth")
 
   carla_root = os.path.join(code_root, "carla")
   town="Town01"
