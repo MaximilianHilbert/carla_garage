@@ -26,14 +26,15 @@ def set_seed(seed):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-def merge_config_files(baseline_folder_name, baseline_name):
+def merge_config_files(baseline, experiment, training=True):
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
 
-    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name, baseline_name+".yaml"))
+    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline, experiment+".yaml"))
     
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
-    shared_configuration.initialize(root_dir=shared_configuration.root_dir)
+    if training:
+        shared_configuration.initialize(root_dir=shared_configuration.root_dir)
     #translates the necessary old argument names in the yaml file of the baseline to the new transfuser config, generating one shared object configuration
     shared_configuration.number_previous_actions=g_conf.NUMBER_PREVIOUS_ACTIONS
     shared_configuration.number_future_actions=g_conf.NUMBER_FUTURE_ACTIONS
@@ -70,8 +71,8 @@ def merge_config_files(baseline_folder_name, baseline_name):
     shared_configuration.speed_input=g_conf.SPEED_INPUT
     shared_configuration.train_with_actions_as_input=g_conf.TRAIN_WITH_ACTIONS_AS_INPUT
     shared_configuration.correlation_weights=g_conf.CORRELATION_WEIGHTS
-    shared_configuration.baseline_folder_name=baseline_folder_name
-    shared_configuration.baseline_name=baseline_name
+    shared_configuration.baseline_folder_name=baseline
+    shared_configuration.baseline_name=experiment
     shared_configuration.auto_lr=g_conf.AUTO_LR
     shared_configuration.auto_lr_step=g_conf.AUTO_LR_STEP
     return shared_configuration
@@ -106,7 +107,7 @@ def main(args, suppress_output=False):
        
         set_type_of_process('train', merged_config_object,args, args.training_repetition)
         # Set the process into loading status.
-        coil_logger.add_message('Loading', {'GPU': args.gpu})
+        #coil_logger.add_message('Loading', {'GPU': args.gpu})
 
         set_seed(args.seed)
 
@@ -275,7 +276,7 @@ def main(args, suppress_output=False):
                 'branches': mem_extract_branches,
                 'targets': mem_extract_targets.cuda(),
                 'controls': controls,
-                'inputs': current_speed,
+                'inputs': data["speed"].reshape(args.batch_size, -1).to(torch.float32).cuda(),
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
@@ -289,7 +290,7 @@ def main(args, suppress_output=False):
                     'branches': policy_branches,
                     'targets':current_targets.cuda(),
                     'controls': controls,
-                    'inputs': current_speed,
+                    'inputs': data["speed"].reshape(args.batch_size, -1).to(torch.float32).cuda(),
                     'branch_weights': merged_config_object.branch_loss_weight,
                     'variable_weights': merged_config_object.variable_weight
                 }
@@ -316,6 +317,7 @@ def main(args, suppress_output=False):
                     )
                 coil_logger.add_scalar('Policy_Loss', policy_loss.data, iteration)
                 coil_logger.add_scalar('Mem_Extract_Loss', mem_extract_loss.data, iteration)
+
                 if policy_loss.data < best_loss:
                     best_loss = policy_loss.data.tolist()
                     best_loss_iter = iteration
@@ -384,7 +386,7 @@ def main(args, suppress_output=False):
                 'targets': targets.cuda(),
                 **reweight_params,
                 'controls': controls,
-                'inputs': current_speed,
+                'inputs': data["speed"].reshape(args.batch_size, -1).to(torch.float32).cuda(),
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
@@ -428,7 +430,7 @@ def main(args, suppress_output=False):
                     best_loss_iter = iteration
                 accumulated_time += time.time() - capture_time
                 loss_window.append(loss.data.tolist())
-                coil_logger.write_on_error_csv('train', loss.data)
+                #coil_logger.write_on_error_csv('train', loss.data)
                 if merged_config_object.auto_lr:
                     scheduler.step()
                 if iteration%100==0:
@@ -437,18 +439,15 @@ def main(args, suppress_output=False):
             torch.cuda.empty_cache()
     
         
-        coil_logger.add_message('Finished', {})
-
-    except KeyboardInterrupt:
-        coil_logger.add_message('Error', {'Message': 'Killed By User'})
+        #coil_logger.add_message('Finished', {})
 
     except RuntimeError as e:
         traceback.print_exc()
-        coil_logger.add_message('Error', {'Message': str(e)})
+        #coil_logger.add_message('Error', {'Message': str(e)})
 
     except:
         traceback.print_exc()
-        coil_logger.add_message('Error', {'Message': 'Something Happened'})
+        #coil_logger.add_message('Error', {'Message': 'Something Happened'})
 
 def get_controls_from_data(data):
     one_hot_tensor=data["command"]

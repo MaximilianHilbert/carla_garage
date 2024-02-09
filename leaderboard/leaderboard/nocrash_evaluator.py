@@ -241,7 +241,7 @@ class NoCrashEvaluator(object):
             if agent_class_name=="CoILAgent":
                 loaded_checkpoint = torch.load(args.coil_checkpoint)
                 
-                self.agent_instance=getattr(self.module_agent, agent_class_name)(checkpoint=loaded_checkpoint, city_name=self.town, baseline_folder_name=args.baseline, baseline_name=args.experiment)
+                self.agent_instance=getattr(self.module_agent, agent_class_name)(checkpoint=loaded_checkpoint, city_name=self.town, baseline=args.baseline, experiment=args.experiment)
             else:
                 self.agent_instance = getattr(self.module_agent, agent_class_name)(args.agent_config)
 
