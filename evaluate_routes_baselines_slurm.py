@@ -193,9 +193,9 @@ def main():
           route_files.append(os.path.join(root, name))
 
     for exp_name in exp_names:
-      bash_save_dir = os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "run_bashs")
-      results_save_dir = os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "results")
-      logs_save_dir = os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "logs")
+      bash_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "run_bashs"))
+      results_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "results"))
+      logs_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "logs"))
       bash_save_dir.mkdir(parents=True, exist_ok=True)
       results_save_dir.mkdir(parents=True, exist_ok=True)
       logs_save_dir.mkdir(parents=True, exist_ok=True)
@@ -206,9 +206,9 @@ def main():
       for route in route_files:
         route = Path(route).stem
 
-        bash_save_dir = os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "run_bashs")
-        results_save_dir = os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "results")
-        logs_save_dir = os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "logs")
+        bash_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "run_bashs"))
+        results_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "results"))
+        logs_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "logs"))
 
         commands = []
 
