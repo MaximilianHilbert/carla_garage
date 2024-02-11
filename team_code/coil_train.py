@@ -393,7 +393,7 @@ def main(args, suppress_output=False):
                 single_frame_input=single_frame_input.to(torch.float32).reshape(args.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width).cuda()
                 
                 
-                current_speed =data["speed"].to(torch.float32).cuda()
+                current_speed =data["speed"].reshape(args.batch_size, 1).to(torch.float32).cuda()
                 #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
                 if "bcso" in args.baseline_name:
                     if merged_config_object.train_with_actions_as_input:
