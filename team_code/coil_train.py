@@ -76,7 +76,58 @@ def merge_config_files(baseline, experiment, training=True):
     shared_configuration.auto_lr=g_conf.AUTO_LR
     shared_configuration.auto_lr_step=g_conf.AUTO_LR_STEP
     return shared_configuration
+from coil_network.loss_functional import compute_branches_masks
+def get_predictions(controls, branches):
+    controls_mask = compute_branches_masks(controls,branches[0].shape[1])
+    loss_branches_vec = []
+    for i in range(len(branches) -1):
+        loss_branches_vec.append(branches[i]*controls_mask[i])
+    return loss_branches_vec , branches[-1]
 
+def visualize_model(iteration, current_image, current_speed, action_labels, controls, branches, loss):
+    actions, speed=get_predictions(controls, branches)
+    actions=[action_tuple.detach().cpu().numpy() for action_tuple in actions]
+    speed=speed[0].detach().cpu().numpy()
+
+    from PIL import Image, ImageDraw, ImageFont
+    current_image=torch.squeeze(current_image)
+    current_image=current_image.cpu().numpy()
+    current_image=current_image*255
+    # Load the image
+    image=np.transpose(current_image, axes=(1,2,0)).astype(np.uint8)
+    image = Image.fromarray(image)
+
+    # Create a drawing object
+    draw = ImageDraw.Draw(image)
+
+    # Define the text and its position
+    speed_text = f"current_speed_label: {current_speed}" 
+    speed_text_pos = (10, 10)
+    loss_text = f"current_loss: {loss}" 
+    loss_test_pos = (500, 20)
+
+    controls_text = f"current_control: {controls}" 
+    controls_test_pos = (500, 10)
+    speed_pred_text = f"speed_prediction: {speed}" 
+    speed_pred_pos = (10, 20)
+
+    actions_labels_text = f"action_labels: {action_labels}" 
+    actions_labels_pos = (10, 40)
+
+    # Choose a font and size
+    actions_pred_text=f"action_predictions: {np.array2string(np.array(actions))}" 
+    actions_pred_pos = (10, 50)
+    # Render the text onto the image
+    draw.text(controls_test_pos, controls_text, fill="white")
+    draw.text(loss_test_pos, loss_text, fill="white")
+    draw.text(speed_text_pos, speed_text, fill="white")
+    draw.text(speed_pred_pos, speed_pred_text, fill="white")
+
+    draw.text(actions_labels_pos, actions_labels_text, fill="white")
+    draw.text(actions_pred_pos, actions_pred_text, fill="white")
+
+    # Save the image with the text
+    image.save(f"/home/maximilian/Master/carla_garage/vis/{iteration}.jpg")
 
 def main(args, suppress_output=False):
     merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""))
@@ -237,6 +288,7 @@ def main(args, suppress_output=False):
             from torch.optim.lr_scheduler import StepLR
             scheduler = StepLR(optimizer, step_size=merged_config_object.auto_lr_step, gamma=0.5)
         for data in data_loader:
+
             #data=next(islice(iter(data_loader), 1))
             """
             ####################################
@@ -260,7 +312,7 @@ def main(args, suppress_output=False):
                 obs_history=obs_history.reshape(args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
                 current_obs=current_obs.reshape(args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
                 if merged_config_object.speed_input:
-                    current_speed =dataset.extract_inputs(data, merged_config_object).reshape(args.batch_size, 1).to(torch.float32).cuda()                    
+                    current_speed =data["speed"].to(torch.float32).cuda()
                 else:
                     current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(args.batch_size, 1).to(torch.float32).cuda()
 
@@ -328,6 +380,7 @@ def main(args, suppress_output=False):
                             os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, f"repetition_{str(args.training_repetition)}",'policy_train'), policy_loss.data)
                 coil_logger.write_on_error_csv(os.path.join(
                             os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, f"repetition_{str(args.training_repetition)}",'mem_extract_train'), mem_extract_loss.data)
+                #visualize_model(iteration=iteration, action_labels=current_targets, branches=policy_branches, controls=controls,current_image=current_obs,current_speed=data["speed"].to(torch.float32), loss=policy_loss)
                 if iteration%100==0:
                     print("Iteration: %d  Policy_Loss: %f" % (iteration, policy_loss.data))
                     print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
@@ -344,7 +397,7 @@ def main(args, suppress_output=False):
                 
                 
                 if merged_config_object.speed_input:
-                    current_speed =data["speed"].reshape(args.batch_size, -1).to(torch.float32).cuda()
+                    current_speed =data["speed"].to(torch.float32).cuda()
 
                 else:
                     current_speed =torch.zeros_like(data["speed"]).reshape(args.batch_size, -1).to(torch.float32).cuda()
@@ -386,7 +439,7 @@ def main(args, suppress_output=False):
                 'targets': targets.cuda(),
                 **reweight_params,
                 'controls': controls,
-                'inputs': data["speed"].reshape(args.batch_size, -1).to(torch.float32).cuda(),
+                'inputs': data["speed"].to(torch.float32).cuda(),
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
@@ -433,9 +486,10 @@ def main(args, suppress_output=False):
                 #coil_logger.write_on_error_csv('train', loss.data)
                 if merged_config_object.auto_lr:
                     scheduler.step()
-                if iteration%100==0:
-                    print(optimizer.param_groups[0]['lr'])
-                    print("Iteration: %d  Loss: %f" % (iteration, loss.data))
+                
+                #visualize_model(iteration=iteration, action_labels=targets, branches=branches, controls=controls,current_image=single_frame_input,current_speed=data["speed"].to(torch.float32), loss=loss)
+                print(optimizer.param_groups[0]['lr'])
+                print("Iteration: %d  Loss: %f" % (iteration, loss.data))
             torch.cuda.empty_cache()
     
         
