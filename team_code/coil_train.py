@@ -311,10 +311,7 @@ def main(args, suppress_output=False):
                 current_obs=current_obs/255.
                 obs_history=obs_history.reshape(args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
                 current_obs=current_obs.reshape(args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
-                if merged_config_object.speed_input:
-                    current_speed =data["speed"].to(torch.float32).cuda()
-                else:
-                    current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(args.batch_size, 1).to(torch.float32).cuda()
+                current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(args.batch_size, 1).to(torch.float32).cuda()
 
                 mem_extract.zero_grad()
                 mem_extract_branches, memory = mem_extract(obs_history)
@@ -387,7 +384,7 @@ def main(args, suppress_output=False):
 
             else:
                 if not merged_config_object.auto_lr:
-                    if iteration % 1000 == 0:
+                    if iteration % 2500 == 0:
                         adjust_learning_rate_auto(optimizer,loss_window)
                 model.zero_grad()
                 optimizer.zero_grad()
@@ -396,12 +393,7 @@ def main(args, suppress_output=False):
                 single_frame_input=single_frame_input.to(torch.float32).reshape(args.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width).cuda()
                 
                 
-                if merged_config_object.speed_input:
-                    current_speed =data["speed"].to(torch.float32).cuda()
-
-                else:
-                    current_speed =torch.zeros_like(data["speed"]).reshape(args.batch_size, -1).to(torch.float32).cuda()
-
+                current_speed =data["speed"].to(torch.float32).cuda()
                 #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
                 if "bcso" in args.baseline_name:
                     if merged_config_object.train_with_actions_as_input:
