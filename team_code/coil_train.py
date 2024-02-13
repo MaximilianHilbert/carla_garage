@@ -301,49 +301,45 @@ def main(args, suppress_output=False):
             capture_time = time.time()
             controls = get_controls_from_data(data)
             iteration += 1
+            current_image=torch.reshape(data['rgb'].cuda().to(torch.float32)/255., (args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width))
+            current_speed =data["speed"].cuda().reshape(args.batch_size, 1)
+            targets=torch.concat([data["steer"].cuda().reshape(args.batch_size,1), data["throttle"].cuda().reshape(args.batch_size,1), data["brake"].cuda().reshape(args.batch_size,1)], dim=1).reshape(args.batch_size,3)
+            if "arp" in args.baseline_name or "bcoh" in args.baseline_name or "keyframes" in args.baseline_name:
+                temporal_images=data['temporal_rgb'].cuda()/255.
+                previous_action=data["previous_actions"].cuda()
             if "arp" in args.baseline_name:
-                if iteration % 1000 == 0:
+                current_speed_zero_speed =torch.zeros_like(current_speed)
+                if iteration % 2500 == 0:
                     adjust_learning_rate_auto(policy_optimizer, policy_loss_window)
                     adjust_learning_rate_auto(mem_extract_optimizer, mem_extract_loss_window)
-                obs_history = data['temporal_rgb'].cuda()
-                obs_history=obs_history/255.
-                current_obs=data['rgb'].cuda()
-                current_obs=current_obs/255.
-                obs_history=obs_history.reshape(args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
-                current_obs=current_obs.reshape(args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width)
-                current_speed =torch.zeros_like(dataset.extract_inputs(data, merged_config_object)).reshape(args.batch_size, 1).to(torch.float32).cuda()
 
                 mem_extract.zero_grad()
-                mem_extract_branches, memory = mem_extract(obs_history)
-                previous_action=data["previous_actions"].to(torch.float32)
-                steer=torch.unsqueeze(data["steer"], 1)
-                throttle=torch.unsqueeze(data["throttle"], 1)
-                brake=torch.unsqueeze(data["brake"] , 1)
-                current_targets=torch.concat([steer, throttle, brake], dim=1).to(torch.float32)
-                mem_extract_targets=current_targets-previous_action
-                loss_function_params = {
+                mem_extract_branches, memory = mem_extract(temporal_images)
+                
+                mem_extract_targets=targets-previous_action
+                loss_function_params_memory = {
                 'branches': mem_extract_branches,
-                'targets': mem_extract_targets.cuda(),
+                'targets': mem_extract_targets,
                 'controls': controls,
-                'inputs': data["speed"].reshape(args.batch_size, -1).to(torch.float32).cuda(),
+                'inputs': current_speed,
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
 
-                mem_extract_loss, _ = criterion(loss_function_params)
+                mem_extract_loss, _ = criterion(loss_function_params_memory)
                 mem_extract_loss.backward()
                 mem_extract_optimizer.step()
                 policy.zero_grad()
-                policy_branches = policy(current_obs, current_speed, memory)
-                loss_function_params = {
+                policy_branches = policy(current_image, current_speed_zero_speed, memory)
+                loss_function_params_policy = {
                     'branches': policy_branches,
-                    'targets':current_targets.cuda(),
+                    'targets':targets,
                     'controls': controls,
-                    'inputs': data["speed"].reshape(args.batch_size, -1).to(torch.float32).cuda(),
+                    'inputs': current_speed,
                     'branch_weights': merged_config_object.branch_loss_weight,
                     'variable_weights': merged_config_object.variable_weight
                 }
-                policy_loss, _ = criterion(loss_function_params)
+                policy_loss, _ = criterion(loss_function_params_policy)
                 policy_loss.backward()
                 policy_optimizer.step()
                 if is_ready_to_save(iteration):
@@ -373,54 +369,41 @@ def main(args, suppress_output=False):
                 accumulated_time += time.time() - capture_time
                 policy_loss_window.append(policy_loss.data.tolist())
                 mem_extract_loss_window.append(mem_extract_loss.data.tolist())
-                coil_logger.write_on_error_csv(os.path.join(
-                            os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, f"repetition_{str(args.training_repetition)}",'policy_train'), policy_loss.data)
-                coil_logger.write_on_error_csv(os.path.join(
-                            os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, merged_config_object.baseline_name, f"repetition_{str(args.training_repetition)}",'mem_extract_train'), mem_extract_loss.data)
                 #visualize_model(iteration=iteration, action_labels=current_targets, branches=policy_branches, controls=controls,current_image=current_obs,current_speed=data["speed"].to(torch.float32), loss=policy_loss)
-                if iteration%100==0:
+                if iteration%args.printing_step==0:
                     print("Iteration: %d  Policy_Loss: %f" % (iteration, policy_loss.data))
                     print("Iteration: %d  Mem_Extract_Loss: %f" % (iteration, mem_extract_loss.data))
-
+                    
             else:
                 if not merged_config_object.auto_lr:
                     if iteration % 2500 == 0:
                         adjust_learning_rate_auto(optimizer,loss_window)
                 model.zero_grad()
                 optimizer.zero_grad()
-                single_frame_input=torch.squeeze(data['rgb'].cuda().to(torch.float32))
-                single_frame_input=single_frame_input/255.
-                current_speed =data["speed"].cuda().reshape(args.batch_size, 1)
-                #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
-                if "bcso" in args.baseline_name:
-                    if merged_config_object.train_with_actions_as_input:
-                        branches = model(single_frame_input,
-                                current_speed,
-                                data['previous_actions'].reshape(args.batch_size, -1).to(torch.float32).cuda())
-                    
-                    else:
-                        branches = model(single_frame_input,
-                                    current_speed)
+                
+            #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
+            if "bcoh" in args.baseline_name or "keyframes" in args.baseline_name:
+                temporal_and_current_images=torch.cat([temporal_images, current_image], axis=1)
+                if merged_config_object.train_with_actions_as_input:
+                    branches = model(temporal_and_current_images,
+                            current_speed,
+                            previous_action)
                 else:
-                    multi_frame_input=torch.cat([data['temporal_rgb'].cuda(), data['rgb'].cuda()], dim=1)/255.
-                    multi_frame_input=multi_frame_input.reshape(args.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width)
-                    if merged_config_object.train_with_actions_as_input:
-                        branches = model(multi_frame_input,
-                                current_speed,
-                                data['previous_actions'].reshape(args.batch_size, -1).to(torch.float32).cuda())
-                    else:
-                        branches = model(multi_frame_input,
-                                    current_speed)
-                    ########################################################introduce importance weight adding to the temporal images/lidars and the current one################
-                if "keyframes" in args.baseline_name:
-                    reweight_params = {'importance_sampling_softmax_temper': merged_config_object.softmax_temper,
-                                    'importance_sampling_threshold': action_predict_threshold,
-                                    'importance_sampling_method': merged_config_object.importance_sample_method,
-                                    'importance_sampling_threshold_weight': merged_config_object.threshold_weight,
-                                    'action_predict_loss': data["correlation_weight"].squeeze().cuda()}
-                else:
-                    reweight_params={}
-                targets=torch.concat([data["steer"].cuda().reshape(args.batch_size,1), data["throttle"].cuda().reshape(args.batch_size,1), data["brake"].cuda().reshape(args.batch_size,1)], dim=1).reshape(args.batch_size,3)
+                    branches = model(temporal_and_current_images,
+                            current_speed)
+            if "bcso" in args.baseline_name:
+                branches = model(current_image,
+                            current_speed)
+
+            if "keyframes" in args.baseline_name:
+                reweight_params = {'importance_sampling_softmax_temper': merged_config_object.softmax_temper,
+                                'importance_sampling_threshold': action_predict_threshold,
+                                'importance_sampling_method': merged_config_object.importance_sample_method,
+                                'importance_sampling_threshold_weight': merged_config_object.threshold_weight,
+                                'action_predict_loss': data["correlation_weight"].squeeze().cuda()}
+            else:
+                reweight_params={}
+            if "arp" not in args.baseline_name:
                 loss_function_params = {
                 'branches': branches,
                 'targets': targets,
@@ -434,7 +417,7 @@ def main(args, suppress_output=False):
                     loss, loss_info, _ = criterion(loss_function_params)
                 else:
                     loss, _ = criterion(loss_function_params)
-                
+        
                 loss.backward()
                 optimizer.step()
                 if is_ready_to_save(iteration):
@@ -473,26 +456,20 @@ def main(args, suppress_output=False):
                 if merged_config_object.auto_lr:
                     scheduler.step()
                 #visualize_model(iteration=iteration, action_labels=targets, branches=branches, controls=controls,current_image=single_frame_input,current_speed=data["speed"].to(torch.float32), loss=loss)
-                print(optimizer.param_groups[0]['lr'])
-                print("Iteration: %d  Loss: %f" % (iteration, loss.data))
+                if iteration%args.printing_step==0:
+                    print(optimizer.param_groups[0]['lr'])
+                    print("Iteration: %d  Loss: %f" % (iteration, loss.data))
             torch.cuda.empty_cache()
     
-        
-        #coil_logger.add_message('Finished', {})
-
     except RuntimeError as e:
         traceback.print_exc()
-        #coil_logger.add_message('Error', {'Message': str(e)})
 
     except:
         traceback.print_exc()
-        #coil_logger.add_message('Error', {'Message': 'Something Happened'})
 
 def get_controls_from_data(data):
-    one_hot_tensor=data["command"]
-    indices = torch.argmax(one_hot_tensor, dim=1).numpy()
-    if len(indices)==1:
-        print("C")
+    one_hot_tensor=data["command"].cuda()
+    indices = torch.argmax(one_hot_tensor, dim=1)
     controls=indices.reshape(args.batch_size, 1)
     return controls
 def get_action_predict_loss_threshold(correlation_weights, ratio):
@@ -515,5 +492,6 @@ if __name__=="__main__":
     parser.add_argument('--number_of_workers', dest="number_of_workers", default=12, type=int, required=True)
     parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=int, default=0)
     parser.add_argument('--batch-size', dest="batch_size", type=int, default=10)
+    parser.add_argument('--printing-step', dest="printing_step", type=int, default=1000)
     args = parser.parse_args()
     main(args)
