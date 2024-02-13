@@ -723,15 +723,15 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         data['ego_waypoints'] = np.array(waypoints)
 
     #Convert target speed to indexes
-    brake = current_measurement['brake']
+    brake = np.float32(current_measurement['brake'])
 
     target_speed_index, angle_index = self.get_indices_speed_angle(target_speed=current_measurement['target_speed'],
                                                                    brake=brake,
                                                                    angle=current_measurement['angle'])
 
     data['brake'] = brake
-    data['steer'] = current_measurement['steer']
-    data['throttle'] = current_measurement['throttle']
+    data['steer'] = np.float32(current_measurement['steer'])
+    data['throttle'] = np.float32(current_measurement['throttle'])
     previous_throttle_list=[]
     previous_brake_list=[]
     previous_steer_list=[]
@@ -799,7 +799,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       data['light'] = current_measurement['light_hazard']
       data['stop_sign'] = current_measurement['stop_sign_hazard']
       data['junction'] = current_measurement['junction']
-      data['speed'] = current_measurement['speed']
+      data['speed'] = np.float32(current_measurement['speed'])
       data['theta'] = current_measurement['theta']
       data['command'] = t_u.command_to_one_hot(current_measurement['command'])
       data['next_command'] = t_u.command_to_one_hot(current_measurement['next_command'])
