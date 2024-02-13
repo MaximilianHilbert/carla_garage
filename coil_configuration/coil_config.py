@@ -29,7 +29,7 @@ _g_conf.TARGETS = ['steer', 'throttle', "brake"]
 #keyframes related
 _g_conf.LIDAR_SEQ_LEN=1
 
-
+_g_conf.EVERY_EPOCH=2
 _g_conf.INPUTS = ['speed_module']
 _g_conf.INTENTIONS = []
 _g_conf.BALANCE_DATA = True
@@ -52,8 +52,7 @@ _g_conf.EXPERIMENT_NAME = "default"
 _g_conf.EXPERIMENT_GENERATED_NAME = None
 
 _g_conf.PROCESS_NAME = "None"
-_g_conf.NUMBER_ITERATIONS = 20000
-_g_conf.SAVE_SCHEDULE = range(0, 2000, 200)
+_g_conf.EPOCHS = 10
 #arp related
 _g_conf.AUTO_LR=False
 _g_conf.AUTO_LR_STEP=1000
