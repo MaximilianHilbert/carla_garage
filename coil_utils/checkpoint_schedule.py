@@ -39,11 +39,11 @@ def maximun_checkpoint_reach(iteration, checkpoint_schedule):
 """ FUNCTIONS FOR SAVING THE CHECKPOINTS """
 
 
-def is_ready_to_save(iteration):
+def is_ready_to_save(epoch, iteration,data_loader,merged_config):
     """ Returns if the iteration is a iteration for saving a checkpoint
 
     """
-    if iteration in set(g_conf.SAVE_SCHEDULE):
+    if epoch%merged_config.every_epoch==0 and epoch!=0 and iteration==len(data_loader):
         return True
     else:
         return False
