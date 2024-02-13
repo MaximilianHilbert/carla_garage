@@ -1,9 +1,9 @@
 import os
 import sys
-import random
 import time
 import traceback
 import torch
+from tqdm import tqdm
 import torch.optim as optim
 from diskcache import Cache
 from coil_configuration.coil_config import set_type_of_process, merge_with_yaml, g_conf
@@ -287,8 +287,8 @@ def main(args, suppress_output=False):
         if merged_config_object.auto_lr:
             from torch.optim.lr_scheduler import StepLR
             scheduler = StepLR(optimizer, step_size=merged_config_object.auto_lr_step, gamma=0.5)
-        for data in data_loader:
 
+        for data in tqdm(data_loader):
             #data=next(islice(iter(data_loader), 1))
             """
             ####################################
@@ -388,18 +388,16 @@ def main(args, suppress_output=False):
                         adjust_learning_rate_auto(optimizer,loss_window)
                 model.zero_grad()
                 optimizer.zero_grad()
-                single_frame_input=torch.squeeze(data['rgb'].to(torch.float32).cuda())
+                single_frame_input=torch.squeeze(data['rgb'].cuda().to(torch.float32))
                 single_frame_input=single_frame_input/255.
-                single_frame_input=single_frame_input.to(torch.float32).reshape(args.batch_size, -1, merged_config_object.camera_height ,merged_config_object.camera_width).cuda()
-                
-                
-                current_speed =data["speed"].reshape(args.batch_size, 1).to(torch.float32).cuda()
+                current_speed =data["speed"].cuda().reshape(args.batch_size, 1)
                 #TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
                 if "bcso" in args.baseline_name:
                     if merged_config_object.train_with_actions_as_input:
                         branches = model(single_frame_input,
                                 current_speed,
                                 data['previous_actions'].reshape(args.batch_size, -1).to(torch.float32).cuda())
+                    
                     else:
                         branches = model(single_frame_input,
                                     current_speed)
@@ -422,16 +420,13 @@ def main(args, suppress_output=False):
                                     'action_predict_loss': data["correlation_weight"].squeeze().cuda()}
                 else:
                     reweight_params={}
-                steer=torch.unsqueeze(data["steer"], 1)
-                throttle=torch.unsqueeze(data["throttle"], 1)
-                brake=torch.unsqueeze(data["brake"] , 1)
-                targets=torch.concat([steer, throttle, brake], dim=1).to(torch.float32)
+                targets=torch.concat([data["steer"].cuda().reshape(args.batch_size,1), data["throttle"].cuda().reshape(args.batch_size,1), data["brake"].cuda().reshape(args.batch_size,1)], dim=1).reshape(args.batch_size,3)
                 loss_function_params = {
                 'branches': branches,
-                'targets': targets.cuda(),
+                'targets': targets,
                 **reweight_params,
                 'controls': controls,
-                'inputs': data["speed"].to(torch.float32).cuda(),
+                'inputs':current_speed,
                 'branch_weights': merged_config_object.branch_loss_weight,
                 'variable_weights': merged_config_object.variable_weight
                 }
@@ -460,8 +455,8 @@ def main(args, suppress_output=False):
                                 'checkpoints', str(iteration) + '.pth'
                         )
                     )
-
                 coil_logger.add_scalar('Loss', loss.data, iteration)
+
                 if "keyframes" in args.baseline_name:
                     for loss_name, loss_value in loss_info.items():
                         if loss_value.shape[0] > 0:
@@ -469,7 +464,6 @@ def main(args, suppress_output=False):
                         else:
                             average_loss_value = 0
                         coil_logger.add_scalar(loss_name, average_loss_value, iteration)
-
                 if loss.data < best_loss:
                     best_loss = loss.data.tolist()
                     best_loss_iter = iteration
@@ -478,7 +472,6 @@ def main(args, suppress_output=False):
                 #coil_logger.write_on_error_csv('train', loss.data)
                 if merged_config_object.auto_lr:
                     scheduler.step()
-                
                 #visualize_model(iteration=iteration, action_labels=targets, branches=branches, controls=controls,current_image=single_frame_input,current_speed=data["speed"].to(torch.float32), loss=loss)
                 print(optimizer.param_groups[0]['lr'])
                 print("Iteration: %d  Loss: %f" % (iteration, loss.data))
@@ -498,6 +491,8 @@ def main(args, suppress_output=False):
 def get_controls_from_data(data):
     one_hot_tensor=data["command"]
     indices = torch.argmax(one_hot_tensor, dim=1).numpy()
+    if len(indices)==1:
+        print("C")
     controls=indices.reshape(args.batch_size, 1)
     return controls
 def get_action_predict_loss_threshold(correlation_weights, ratio):
