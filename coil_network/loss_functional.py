@@ -70,32 +70,32 @@ def compute_branches_masks(controls, number_targets):
     #hardcoded and changes due to new carla dataset
     #0: LEFT, 1: RIGHT, 2: STRAIGHT, 3: LANEFOLLOW, 4: CHANGELANELEFT, 5: CHANGELANERIGHT
     controls_b0 = (controls == 0)
-    controls_b0 = torch.cuda.FloatTensor(controls_b0)
+    controls_b0 = controls_b0.to(torch.float32)
     controls_b0 = torch.cat([controls_b0] * number_targets, 1)
     controls_masks.append(controls_b0)
 
     controls_b1 = (controls == 1)
-    controls_b1 = torch.cuda.FloatTensor(controls_b1)
+    controls_b1 = controls_b1.to(torch.float32)
     controls_b1 = torch.cat([controls_b1] * number_targets, 1)
     controls_masks.append(controls_b1)
 
     controls_b2 = (controls == 2)
-    controls_b2 = torch.cuda.FloatTensor(controls_b2)
+    controls_b2 = controls_b2.to(torch.float32)
     controls_b2 = torch.cat([controls_b2] * number_targets, 1)
     controls_masks.append(controls_b2)
 
     controls_b3 = (controls == 3)
-    controls_b3 = torch.cuda.FloatTensor(controls_b3)
+    controls_b3 = controls_b3.to(torch.float32)
     controls_b3 = torch.cat([controls_b3] * number_targets, 1)
     controls_masks.append(controls_b3)
 
     controls_b4 = (controls == 4)
-    controls_b4 = torch.cuda.FloatTensor(controls_b4)
+    controls_b4 = controls_b4.to(torch.float32)
     controls_b4 = torch.cat([controls_b4] * number_targets, 1)
     controls_masks.append(controls_b4)
 
     controls_b5 = (controls == 5)
-    controls_b5 = torch.cuda.FloatTensor(controls_b5)
+    controls_b5 = controls_b5.to(torch.float32)
     controls_b5 = torch.cat([controls_b5] * number_targets, 1)
     controls_masks.append(controls_b5)
 
