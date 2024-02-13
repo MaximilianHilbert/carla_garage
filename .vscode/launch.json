@@ -121,7 +121,7 @@
             "--training_repetition", "0",
             "--baseline_folder_name", "arp",
             "--baseline_name", "arp_vanilla.yaml",
-            "--number_of_workers", "0","--batch-size", "10"],
+            "--number_of_workers", "0","--batch-size", "4", "--printing-step","1"],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
@@ -139,7 +139,7 @@
             "--training_repetition", "0",
             "--baseline_folder_name", "bcso",
             "--baseline_name", "bcso_vanilla.yaml",
-            "--number_of_workers", "0","--batch-size", "1"],
+            "--number_of_workers", "0","--batch-size", "4", "--printing-step","1"],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
@@ -159,7 +159,7 @@
             "--baseline_name", "bcoh_vanilla.yaml",
             "--number_of_workers", "10",
             "--use-disk-cache", "0",
-        "--batch-size", "10"],
+        "--batch-size", "4", "--printing-step","1"],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
