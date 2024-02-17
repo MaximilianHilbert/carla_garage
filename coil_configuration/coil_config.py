@@ -19,6 +19,7 @@ _g_conf = AttributeDict()
 _g_conf.immutable(False)
 
 """#### GENERAL CONFIGURATION PARAMETERS ####"""
+_g_conf.NUM_REPETITIONS=1
 _g_conf.NUMBER_OF_LOADING_WORKERS = 12
 _g_conf.FINISH_ON_VALIDATION_STALE = None
 
