@@ -36,7 +36,7 @@ def merge_config_files(baseline, experiment, training=True):
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
     if training:
-        shared_configuration.initialize(root_dir=shared_configuration.root_dir)
+        shared_configuration.initialize(root_dir=shared_configuration.root_dir, setting=args.setting)
     #translates the necessary old argument names in the yaml file of the baseline to the new transfuser config, generating one shared object configuration
     shared_configuration.number_previous_actions=g_conf.NUMBER_PREVIOUS_ACTIONS
     shared_configuration.epochs=g_conf.EPOCHS
@@ -79,6 +79,7 @@ def merge_config_files(baseline, experiment, training=True):
     shared_configuration.auto_lr=g_conf.AUTO_LR
     shared_configuration.every_epoch=g_conf.EVERY_EPOCH
     shared_configuration.auto_lr_step=g_conf.AUTO_LR_STEP
+    shared_configuration.num_repetitions=g_conf.NUM_REPETITIONS
     return shared_configuration
 from coil_network.loss_functional import compute_branches_masks
 def get_predictions(controls, branches):
@@ -449,6 +450,7 @@ if __name__=="__main__":
     parser.add_argument('--batch-size', dest="batch_size", type=int, default=30)
     parser.add_argument('--printing-step', dest="printing_step", type=int, default=10000)
     parser.add_argument('--adapt-lr-milestones', dest="adapt_lr_milestones", nargs="+",type=int, default=[30])
+    parser.add_argument('--setting',type=str, default="coil", help="coil requires to be trained on Town01 only, so Town01 are train conditions and Town02 is Test Condition")
     
     args = parser.parse_args()
     main(args)

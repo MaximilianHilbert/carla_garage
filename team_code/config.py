@@ -5,7 +5,7 @@ Config class that contains all the hyperparameters needed to build any model.
 import os
 import carla
 import re
-
+import numpy as np
 
 class GlobalConfig:
   """
@@ -556,15 +556,14 @@ class GlobalConfig:
     if setting == 'all':
       first_val_town = 'this_key_does_not_exist'
       second_val_town = 'this_key_does_not_exist'
+    if setting=="coil":
+      val_towns=["Town02", "Town03","Town04", "Town05", "Town06", "Town07", "Town08", "Town09", "Town10"]
     elif setting == '02_05_withheld':
-      first_val_town = 'Town02'
-      second_val_town = 'Town05'
+      val_towns = ['Town02','Town05']
     elif setting == '01_03_withheld':
-      first_val_town = 'Town01'
-      second_val_town = 'Town03'
+      val_towns = ['Town01','Town03']
     elif setting == '04_06_withheld':
-      first_val_town = 'Town04'
-      second_val_town = 'Town06'
+      val_towns = ['Town04','Town06']
     elif setting == 'eval':
       return
     else:
@@ -582,7 +581,7 @@ class GlobalConfig:
         if repetition >= self.num_repetitions:
           continue
         # We don't train on two towns and reserve them for validation
-        if ((file.find(first_val_town) != -1) or (file.find(second_val_town) != -1)):
+        if np.array([val_town in file for val_town in val_towns]).any():
           continue
         if not os.path.isfile(os.path.join(self.root_dir, file)):
           self.train_data.append(os.path.join(self.root_dir, town, file))
@@ -593,7 +592,7 @@ class GlobalConfig:
         if repetition >= self.num_repetitions:
           continue
         # Only use withheld towns for validation
-        if ((file.find(first_val_town) == -1) and (file.find(second_val_town) == -1)):
+        if not np.array([val_town in file for val_town in val_towns]).any():
           continue
         if not os.path.isfile(os.path.join(self.root_dir, file)):
           self.val_data.append(os.path.join(self.root_dir, town, file))
