@@ -20,6 +20,10 @@ from coil_utils.checkpoint_schedule import is_ready_to_save, get_latest_saved_ch
 import numpy as np
 from torch.optim.lr_scheduler import MultiStepLR
 import matplotlib.pyplot as plt
+import torch.multiprocessing as mp
+from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
 from torch.utils.tensorboard import SummaryWriter
 import heapq
 def set_seed(seed):
@@ -28,7 +32,7 @@ def set_seed(seed):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-def merge_config_files(baseline, experiment, training=True):
+def merge_config_files(baseline, experiment, setting,training=True):
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
 
     merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline, experiment+".yaml"))
@@ -36,7 +40,7 @@ def merge_config_files(baseline, experiment, training=True):
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
     if training:
-        shared_configuration.initialize(root_dir=shared_configuration.root_dir, setting=args.setting)
+        shared_configuration.initialize(root_dir=shared_configuration.root_dir, setting=setting)
     #translates the necessary old argument names in the yaml file of the baseline to the new transfuser config, generating one shared object configuration
     shared_configuration.number_previous_actions=g_conf.NUMBER_PREVIOUS_ACTIONS
     shared_configuration.epochs=g_conf.EPOCHS
@@ -146,11 +150,22 @@ class Logger():
         self.writer = SummaryWriter(log_dir=self.full_name)
     def create_checkpoint_logs(self,):
         os.makedirs(os.path.join(self.dir_name, "checkpoints"), exist_ok=True)
-def main(args):
-    merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""))
-    logger=Logger(merged_config_object.baseline_folder_name, merged_config_object.baseline_name, args.training_repetition)
-    logger.create_tensorboard_logs()
-    logger.create_checkpoint_logs()
+def get_free_training_port():
+    import socket
+    sock = socket.socket()
+    sock.bind(('', 0))
+    return sock.getsockname()[1]
+
+def ddp_setup(rank, world_size):
+    os.environ["MASTER_ADDR"]="localhost"
+    os.environ["MASTER_PORT"]=str(get_free_training_port())
+    init_process_group(backend="nccl", rank=rank, world_size=world_size)
+def main(rank, args, world_size):
+    if rank==0:
+        merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
+        logger=Logger(merged_config_object.baseline_folder_name, merged_config_object.baseline_name, args.training_repetition)
+        logger.create_tensorboard_logs()
+        logger.create_checkpoint_logs()
    
     """
         The main training function. This functions loads the latest checkpoint
@@ -168,8 +183,7 @@ def main(args):
 
     """
     try:
-
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+        ddp_setup(rank, world_size)
         set_seed(args.seed)
 
        
@@ -210,22 +224,25 @@ def main(args):
                     dataset.set_correlation_weights(path=full_filename)
             action_predict_threshold=get_action_predict_loss_threshold(dataset.get_correlation_weights(),merged_config_object.threshold_ratio)
         print("Loaded dataset")
-        
+        sampler=DistributedSampler(dataset)
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                               num_workers=args.number_of_workers,
                                               pin_memory=True,
-                                              shuffle=True,
-                                              drop_last=True
+                                              shuffle=False, #because of DDP
+                                              drop_last=True,
+                                              sampler=sampler
                                               )
         if "arp" in args.baseline_name:
             policy = CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
-            policy.cuda()
-
+            policy.to(rank)
+            policy=DDP(policy, device_ids=[rank])
             mem_extract = CoILModel(merged_config_object.mem_extract_model_type, merged_config_object.mem_extract_model_configuration)
-            mem_extract.cuda()
+            mem_extract.to(rank)
+            mem_extract=DDP(mem_extract, device_ids=[rank])
         else:
             model=CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
-            model.cuda()
+            model.to(rank)
+            model=DDP(model, device_ids=[rank])
         if merged_config_object.optimizer == 'Adam':
             if "arp" in args.baseline_name:
                 policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
@@ -275,13 +292,13 @@ def main(args):
                 #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                 #     break
                 capture_time = time.time()
-                controls = get_controls_from_data(data)
-                current_image=torch.reshape(data['rgb'].cuda().to(torch.float32)/255., (args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width))
-                current_speed =data["speed"].cuda().reshape(args.batch_size, 1)
-                targets=torch.concat([data["steer"].cuda().reshape(args.batch_size,1), data["throttle"].cuda().reshape(args.batch_size,1), data["brake"].cuda().reshape(args.batch_size,1)], dim=1).reshape(args.batch_size,3)
+                controls = get_controls_from_data(data,args.batch_size,rank)
+                current_image=torch.reshape(data['rgb'].to(rank).to(torch.float32)/255., (args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width))
+                current_speed =data["speed"].to(rank).reshape(args.batch_size, 1)
+                targets=torch.concat([data["steer"].to(rank).reshape(args.batch_size,1), data["throttle"].to(rank).reshape(args.batch_size,1), data["brake"].to(rank).reshape(args.batch_size,1)], dim=1).reshape(args.batch_size,3)
                 if "arp" in args.baseline_name or "bcoh" in args.baseline_name or "keyframes" in args.baseline_name:
-                    temporal_images=data['temporal_rgb'].cuda()/255.
-                    previous_action=data["previous_actions"].cuda()
+                    temporal_images=data['temporal_rgb'].to(rank)/255.
+                    previous_action=data["previous_actions"].to(rank)
                 if "arp" in args.baseline_name:
                     current_speed_zero_speed =torch.zeros_like(current_speed)
                     mem_extract.zero_grad()
@@ -313,7 +330,7 @@ def main(args):
                     policy_loss, _ = criterion(loss_function_params_policy)
                     policy_loss.backward()
                     policy_optimizer.step()
-                    if is_ready_to_save(epoch, iteration, data_loader, merged_config_object):
+                    if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank ==0:
                         state = {
                             'epoch': epoch,
                             'policy_state_dict': policy.state_dict(),
@@ -367,7 +384,7 @@ def main(args):
                                     'importance_sampling_threshold': action_predict_threshold,
                                     'importance_sampling_method': merged_config_object.importance_sample_method,
                                     'importance_sampling_threshold_weight': merged_config_object.threshold_weight,
-                                    'action_predict_loss': data["correlation_weight"].squeeze().cuda()}
+                                    'action_predict_loss': data["correlation_weight"].squeeze().to(rank)}
                 else:
                     reweight_params={}
                 if "arp" not in args.baseline_name:
@@ -388,7 +405,7 @@ def main(args):
                     loss.backward()
                     optimizer.step()
                     scheduler.step()
-                    if is_ready_to_save(epoch, iteration, data_loader, merged_config_object):
+                    if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank ==0:
                         state = {
                             'epoch': epoch,
                             'state_dict': model.state_dict(),
@@ -416,17 +433,17 @@ def main(args):
                     logger.add_scalar(f'{merged_config_object.baseline_name}_loss', loss.data, (epoch-1)*len(data_loader)+iteration)
                     logger.add_scalar(f'{merged_config_object.baseline_name}_loss_Epochs', loss.data, (epoch-1))
         torch.cuda.empty_cache()
-    
+        destroy_process_group()
     except RuntimeError as e:
         traceback.print_exc()
 
     except:
         traceback.print_exc()
 
-def get_controls_from_data(data):
-    one_hot_tensor=data["command"].cuda()
+def get_controls_from_data(data,batch_size, rank):
+    one_hot_tensor=data["command"].to(rank)
     indices = torch.argmax(one_hot_tensor, dim=1)
-    controls=indices.reshape(args.batch_size, 1)
+    controls=indices.reshape(batch_size, 1)
     return controls
 def get_action_predict_loss_threshold(correlation_weights, ratio):
     _action_predict_loss_threshold = {}
@@ -442,7 +459,6 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed',  dest='seed',required=True, type=int, default=345345)
     parser.add_argument('--training_repetition', dest="training_repetition", type=int, default=0, required=True)
-    parser.add_argument('--gpu', dest="gpu", default=0, required=True)
     parser.add_argument('--baseline_folder_name', dest="baseline_folder_name", default=None, required=True)
     parser.add_argument('--baseline_name', dest="baseline_name", default=None, required=True)
     parser.add_argument('--number_of_workers', dest="number_of_workers", default=12, type=int, required=True)
@@ -452,5 +468,6 @@ if __name__=="__main__":
     parser.add_argument('--adapt-lr-milestones', dest="adapt_lr_milestones", nargs="+",type=int, default=[30])
     parser.add_argument('--setting',type=str, default="coil", help="coil requires to be trained on Town01 only, so Town01 are train conditions and Town02 is Test Condition")
     
-    args = parser.parse_args()
-    main(args)
+    arguments = parser.parse_args()
+    world_size=torch.cuda.device_count()
+    mp.spawn(main, args=[arguments, world_size], nprocs=world_size)
