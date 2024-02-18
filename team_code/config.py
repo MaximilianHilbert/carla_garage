@@ -556,7 +556,8 @@ class GlobalConfig:
     if setting == 'all':
       first_val_town = 'this_key_does_not_exist'
       second_val_town = 'this_key_does_not_exist'
-    if setting=="coil":
+      val_towns=[]
+    elif setting=="coil":
       val_towns=["Town02", "Town03","Town04", "Town05", "Town06", "Town07", "Town08", "Town09", "Town10"]
     elif setting == '02_05_withheld':
       val_towns = ['Town02','Town05']
