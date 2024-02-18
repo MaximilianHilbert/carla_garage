@@ -164,6 +164,7 @@ def main(args):
         os.environ["MASTER_ADDR"]="127.0.0.1"
         os.environ["MASTER_PORT"]="2334"
         rank=0
+        device_id="cuda:0"
     else:
         world_size = int(os.environ['WORLD_SIZE'])
         rank = int(os.environ['LOCAL_RANK'])
@@ -173,6 +174,7 @@ def main(args):
                                         world_size=world_size,
                                         rank=rank)
         print("Backend initialized")
+        device_id = torch.device(f'cuda:{rank}')
     
     if rank==0 or args.debug:
         merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
