@@ -32,7 +32,7 @@ def set_seed(seed):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-def merge_config_files(baseline, experiment, setting,training=True):
+def merge_config_files(baseline, experiment, setting="all",training=True):
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
 
     merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline, experiment+".yaml"))
