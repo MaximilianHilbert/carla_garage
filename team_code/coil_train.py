@@ -173,7 +173,8 @@ def main(args):
                                         init_method='env://',
                                         world_size=world_size,
                                         rank=rank)
-        print("Backend initialized")
+        if rank==0:
+            print("Backend initialized")
         device_id = torch.device(f'cuda:{rank}')
     
 
@@ -301,8 +302,8 @@ def main(args):
         else:
             from coil_network.loss import Loss
         criterion = Loss(merged_config_object.loss_function)
-        for epoch in tqdm(range(1+already_trained_epochs, merged_config_object.epochs+1)):
-            for iteration, data in enumerate(tqdm(data_loader), start=1):
+        for epoch in tqdm(range(1+already_trained_epochs, merged_config_object.epochs+1), disable=rank!=0):
+            for iteration, data in enumerate(tqdm(data_loader, disable=rank!=0), start=1):
                 # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
                 #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                 #     break
