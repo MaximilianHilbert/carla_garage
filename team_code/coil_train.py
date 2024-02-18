@@ -159,7 +159,10 @@ def get_free_training_port():
 def ddp_setup(rank, world_size):
     os.environ["MASTER_ADDR"]="localhost"
     os.environ["MASTER_PORT"]=str(get_free_training_port())
-    init_process_group(backend="nccl", rank=rank, world_size=world_size)
+    init_process_group(backend='nccl',
+                                       init_method='env://',
+                                       world_size=world_size,
+                                       rank=rank,)
 def main(rank, args, world_size):
     if rank==0:
         merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
