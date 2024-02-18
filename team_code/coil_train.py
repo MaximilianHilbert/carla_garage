@@ -444,12 +444,12 @@ def main(args):
                         best_loss = loss.data.tolist()
                         best_loss_epoch = epoch
                     accumulated_time += time.time() - capture_time
-
-                    if iteration%args.printing_step==0 and rank==0:
-                        print(f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}")
-                    logger.add_scalar(f'{merged_config_object.baseline_name}_loss', loss.data, (epoch-1)*len(data_loader)+iteration)
-                    logger.add_scalar(f'{merged_config_object.baseline_name}_loss_Epochs', loss.data, (epoch-1))
-        torch.cuda.empty_cache()
+                    if rank==0:
+                        if iteration%args.printing_step==0:
+                            print(f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}")
+                        logger.add_scalar(f'{merged_config_object.baseline_name}_loss', loss.data, (epoch-1)*len(data_loader)+iteration)
+                        logger.add_scalar(f'{merged_config_object.baseline_name}_loss_Epochs', loss.data, (epoch-1))
+            torch.cuda.empty_cache()
         dist.destroy_process_group()
 
     except RuntimeError as e:
