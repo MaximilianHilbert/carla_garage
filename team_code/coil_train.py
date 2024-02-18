@@ -176,13 +176,12 @@ def main(args):
         print("Backend initialized")
         device_id = torch.device(f'cuda:{rank}')
     
-    if rank==0 or args.debug:
-        merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
-        logger=Logger(merged_config_object.baseline_folder_name, merged_config_object.baseline_name, args.training_repetition)
+
+    merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
+    logger=Logger(merged_config_object.baseline_folder_name, merged_config_object.baseline_name, args.training_repetition)
+    if rank==0:
         logger.create_tensorboard_logs()
         logger.create_checkpoint_logs()
-    else:
-        merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
     """
         The main training function. This functions loads the latest checkpoint
         for a given, exp_batch (folder) and exp_alias (experiment configuration).
@@ -364,15 +363,16 @@ def main(args):
                                     'checkpoints', str(epoch) + '.pth'
                             )
                         )
-                    logger.add_scalar('Policy_Loss_Iterations', policy_loss.data, (epoch-1)*len(data_loader)+iteration)
-                    logger.add_scalar('Policy_Loss_Epochs', policy_loss.data, (epoch-1))
-                    logger.add_scalar('Mem_Extract_Loss_Iterations', mem_extract_loss.data, (epoch-1)*len(data_loader)+iteration)
-                    logger.add_scalar('Mem_Extract_Loss_Epochs', mem_extract_loss.data, (epoch-1))
+                    if rank==0:
+                        logger.add_scalar('Policy_Loss_Iterations', policy_loss.data, (epoch-1)*len(data_loader)+iteration)
+                        logger.add_scalar('Policy_Loss_Epochs', policy_loss.data, (epoch-1))
+                        logger.add_scalar('Mem_Extract_Loss_Iterations', mem_extract_loss.data, (epoch-1)*len(data_loader)+iteration)
+                        logger.add_scalar('Mem_Extract_Loss_Epochs', mem_extract_loss.data, (epoch-1))
                     if policy_loss.data < best_loss:
                         best_loss = policy_loss.data.tolist()
                         best_loss_epoch = epoch
                     accumulated_time += time.time() - capture_time
-                    if iteration%args.printing_step==0:
+                    if iteration%args.printing_step==0 and rank==0:
                         print(f"Epoch: {epoch} // Iteration: {iteration} // Policy_Loss: {policy_loss.data}")
                         print(f"Epoch: {epoch} // Iteration: {iteration} // Mem_Extract_Loss: {mem_extract_loss.data}")
                     policy_scheduler.step()
@@ -444,7 +444,7 @@ def main(args):
                         best_loss_epoch = epoch
                     accumulated_time += time.time() - capture_time
 
-                    if iteration%args.printing_step==0:
+                    if iteration%args.printing_step==0 and rank==0:
                         print(f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}")
                     logger.add_scalar(f'{merged_config_object.baseline_name}_loss', loss.data, (epoch-1)*len(data_loader)+iteration)
                     logger.add_scalar(f'{merged_config_object.baseline_name}_loss_Epochs', loss.data, (epoch-1))
