@@ -163,22 +163,24 @@ def main(args):
         os.environ["WORLD_SIZE"]="1"
         os.environ["MASTER_ADDR"]="127.0.0.1"
         os.environ["MASTER_PORT"]="2334"
+        rank=0
     else:
         world_size = int(os.environ['WORLD_SIZE'])
         rank = int(os.environ['LOCAL_RANK'])
-    print(f"World-size {world_size}, Rank {rank}")
-    dist.init_process_group(backend="nccl",
-                                       init_method='env://',
-                                       world_size=world_size,
-                                       rank=rank)
-    print("Backend initialized")
+        print(f"World-size {world_size}, Rank {rank}")
+        dist.init_process_group(backend="nccl",
+                                        init_method='env://',
+                                        world_size=world_size,
+                                        rank=rank)
+        print("Backend initialized")
     
     if rank==0 or args.debug:
         merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
         logger=Logger(merged_config_object.baseline_folder_name, merged_config_object.baseline_name, args.training_repetition)
         logger.create_tensorboard_logs()
         logger.create_checkpoint_logs()
-   
+    else:
+        merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
     """
         The main training function. This functions loads the latest checkpoint
         for a given, exp_batch (folder) and exp_alias (experiment configuration).
