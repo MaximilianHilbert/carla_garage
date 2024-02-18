@@ -214,7 +214,7 @@ def main(rank, args, world_size):
         else:
             shared_dict = None
         #introduce new dataset from the Paper TransFuser++
-        dataset=CARLA_Data(root=merged_config_object.train_data, config=merged_config_object, shared_dict=shared_dict)
+        dataset=CARLA_Data(root=merged_config_object.train_data, config=merged_config_object, shared_dict=shared_dict, rank=rank)
         if "keyframes" in args.baseline_name:
             #load the correlation weights and reshape them, that the last 3 elements that do not fit into the batch size dimension get dropped, because the dataloader of Carla_Dataset does the same, it should fit
             list_of_files_path=os.path.join(os.environ.get("WORK_DIR"), "_logs", merged_config_object.baseline_folder_name, f"repetition_{str(args.training_repetition)}")
