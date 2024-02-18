@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import torch.multiprocessing as mp
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.distributed import init_process_group, destroy_process_group
+import torch.distributed as dist
 from torch.utils.tensorboard import SummaryWriter
 import heapq
 def set_seed(seed):
@@ -156,14 +156,17 @@ def get_free_training_port():
     sock.bind(('', 0))
     return sock.getsockname()[1]
 
-def ddp_setup(rank, world_size):
-    os.environ["MASTER_ADDR"]="localhost"
-    os.environ["MASTER_PORT"]=str(get_free_training_port())
-    init_process_group(backend='nccl',
-                                       init_method='env://',
-                                       world_size=world_size,
-                                       rank=rank,)
-def main(rank, args, world_size):
+
+def main(args):
+    if args.debug:
+        os.environ["RANK"]="0"
+        os.environ["WORLD_SIZE"]="1"
+        os.environ["MASTER_ADDR"]="127.0.0.1"
+        os.environ["MASTER_PORT"]="2334"
+        
+    dist.init_process_group("nccl")
+    rank=dist.get_rank()
+    device_id = rank % torch.cuda.device_count()
     if rank==0:
         merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
         logger=Logger(merged_config_object.baseline_folder_name, merged_config_object.baseline_name, args.training_repetition)
@@ -186,7 +189,7 @@ def main(rank, args, world_size):
 
     """
     try:
-        ddp_setup(rank, world_size)
+        
         set_seed(args.seed)
 
        
@@ -237,15 +240,15 @@ def main(rank, args, world_size):
                                               )
         if "arp" in args.baseline_name:
             policy = CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
-            policy.to(rank)
-            policy=DDP(policy, device_ids=[rank])
+            policy.to(device_id)
+            policy=DDP(policy, device_ids=[device_id])
             mem_extract = CoILModel(merged_config_object.mem_extract_model_type, merged_config_object.mem_extract_model_configuration)
-            mem_extract.to(rank)
-            mem_extract=DDP(mem_extract, device_ids=[rank])
+            mem_extract.to(device_id)
+            mem_extract=DDP(mem_extract, device_ids=[device_id])
         else:
             model=CoILModel(merged_config_object.model_type, merged_config_object.model_configuration)
-            model.to(rank)
-            model=DDP(model, device_ids=[rank])
+            model.to(device_id)
+            model=DDP(model, device_ids=[device_id])
         if merged_config_object.optimizer == 'Adam':
             if "arp" in args.baseline_name:
                 policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
@@ -295,13 +298,13 @@ def main(rank, args, world_size):
                 #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                 #     break
                 capture_time = time.time()
-                controls = get_controls_from_data(data,args.batch_size,rank)
-                current_image=torch.reshape(data['rgb'].to(rank).to(torch.float32)/255., (args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width))
-                current_speed =data["speed"].to(rank).reshape(args.batch_size, 1)
-                targets=torch.concat([data["steer"].to(rank).reshape(args.batch_size,1), data["throttle"].to(rank).reshape(args.batch_size,1), data["brake"].to(rank).reshape(args.batch_size,1)], dim=1).reshape(args.batch_size,3)
+                controls = get_controls_from_data(data,args.batch_size,device_id)
+                current_image=torch.reshape(data['rgb'].to(device_id).to(torch.float32)/255., (args.batch_size, -1, merged_config_object.camera_height, merged_config_object.camera_width))
+                current_speed =data["speed"].to(device_id).reshape(args.batch_size, 1)
+                targets=torch.concat([data["steer"].to(device_id).reshape(args.batch_size,1), data["throttle"].to(device_id).reshape(args.batch_size,1), data["brake"].to(device_id).reshape(args.batch_size,1)], dim=1).reshape(args.batch_size,3)
                 if "arp" in args.baseline_name or "bcoh" in args.baseline_name or "keyframes" in args.baseline_name:
-                    temporal_images=data['temporal_rgb'].to(rank)/255.
-                    previous_action=data["previous_actions"].to(rank)
+                    temporal_images=data['temporal_rgb'].to(device_id)/255.
+                    previous_action=data["previous_actions"].to(device_id)
                 if "arp" in args.baseline_name:
                     current_speed_zero_speed =torch.zeros_like(current_speed)
                     mem_extract.zero_grad()
@@ -387,7 +390,7 @@ def main(rank, args, world_size):
                                     'importance_sampling_threshold': action_predict_threshold,
                                     'importance_sampling_method': merged_config_object.importance_sample_method,
                                     'importance_sampling_threshold_weight': merged_config_object.threshold_weight,
-                                    'action_predict_loss': data["correlation_weight"].squeeze().to(rank)}
+                                    'action_predict_loss': data["correlation_weight"].squeeze().to(device_id)}
                 else:
                     reweight_params={}
                 if "arp" not in args.baseline_name:
@@ -436,15 +439,16 @@ def main(rank, args, world_size):
                     logger.add_scalar(f'{merged_config_object.baseline_name}_loss', loss.data, (epoch-1)*len(data_loader)+iteration)
                     logger.add_scalar(f'{merged_config_object.baseline_name}_loss_Epochs', loss.data, (epoch-1))
         torch.cuda.empty_cache()
-        destroy_process_group()
+        dist.destroy_process_group()
+
     except RuntimeError as e:
         traceback.print_exc()
 
     except:
         traceback.print_exc()
 
-def get_controls_from_data(data,batch_size, rank):
-    one_hot_tensor=data["command"].to(rank)
+def get_controls_from_data(data,batch_size, device_id):
+    one_hot_tensor=data["command"].to(device_id)
     indices = torch.argmax(one_hot_tensor, dim=1)
     controls=indices.reshape(batch_size, 1)
     return controls
@@ -470,7 +474,6 @@ if __name__=="__main__":
     parser.add_argument('--printing-step', dest="printing_step", type=int, default=10000)
     parser.add_argument('--adapt-lr-milestones', dest="adapt_lr_milestones", nargs="+",type=int, default=[30])
     parser.add_argument('--setting',type=str, default="coil", help="coil requires to be trained on Town01 only, so Town01 are train conditions and Town02 is Test Condition")
-    
+    parser.add_argument('--debug', type=int, default=0)
     arguments = parser.parse_args()
-    world_size=torch.cuda.device_count()
-    mp.spawn(main, args=[arguments, world_size], nprocs=world_size)
+    main(arguments)

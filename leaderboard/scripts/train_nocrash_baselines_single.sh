@@ -60,4 +60,4 @@ conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 # eval "$(conda shell.bash hook)"
 # conda activate garage
 
-python $TEAM_CODE/coil_train.py --seed 1 --baseline_folder_name arp --baseline_name arp_vanilla --number_of_workers 12 --training_repetition 0 --use-disk-cache 0
+torchrun --nnodes=2 --nproc_per_node=5 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline_folder_name arp --baseline_name arp_vanilla --number_of_workers 12 --training_repetition 0 --use-disk-cache 0
