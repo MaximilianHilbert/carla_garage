@@ -163,11 +163,16 @@ def main(args):
         os.environ["WORLD_SIZE"]="1"
         os.environ["MASTER_ADDR"]="127.0.0.1"
         os.environ["MASTER_PORT"]="2334"
-        
-    dist.init_process_group("nccl")
+    else:
+        world_size = int(os.environ['WORLD_SIZE'])
+        rank = int(os.environ['LOCAL_RANK'])
+    dist.init_process_group("nccl",
+                                       init_method='env://',
+                                       world_size=world_size,
+                                       rank=rank)
     rank=dist.get_rank()
     device_id = rank % torch.cuda.device_count()
-    if rank==0:
+    if rank==0 or args.debug:
         merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
         logger=Logger(merged_config_object.baseline_folder_name, merged_config_object.baseline_name, args.training_repetition)
         logger.create_tensorboard_logs()
