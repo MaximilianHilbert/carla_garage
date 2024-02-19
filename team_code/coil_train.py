@@ -182,7 +182,7 @@ def main(args):
     logger=Logger(merged_config_object.baseline_folder_name, merged_config_object.baseline_name, args.training_repetition)
     if rank==0:
         logger.create_tensorboard_logs()
-        logger.create_checkpoint_logs()
+    logger.create_checkpoint_logs()
     """
         The main training function. This functions loads the latest checkpoint
         for a given, exp_batch (folder) and exp_alias (experiment configuration).
