@@ -32,4 +32,4 @@ export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 #seeds must match repetition number
 #72 cores means, 9 cores per dataloader, per GPU
-python $WORK_DIR/train_nocrash_baselines.py --repetitions 1 --seeds 1014 --baseline_folder_names arp bcoh bcso --number_of_cpus 72 --use-disk-cache 0 --batch-sizes 15 20 25 --walltimes 24 20 12 --train-local 0
+python $WORK_DIR/train_nocrash_baselines.py --repetitions 1 --seeds 1014 --baseline_folder_names arp bcoh bcso --number_of_cpus 72 --use-disk-cache 0 --batch-sizes 15 20 25 --walltimes 23 20 12 --train-local 0
