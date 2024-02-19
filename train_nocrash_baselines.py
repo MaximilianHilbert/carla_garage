@@ -16,7 +16,7 @@ def generate_batch_script(args, seed, training_repetition, baseline_folder_name,
 #SBATCH --gres=gpu:8
 #SBATCH --partition=gpu-2080ti
 #SBATCH --cpus-per-task={args.number_of_cpus}
-#SBATCH --mem=350G
+#SBATCH --mem=320G
 #SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
 
