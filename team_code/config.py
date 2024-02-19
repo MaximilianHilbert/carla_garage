@@ -25,6 +25,38 @@ class GlobalConfig:
 
   def __init__(self):
     """ base architecture configurations """
+    #COIL Baselines
+    #Dataloader
+    self.number_previous_actions=0
+    self.keyframes=None
+    self.number_future_actions=0
+    self.epochs_baselines=30
+    self.lidar_seq_len=1
+    self.img_seq_len=1
+    self.targets=['steer', 'throttle', "brake"]
+    self.inputs=["speed"]
+
+    #Training
+    self.model_configuration={}
+    self.model_type=None
+    self.mem_extract_model_type = None
+    self.mem_extract_model_configuration = {}
+    self.learning_rate= 0.0002
+    self.branch_loss_weight=[0.95, 0.95, 0.95, 0.95, 0.95, 0.95,0.05]
+    self.variable_weight = {'Steer': 0.5, 'Gas': 0.45, "Brake": 0.05}
+    self.train_with_actions_as_input=False
+    self.every_epoch=5
+    self.optimizer_baselines="Adam"
+    self.loss_function_baselines="L1"
+    #keyframes
+    self.importance_sample_method='mean'
+    self.softmax_temper=1.0
+    self.threshold_ratio=0.1
+    self.threshold_weight=5.0
+    self.correlation_weights=False
+
+    self.pre_trained=True
+    #
     # -----------------------------------------------------------------------------
     # Autopilot
     # -----------------------------------------------------------------------------
@@ -108,12 +140,11 @@ class GlobalConfig:
     # -----------------------------------------------------------------------------
     # Dataloader
     # -----------------------------------------------------------------------------
-    # config values for the coiltraine legacy/baseline implementation for nocrash
-    self.keyframes=None
+
     self.carla_fps = 20  # Simulator Frames per second
     self.seq_len =1  # length of the sequence loaded (into the future)
     # use different seq len for image and lidar
-    self.img_seq_len = 3 #length of historic sequence loaded for images, only one per seq iterated over in seq_len; e. g.
+    self.img_seq_len = 1 #length of historic sequence loaded for images, only one per seq iterated over in seq_len; e. g.
     # images for a img_seq_len of 3, seq_len of 2
     # (t_n-3, t_n-2, t_n-1, t_n, t_n+1, t_n+2 )
     # img_history, img_history, current timestep, future, future  
@@ -195,7 +226,7 @@ class GlobalConfig:
     self.num_route_points = 20
     self.augment_percentage = 0.5  # Probability of the augmented sample being used.
     self.learn_origin = 1  # Whether to learn the origin of the waypoints or use 0 / 0
-    self.augment = 0  # Whether to use rotation and translation augmentation
+    self.augment = 1  # Whether to use rotation and translation augmentation
     # If this is true we convert the batch norms, to synced bach norms.
     self.sync_batch_norm = False
     # At which interval to save debug files to disk during training

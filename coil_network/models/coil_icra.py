@@ -1,10 +1,7 @@
-from coil_logger import coil_logger
 import torch.nn as nn
 import torch
 import importlib
 
-from coil_configuration.coil_config import g_conf
-from coil_utils.general import command_number_to_index
 
 from .building_blocks.conv import Conv
 from .building_blocks import Branching
@@ -12,63 +9,59 @@ from .building_blocks import FC
 from .building_blocks import Join
 class CoILICRA(nn.Module):
 
-    def __init__(self, params):
+    def __init__(self, config):
         # TODO: Improve the model autonaming function
 
         super(CoILICRA, self).__init__()
-        self.params = params
-
+        self.params = config.model_configuration
         number_first_layer_channels = 0
 
-        for _, sizes in g_conf.SENSORS.items():
-            number_first_layer_channels += sizes[0] * g_conf.IMAGE_SEQ_LEN
+        number_first_layer_channels=3*config.img_seq_len    #3 color channels img_seq_len could be != 1, for instance in bcoh, keyframes baseline
 
-        # Get one item from the dict
-        sensor_input_shape = next(iter(g_conf.SENSORS.values()))
-        sensor_input_shape = [number_first_layer_channels, sensor_input_shape[1],
-                              sensor_input_shape[2]]
+        sensor_input_shape = [number_first_layer_channels,
+    config.camera_height,config.camera_width]
 
         # For this case we check if the perception layer is of the type "conv"
-        if 'conv' in params['perception']:
+        if 'conv' in self.params['perception']:
             perception_convs = Conv(params={'channels': [number_first_layer_channels] +
-                                                          params['perception']['conv']['channels'],
-                                            'kernels': params['perception']['conv']['kernels'],
-                                            'strides': params['perception']['conv']['strides'],
-                                            'dropouts': params['perception']['conv']['dropouts'],
+                                                          self.params['perception']['conv']['channels'],
+                                            'kernels': self.params['perception']['conv']['kernels'],
+                                            'strides': self.params['perception']['conv']['strides'],
+                                            'dropouts': self.params['perception']['conv']['dropouts'],
                                             'end_layer': True})
 
             perception_fc = FC(params={'neurons': [perception_convs.get_conv_output(sensor_input_shape)]
-                                                  + params['perception']['fc']['neurons'],
-                                       'dropouts': params['perception']['fc']['dropouts'],
+                                                  + self.params['perception']['fc']['neurons'],
+                                       'dropouts': self.params['perception']['fc']['dropouts'],
                                        'end_layer': False})
 
             self.perception = nn.Sequential(*[perception_convs, perception_fc])
 
-            number_output_neurons = params['perception']['fc']['neurons'][-1]
+            number_output_neurons = self.params['perception']['fc']['neurons'][-1]
 
-        elif 'res' in params['perception']:  # pre defined residual networks
+        elif 'res' in self.params['perception']:  # pre defined residual networks
             resnet_module = importlib.import_module('coil_network.models.building_blocks.resnet')
-            resnet_module = getattr(resnet_module, params['perception']['res']['name'])
-            self.perception = resnet_module(pretrained=g_conf.PRE_TRAINED,
+            resnet_module = getattr(resnet_module, self.params['perception']['res']['name'])
+            self.perception = resnet_module(pretrained=config.pre_trained,
                                             input_channels=number_first_layer_channels,
-                                             num_classes=params['perception']['res']['num_classes'])
+                                             num_classes=self.params['perception']['res']['num_classes'])
 
-            number_output_neurons = params['perception']['res']['num_classes']
+            number_output_neurons = self.params['perception']['res']['num_classes']
 
         else:
 
             raise ValueError("invalid convolution layer type")
-        self.measurements = FC(params={'neurons': [len(g_conf.INPUTS)] +
-                                                params['measurements']['fc']['neurons'],
-                                    'dropouts': params['measurements']['fc']['dropouts'],
+        self.measurements = FC(params={'neurons': [len(config.inputs)] +
+                                                self.params['measurements']['fc']['neurons'],
+                                    'dropouts': self.params['measurements']['fc']['dropouts'],
                                     'end_layer': False})
-        if 'previous_actions' in params:
+        if 'previous_actions' in self.params:
             self.use_previous_actions = True
-            self.previous_actions = FC(params={'neurons': [len(g_conf.TARGETS)*g_conf.NUMBER_PREVIOUS_ACTIONS] +
-                                                          params['previous_actions']['fc']['neurons'],
-                                               'dropouts': params['previous_actions']['fc']['dropouts'],
+            self.previous_actions = FC(params={'neurons': [len(config.targets)*config.number_previous_actions] +
+                                                          self.params['previous_actions']['fc']['neurons'],
+                                               'dropouts': self.params['previous_actions']['fc']['dropouts'],
                                                'end_layer': False})
-            number_preaction_neurons = params['previous_actions']['fc']['neurons'][-1]
+            number_preaction_neurons = self.params['previous_actions']['fc']['neurons'][-1]
         else:
             self.use_previous_actions = False
             number_preaction_neurons = 0
@@ -76,32 +69,32 @@ class CoILICRA(nn.Module):
         self.join = Join(
             params={'after_process':
                         FC(params={'neurons':
-                                        [params['measurements']['fc']['neurons'][-1] +
+                                        [self.params['measurements']['fc']['neurons'][-1] +
                                         + number_preaction_neurons + number_output_neurons] +
-                                        params['join']['fc']['neurons'],
-                                    'dropouts': params['join']['fc']['dropouts'],
+                                        self.params['join']['fc']['neurons'],
+                                    'dropouts': self.params['join']['fc']['dropouts'],
                                     'end_layer': False}),
                     'mode': 'cat'
                     }
         )
 
         self.speed_branch = FC(params={'neurons': [number_output_neurons] +
-                                                  params['speed_branch']['fc']['neurons'] + [1],
-                                       'dropouts': params['speed_branch']['fc']['dropouts'] + [0.0],
+                                                  self.params['speed_branch']['fc']['neurons'] + [1],
+                                       'dropouts': self.params['speed_branch']['fc']['dropouts'] + [0.0],
                                        'end_layer': True})
 
         # Create the fc vector separatedely
         branch_fc_vector = []
-        for i in range(params['branches']['number_of_branches']):
-            branch_fc_vector.append(FC(params={'neurons': [params['join']['fc']['neurons'][-1]] +
-                                                         params['branches']['fc']['neurons'] +
-                                                         [len(g_conf.TARGETS)],
-                                               'dropouts': params['branches']['fc']['dropouts'] + [0.0],
+        for i in range(self.params['branches']['number_of_branches']):
+            branch_fc_vector.append(FC(params={'neurons': [self.params['join']['fc']['neurons'][-1]] +
+                                                         self.params['branches']['fc']['neurons'] +
+                                                         [len(config.targets)],
+                                               'dropouts': self.params['branches']['fc']['dropouts'] + [0.0],
                                                'end_layer': True}))
 
         self.branches = Branching(branch_fc_vector)  # Here we set branching automatically
 
-        if 'conv' in params['perception']:
+        if 'conv' in self.params['perception']:
             for m in self.modules():
                 if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
                     nn.init.xavier_uniform_(m.weight)

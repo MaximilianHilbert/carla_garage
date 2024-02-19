@@ -1,5 +1,4 @@
 
-from coil_logger import coil_logger
 import torch.nn as nn
 import torch.nn.init as init
 import torch
@@ -38,24 +37,6 @@ class Join(nn.Module):
             raise ValueError("Mode to join networks not found")
 
         return self.after_process(j)
-
-
-
-
-    def load_network(self, checkpoint):
-        """
-        Load a network for a given model definition .
-
-        Args:
-            checkpoint: The checkpoint that the user wants to add .
-
-
-
-        """
-        coil_logger.add_message('Loading', {
-                    "Model": {"Loaded checkpoint: " + str(checkpoint) }
-
-                })
 
 
 

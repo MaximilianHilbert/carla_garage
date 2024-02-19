@@ -1,10 +1,6 @@
 import torch.nn as nn
 import torch
 import importlib
-import os
-
-from coil_configuration.coil_config import g_conf
-from coil_utils.general import command_number_to_index
 
 from .building_blocks import Branching
 from .building_blocks import FC
@@ -13,40 +9,37 @@ from .building_blocks import Join
 
 class CoILPolicy(nn.Module):
 
-    def __init__(self, params):
+    def __init__(self, config):
 
         super(CoILPolicy, self).__init__()
-        self.params = params
-        number_first_layer_channels = 0
+        self.params = config.model_configuration
 
-        for _, sizes in g_conf.SENSORS.items():
-            number_first_layer_channels += sizes[0] 
+        number_first_layer_channels=3
 
-        # Get one item from the dict
-        sensor_input_shape = next(iter(g_conf.SENSORS.values()))
-        sensor_input_shape = [number_first_layer_channels, sensor_input_shape[1],
-                              sensor_input_shape[2]]
+        sensor_input_shape = [number_first_layer_channels,
+    config.camera_height,config.camera_width]
+
 
         self.predicted_speed = 0
 
-        if 'res' in params['perception']:
+        if 'res' in self.params['perception']:
             resnet_module = importlib.import_module('coil_network.models.building_blocks.resnet')
-            resnet_module = getattr(resnet_module, params['perception']['res']['name'])
+            resnet_module = getattr(resnet_module, self.params['perception']['res']['name'])
             self.perception = resnet_module(
-                                    pretrained=g_conf.PRE_TRAINED,
+                                    pretrained=config.pre_trained,
                                     input_channels=number_first_layer_channels,
-                                    num_classes=params['perception']['res']['num_classes']
+                                    num_classes=self.params['perception']['res']['num_classes']
                                 )
 
-            number_output_neurons = params['perception']['res']['num_classes']
+            number_output_neurons = self.params['perception']['res']['num_classes']
                 
         else:
             raise ValueError("perception type is not-defined")
 
         self.measurements = FC(
                                 params={
-                                    'neurons': [len(g_conf.INPUTS)] + params['measurements']['fc']['neurons'],
-                                    'dropouts': params['measurements']['fc']['dropouts'],
+                                    'neurons': [len(config.inputs)] + self.params['measurements']['fc']['neurons'],
+                                    'dropouts': self.params['measurements']['fc']['dropouts'],
                                     'end_layer': False
                                 }
                             )
@@ -58,11 +51,11 @@ class CoILPolicy(nn.Module):
                                 FC(
                                     params={
                                         'neurons':
-                                               [params['measurements']['fc']['neurons'][-1]
+                                               [self.params['measurements']['fc']['neurons'][-1]
                                                 + number_output_neurons
-                                                + params['memory_dim']] +
-                                               params['join']['fc']['neurons'],
-                                        'dropouts': params['join']['fc']['dropouts'],
+                                                + self.params['memory_dim']] +
+                                               self.params['join']['fc']['neurons'],
+                                        'dropouts': self.params['join']['fc']['dropouts'],
                                         'end_layer': False
                                     }
                                 ),
@@ -73,22 +66,22 @@ class CoILPolicy(nn.Module):
 
         self.speed_branch = FC(
                                 params={
-                                    'neurons': [number_output_neurons] + params['speed_branch']['fc']['neurons'] + [1],
-                                    'dropouts': params['speed_branch']['fc']['dropouts'] + [0.0],
+                                    'neurons': [number_output_neurons] + self.params['speed_branch']['fc']['neurons'] + [1],
+                                    'dropouts': self.params['speed_branch']['fc']['dropouts'] + [0.0],
                                     'end_layer': True
                                 }
                             )
 
 
         branch_fc_vector = []
-        for i in range(params['branches']['number_of_branches']):
+        for i in range(self.params['branches']['number_of_branches']):
             branch_fc_vector.append(
                 FC(
                     params={
-                        'neurons': [params['join']['fc']['neurons'][-1]]
-                                    + params['branches']['fc']['neurons']
-                                    + [len(g_conf.TARGETS)],
-                        'dropouts': params['branches']['fc']['dropouts'] + [0.0],
+                        'neurons': [self.params['join']['fc']['neurons'][-1]]
+                                    + self.params['branches']['fc']['neurons']
+                                    + [len(config.targets)],
+                        'dropouts': self.params['branches']['fc']['dropouts'] + [0.0],
                         'end_layer': True
                     }
                 )
