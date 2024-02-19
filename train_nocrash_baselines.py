@@ -70,7 +70,6 @@ def main(args):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', default=0, required=True)
     parser.add_argument("--baseline_folder_names", nargs='+', type=str, dest='baseline_folder_names',help="")
     parser.add_argument('--seeds', nargs='+', type=int, help='List of seed values')
     parser.add_argument('--use-disk-cache', dest="use_disk_cache", type=int, default=0)
