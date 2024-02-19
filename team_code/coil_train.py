@@ -484,7 +484,7 @@ if __name__=="__main__":
     parser.add_argument('--batch-size', dest="batch_size", type=int, default=30)
     parser.add_argument('--printing-step', dest="printing_step", type=int, default=10000)
     parser.add_argument('--adapt-lr-milestones', dest="adapt_lr_milestones", nargs="+",type=int, default=[30])
-    parser.add_argument('--setting',type=str, default="coil", help="coil requires to be trained on Town01 only, so Town01 are train conditions and Town02 is Test Condition")
+    parser.add_argument('--setting',type=str, default="all", help="coil requires to be trained on Town01 only, so Town01 are train conditions and Town02 is Test Condition")
     parser.add_argument('--debug', type=int, default=0)
     arguments = parser.parse_args()
     main(arguments)
