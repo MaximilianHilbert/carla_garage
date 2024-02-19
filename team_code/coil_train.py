@@ -182,6 +182,7 @@ def main(args):
     logger=Logger(merged_config_object.baseline_folder_name, merged_config_object.baseline_name, args.training_repetition)
     if rank==0:
         logger.create_tensorboard_logs()
+        print(f"Start of Training {args.baseline_folder_name}, {args.baseline_name}, {args.training_repetition}")
     logger.create_checkpoint_logs()
     """
         The main training function. This functions loads the latest checkpoint
