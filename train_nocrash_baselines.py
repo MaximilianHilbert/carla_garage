@@ -12,7 +12,7 @@ def generate_batch_script(args, seed, training_repetition, baseline_folder_name,
 #SBATCH --job-name=reproduce_{baseline_folder_name}_{baseline_name}_{training_repetition}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --time=0-{walltime}:00
+#SBATCH --time=0-{walltime*args.dataset_repetition}:00
 #SBATCH --gres=gpu:8
 #SBATCH --partition=gpu-2080ti
 #SBATCH --cpus-per-task={args.number_of_cpus}
@@ -51,7 +51,7 @@ source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS={args.number_of_cpus}  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {int(args.number_of_cpus/8)} --batch-size {batch_size}
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {int(args.number_of_cpus/8)} --batch-size {batch_size} --dataset-repetition {args.dataset_repetition}
         """
             f.write(command)
 def place_batch_scripts():
@@ -96,6 +96,11 @@ if __name__ == '__main__':
         dest='train_local',
         type=int,
         default=0
+    )
+    parser.add_argument(
+        '--dataset-repetition',
+        type=int,
+        default=1
     )
     parser.add_argument(
         '--walltimes',
