@@ -51,7 +51,7 @@ source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS={args.number_of_cpus}  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {int(args.number_of_cpus/8)} --batch-size {batch_size} --dataset-repetition {args.dataset_repetition}
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {int(args.number_of_cpus/8)} --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
         """
             f.write(command)
 def place_batch_scripts():
@@ -106,6 +106,10 @@ if __name__ == '__main__':
         '--walltimes',
         nargs="+",
         type=int,
+    )
+    parser.add_argument(
+        '--setting',
+        type=str,
     )
     args = parser.parse_args()
     main(args)
