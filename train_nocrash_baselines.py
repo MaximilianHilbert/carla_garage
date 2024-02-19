@@ -32,6 +32,7 @@ export CONFIG_ROOT=$WORK_DIR/coil_configuration
 export CARLA_ROOT=$WORK_DIR/carla
 export DATASET_ROOT=/mnt/qb/work2/geiger0/bjaeger25/datasets/hb_dataset_v08_2023_05_10
 export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+export TEAM_CODE=$WORK_DIR/team_code
 
 export CARLA_SERVER=$CARLA_ROOT/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI
