@@ -32,10 +32,10 @@ def set_seed(seed):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-def merge_config_files(baseline, experiment, setting="all",training=True):
+def merge_config_files(args, setting="all",training=True):
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
 
-    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), baseline, experiment+".yaml"))
+    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline, args.experiment+".yaml"))
     
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
@@ -78,12 +78,12 @@ def merge_config_files(baseline, experiment, setting="all",training=True):
     shared_configuration.speed_input=g_conf.SPEED_INPUT
     shared_configuration.train_with_actions_as_input=g_conf.TRAIN_WITH_ACTIONS_AS_INPUT
     shared_configuration.correlation_weights=g_conf.CORRELATION_WEIGHTS
-    shared_configuration.baseline_folder_name=baseline
-    shared_configuration.baseline_name=experiment
+    shared_configuration.baseline_folder_name=args.baseline
+    shared_configuration.baseline_name=args.experiment
     shared_configuration.auto_lr=g_conf.AUTO_LR
     shared_configuration.every_epoch=g_conf.EVERY_EPOCH
     shared_configuration.auto_lr_step=g_conf.AUTO_LR_STEP
-    shared_configuration.num_repetitions=g_conf.NUM_REPETITIONS
+    shared_configuration.num_repetitions=args.dataset_repetition
     return shared_configuration
 from coil_network.loss_functional import compute_branches_masks
 def get_predictions(controls, branches):
@@ -487,5 +487,11 @@ if __name__=="__main__":
     parser.add_argument('--adapt-lr-milestones', dest="adapt_lr_milestones", nargs="+",type=int, default=[30])
     parser.add_argument('--setting',type=str, default="all", help="coil requires to be trained on Town01 only, so Town01 are train conditions and Town02 is Test Condition")
     parser.add_argument('--debug', type=int, default=0)
+    parser.add_argument(
+        '--dataset-repetition',
+        type=int,
+        default=1
+    )
+
     arguments = parser.parse_args()
     main(arguments)
