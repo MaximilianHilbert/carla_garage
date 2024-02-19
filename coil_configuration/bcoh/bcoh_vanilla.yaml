@@ -1,33 +1,4 @@
-#### General Configuration Parameters ####
-EVERY_EPOCH: 2  # The iterations where training checkpoints are going to be saved
-NUM_REPETITIONS: 3
-#### Input related parameters ####
-# A dictionary with all the sensors that are going to be used as input
-# this should match the train dataset
-SENSORS:
-  rgb: [3, 256, 1024] # A RGB input sensor with three channels that is resized to 200x88
-MEASUREMENTS:
-  float_data: [31]  # Number of float data that must be read from the dataset
-EPOCHS: 30
-TARGETS: ['steer', 'throttle', 'brake']  # From the float data, the ones that the network should estimate
-INPUTS: ['speed'] # From the float data, the ones that are input to the neural network
 IMAGE_SEQ_LEN: 7  # Number of frames fused
-NUMBER_IMAGES_SEQUENCE: 1  # Number of frames sent in sequence
-SEQUENCE_STRIDE: 1  # Number of frames skipped when reading the data
-AUGMENT_LATERAL_STEERINGS: 6  # Depending on this value there is a constant multiplying lateral steers
-SPEED_FACTOR: 12.0  # The constant that is divides the speed_module in order to make it from 0-1
-AUGMENTATION: None  # The image augmentation applied on every input image
-DATA_USED: 'all'  # The part of the data to be used
-USE_NOISE_DATA: True  # If we use the noise data.
-NUMBER_OF_HOURS: 100  # Number of hours to be taken from the input data
-SPEED_INPUT: True
-TRAIN_WITH_ACTIONS_AS_INPUT: False
-
-CORRELATION_WEIGHTS: False
-#### Testing Related Parameters ####
-TEST_SCHEDULE: [100000]
-#### Model Related Parameters ####
-# Network Parameters #
 MODEL_TYPE: 'coil-icra' # The type of model. Defines which modules the model has.
 MODEL_CONFIGURATION:  # Based on the MODEL_TYPE, we specify the structure
   perception:  # The module that process the image input, it ouput the number of classes
@@ -53,23 +24,4 @@ MODEL_CONFIGURATION:  # Based on the MODEL_TYPE, we specify the structure
       neurons: [256, 256]
       dropouts: [0.0, 0.5]
 PRE_TRAINED: True  # If the weights are started with imagenet.
-
-# Optimizer Parameters #
-# For now we use only use adam
-LEARNING_RATE: 0.0002  # First learning rate
-LEARNING_RATE_DECAY_INTERVAL: 75000 # Number of iterations where the learning rate is reduced
-LEARNING_RATE_THRESHOLD: 5000 # Number of iterations without going down to reduce learning rate
-LEARNING_RATE_DECAY_LEVEL: 0.1 # Th factor of reduction applied to the learning rate
-
-# Loss Parameters #
-BRANCH_LOSS_WEIGHT: [0.95, 0.95, 0.95, 0.95, 0.95, 0.95,0.05] # how much each branch is weighted when computing loss
-LOSS_FUNCTION: 'L1' # The loss function used
-VARIABLE_WEIGHT: # how much each of the outputs specified on TARGETS are weighted for learning.
-  Steer: 0.5
-  Gas: 0.45
-  Brake: 0.05
-
-
-USE_ORACLE: False
-USE_FULL_ORACLE: False
-AVOID_STOPPING: False
+LEARNING_RATE: 0.0002  # First learning rate, default set by baseline
