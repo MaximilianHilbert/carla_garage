@@ -31,7 +31,7 @@ _g_conf.TARGETS = ['steer', 'throttle', "brake"]
 _g_conf.LIDAR_SEQ_LEN=1
 
 _g_conf.EVERY_EPOCH=2
-_g_conf.INPUTS = ['speed_module']
+_g_conf.INPUTS = ['speed']
 _g_conf.INTENTIONS = []
 _g_conf.BALANCE_DATA = True
 _g_conf.STEERING_DIVISION = [0.05, 0.05, 0.1, 0.3, 0.3, 0.1, 0.05, 0.05]
@@ -53,7 +53,7 @@ _g_conf.EXPERIMENT_NAME = "default"
 _g_conf.EXPERIMENT_GENERATED_NAME = None
 
 _g_conf.PROCESS_NAME = "None"
-_g_conf.EPOCHS = 10
+_g_conf.EPOCHS = 30
 #arp related
 _g_conf.AUTO_LR=False
 _g_conf.AUTO_LR_STEP=1000
@@ -67,9 +67,8 @@ _g_conf.BLANK_FRAMES_TYPE = 'black'  # black (padd with all zeros) or copy (padd
 _g_conf.NUMBER_IMAGES_SEQUENCE = 1
 _g_conf.SEQUENCE_STRIDE = 1
 #keyframes related
-_g_conf.NUMBER_FUTURE_ACTIONS=3
-_g_conf.NUMBER_PREVIOUS_ACTIONS = 2
-_g_conf.EPOCHS=1
+_g_conf.NUMBER_FUTURE_ACTIONS=3#default 0
+_g_conf.NUMBER_PREVIOUS_ACTIONS = 0
 _g_conf.USE_COLOR_AUG=0
 _g_conf.AUGMENT=0
 
@@ -104,18 +103,18 @@ _g_conf.IMPORTANCE_SAMPLE_METHOD = 'mean'  # mean / softmax / threshold
 _g_conf.SOFTMAX_TEMPER = 1.0
 _g_conf.THRESHOLD_RATIO = 0.1  # set top 10% as THRESHOLD_WEIGHT and others as 1
 _g_conf.THRESHOLD_WEIGHT = 5.0
-_g_conf.SPEED_INPUT=False #also relevant for ARP!
+_g_conf.SPEED_INPUT=True #also relevant for ARP!
 
 _g_conf.OPTIMIZER = 'Adam'
 _g_conf.LEARNING_RATE_DECAY_INTERVAL = 50000
 _g_conf.LEARNING_RATE_DECAY_LEVEL = 0.5
 _g_conf.LEARNING_RATE_THRESHOLD = 1000
 _g_conf.LEARNING_RATE = 0.0002  # First
-_g_conf.BRANCH_LOSS_WEIGHT = [0.95, 0.95, 0.95, 0.95, 0.05]
-_g_conf.VARIABLE_WEIGHT = {'Steer': 0.5, 'Gas_Brake': 0.5}
+_g_conf.BRANCH_LOSS_WEIGHT = [0.95, 0.95, 0.95, 0.95, 0.95, 0.95,0.05]
+_g_conf.VARIABLE_WEIGHT = {'Steer': 0.5, 'Gas': 0.45, "Brake": 0.05}
 _g_conf.USED_LAYERS_ATT = []
 
-_g_conf.LOSS_FUNCTION = 'L2'
+_g_conf.LOSS_FUNCTION = 'L1'
 
 """#### Simulation Related Parameters ####"""
 

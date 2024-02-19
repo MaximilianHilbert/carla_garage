@@ -9,7 +9,7 @@ def generate_batch_script(args, seed, training_repetition, baseline_folder_name,
         job_full_path=os.path.join(job_path, f"{baseline_folder_name}_{baseline_name.replace('.yaml', '')}_{str(training_repetition)}.sh")
         with open(job_full_path, 'w', encoding='utf-8') as f:
             command=f"""#!/bin/sh
-#SBATCH --job-name=reproduce_{baseline_folder_name}_{baseline_name}_{training_repetition}
+#SBATCH --job-name={baseline_folder_name}_{baseline_name}_{training_repetition}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --time=0-{walltime*args.dataset_repetition}:00

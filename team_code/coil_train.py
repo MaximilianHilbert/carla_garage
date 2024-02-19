@@ -32,7 +32,7 @@ def set_seed(seed):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-def merge_config_files(args, setting="all",training=True):
+def merge_config_files(args,training=True):
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
 
     merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline_folder_name, args.baseline_name+".yaml"))
@@ -40,7 +40,7 @@ def merge_config_files(args, setting="all",training=True):
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
     if training:
-        shared_configuration.initialize(root_dir=shared_configuration.root_dir, setting=setting)
+        shared_configuration.initialize(root_dir=shared_configuration.root_dir, setting=args.setting)
     #translates the necessary old argument names in the yaml file of the baseline to the new transfuser config, generating one shared object configuration
     shared_configuration.number_previous_actions=g_conf.NUMBER_PREVIOUS_ACTIONS
     shared_configuration.epochs=g_conf.EPOCHS
@@ -158,27 +158,20 @@ def get_free_training_port():
 
 
 def main(args):
-    if args.debug:
-        os.environ["RANK"]="0"
-        os.environ["WORLD_SIZE"]="1"
-        os.environ["MASTER_ADDR"]="127.0.0.1"
-        os.environ["MASTER_PORT"]="2334"
-        rank=0
-        device_id="cuda:0"
-    else:
-        world_size = int(os.environ['WORLD_SIZE'])
-        rank = int(os.environ['LOCAL_RANK'])
-        print(f"World-size {world_size}, Rank {rank}")
-        dist.init_process_group(backend="nccl",
-                                        init_method='env://',
-                                        world_size=world_size,
-                                        rank=rank)
-        if rank==0:
-            print("Backend initialized")
-        device_id = torch.device(f'cuda:{rank}')
+    
+    world_size = int(os.environ['WORLD_SIZE'])
+    rank = int(os.environ['LOCAL_RANK'])
+    print(f"World-size {world_size}, Rank {rank}")
+    dist.init_process_group(backend="nccl",
+                                    init_method='env://',
+                                    world_size=world_size,
+                                    rank=rank)
+    if rank==0:
+        print("Backend initialized")
+    device_id = torch.device(f'cuda:{rank}')
     
 
-    merged_config_object=merge_config_files(args.baseline_folder_name, args.baseline_name.replace(".yaml", ""), args.setting)
+    merged_config_object=merge_config_files(args)
     logger=Logger(merged_config_object.baseline_folder_name, merged_config_object.baseline_name, args.training_repetition)
     if rank==0:
         logger.create_tensorboard_logs()
@@ -486,7 +479,6 @@ if __name__=="__main__":
     parser.add_argument('--printing-step', dest="printing_step", type=int, default=10000)
     parser.add_argument('--adapt-lr-milestones', dest="adapt_lr_milestones", nargs="+",type=int, default=[30])
     parser.add_argument('--setting',type=str, default="all", help="coil requires to be trained on Town01 only, so Town01 are train conditions and Town02 is Test Condition")
-    parser.add_argument('--debug', type=int, default=0)
     parser.add_argument(
         '--dataset-repetition',
         type=int,
