@@ -35,7 +35,7 @@ def set_seed(seed):
 def merge_config_files(args, setting="all",training=True):
     #merge the old baseline config coil_config and the experiment dependent yaml config into one g_conf object
 
-    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline, args.experiment+".yaml"))
+    merge_with_yaml(os.path.join(os.environ.get("CONFIG_ROOT"), args.baseline_folder_name, args.baseline_name+".yaml"))
     
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
@@ -78,8 +78,8 @@ def merge_config_files(args, setting="all",training=True):
     shared_configuration.speed_input=g_conf.SPEED_INPUT
     shared_configuration.train_with_actions_as_input=g_conf.TRAIN_WITH_ACTIONS_AS_INPUT
     shared_configuration.correlation_weights=g_conf.CORRELATION_WEIGHTS
-    shared_configuration.baseline_folder_name=args.baseline
-    shared_configuration.baseline_name=args.experiment
+    shared_configuration.baseline_folder_name=args.baseline_folder_name
+    shared_configuration.baseline_name=args.baseline_name
     shared_configuration.auto_lr=g_conf.AUTO_LR
     shared_configuration.every_epoch=g_conf.EVERY_EPOCH
     shared_configuration.auto_lr_step=g_conf.AUTO_LR_STEP
