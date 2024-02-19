@@ -1,5 +1,6 @@
 ### General Configuration Parameters ####
 EVERY_EPOCH: 2 # The iterations where training checkpoints are going to be saved
+NUM_REPETITIONS: 3
 #### Input related parameters ####
 # A dictionary with all the sensors that are going to be used as input
 # this should match the train dataset
