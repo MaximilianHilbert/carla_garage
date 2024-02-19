@@ -1,8 +1,8 @@
 import os
 import subprocess
-def generate_batch_script(args, seed, training_repetition, baseline_folder_name, baseline_name):
+def generate_batch_script(args, seed, training_repetition, baseline_folder_name, baseline_name, batch_size, walltime):
     if args.train_local:
-        print("dummy train")
+        subprocess.check_output(f"torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {int(args.number_of_cpus/8)} --batch-size {batch_size}", shell=True)
     else:
         job_path=os.path.join(os.environ.get("WORK_DIR"), "job_files")
         os.makedirs(job_path, exist_ok=True)
@@ -12,11 +12,11 @@ def generate_batch_script(args, seed, training_repetition, baseline_folder_name,
 #SBATCH --job-name=reproduce_{baseline_folder_name}_{baseline_name}_{training_repetition}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --time=0-12:00
+#SBATCH --time=0-{walltime}:00
 #SBATCH --gres=gpu:8
-#SBATCH --partition=gpu-2080ti,gpu-v100
+#SBATCH --partition=gpu-2080ti
 #SBATCH --cpus-per-task={args.number_of_cpus}
-#SBATCH --mem=300G
+#SBATCH --mem=350G
 #SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
 
@@ -48,9 +48,9 @@ export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 # conda activate garage
 source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
-export OMP_NUM_THREADS=32  # Limits pytorch to spawn at most num cpus cores threads
+export OMP_NUM_THREADS={args.number_of_cpus}  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {int(args.number_of_cpus/8)} --batch-size {args.batch_size}
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training_repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline_folder_name {baseline_folder_name} --baseline_name {baseline_name} --number_of_workers {int(args.number_of_cpus/8)} --batch-size {batch_size}
         """
             f.write(command)
 def place_batch_scripts():
@@ -62,9 +62,9 @@ def place_batch_scripts():
         print(out)
 def main(args):
     for training_repetition, seed in enumerate(args.seeds):
-        for baseline_folder_name in args.baseline_folder_names:
+        for baseline_folder_name, batch_size, walltime in zip(args.baseline_folder_names,args.batch_sizes, args.walltimes):
             for baseline_name in os.listdir(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name)):
-                generate_batch_script(args,seed, training_repetition, baseline_folder_name, baseline_name)
+                generate_batch_script(args,seed, training_repetition, baseline_folder_name, baseline_name, batch_size, walltime)
     if not args.train_local:
         place_batch_scripts()
 if __name__ == '__main__':
@@ -87,16 +87,20 @@ if __name__ == '__main__':
         default=1
     )
     parser.add_argument(
-        '--batch-size',
-        dest='batch_size',
+        '--batch-sizes',
+        nargs="+",
         type=int,
-        default=30
     )
     parser.add_argument(
         '--train-local',
         dest='train_local',
         type=int,
         default=0
+    )
+    parser.add_argument(
+        '--walltimes',
+        nargs="+",
+        type=int,
     )
     args = parser.parse_args()
     main(args)
