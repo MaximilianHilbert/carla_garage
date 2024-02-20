@@ -21,11 +21,11 @@ def generate_batch_script(
         os.makedirs(job_path, exist_ok=True)
         job_full_path = os.path.join(
             job_path,
-            f"{baseline_folder_name}_{experiment.replace('.yaml', '')}_{str(training_repetition)}.sh",
+            f"{baseline_folder_name}_{experiment}_{str(training_repetition)}.sh",
         )
         with open(job_full_path, "w", encoding="utf-8") as f:
             command = f"""#!/bin/sh
-#SBATCH --job-name={baseline_folder_name}_{experiment.replace('.yaml', '')}_{training_repetition}
+#SBATCH --job-name={baseline_folder_name}_{experiment}_{training_repetition}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --time=0-{walltime*args.dataset_repetition}:00
@@ -94,7 +94,7 @@ def main(args):
                     seed,
                     training_repetition,
                     baseline_folder_name,
-                    experiment,
+                    experiment.replace(".yaml", ""),
                     batch_size,
                     walltime,
                 )

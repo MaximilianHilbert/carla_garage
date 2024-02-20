@@ -23,7 +23,6 @@ from coil_utils.baseline_helpers import (
 
 
 def main(args):
-    experiment=experiment.replace(".yaml", "")
     world_size = int(os.environ["WORLD_SIZE"])
     rank = int(os.environ["LOCAL_RANK"])
     print(f"World-size {world_size}, Rank {rank}")
@@ -466,7 +465,7 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument(
-        "--experiment", default=None, required=True
+        "--experiment", default=None, required=True, help="filename of experiment without .yaml"
     )
     parser.add_argument(
         "--number-of-workers",
