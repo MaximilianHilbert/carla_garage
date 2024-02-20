@@ -61,4 +61,4 @@ conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 # conda activate garage
 export OMP_NUM_THREADS=32  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline_folder_name arp --baseline_name arp_vanilla --number_of_workers 10 --training_repetition 0 --use-disk-cache 0 --batch-size 25
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline-folder-name arp --experiment arp_vanilla --number-of-workers 10 --training-repetition 0 --use-disk-cache 0 --batch-size 25
