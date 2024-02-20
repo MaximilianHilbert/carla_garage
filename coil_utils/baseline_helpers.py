@@ -122,7 +122,7 @@ def get_latest_saved_checkpoint(shared_config_object, repetition):
             f'{os.environ.get("WORK_DIR")}',
             "_logs",
             shared_config_object.baseline_folder_name,
-            shared_config_object.baseline_name,
+            shared_config_object.experiment,
             f"repetition_{str(repetition)}",
             "checkpoints",
         )
