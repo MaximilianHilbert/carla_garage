@@ -13,9 +13,9 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 
-def merge_with_yaml(transfuser_config_object, baseline_name):
+def merge_with_yaml(transfuser_config_object, baseline_name, experiment):
     with open(
-        os.path.join(os.environ.get("CONFIG_ROOT"), baseline_name + ".yaml"), "r"
+        os.path.join(os.environ.get("CONFIG_ROOT"), baseline_name, experiment + ".yaml"), "r"
     ) as f:
         yaml_config = yaml.safe_load(f)
     for key, value in yaml_config.items():
@@ -38,7 +38,7 @@ def merge_config_files(args, training=True):
         shared_configuration.initialize(
             root_dir=shared_configuration.root_dir, setting=args.setting
         )
-    merge_with_yaml(shared_configuration, args.baseline_folder_name)
+    merge_with_yaml(shared_configuration, args.baseline_folder_name, args.experiment)
     merge_with_command_line_args(shared_configuration, args)
     return shared_configuration
 
