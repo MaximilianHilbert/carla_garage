@@ -23,6 +23,7 @@ from coil_utils.baseline_helpers import (
 
 
 def main(args):
+    experiment=experiment.replace(".yaml", "")
     world_size = int(os.environ["WORLD_SIZE"])
     rank = int(os.environ["LOCAL_RANK"])
     print(f"World-size {world_size}, Rank {rank}")
@@ -36,13 +37,13 @@ def main(args):
     merged_config_object = merge_config_files(args)
     logger = Logger(
         merged_config_object.baseline_folder_name,
-        merged_config_object.baseline_name,
+        merged_config_object.experiment,
         args.training_repetition,
     )
     if rank == 0:
         logger.create_tensorboard_logs()
         print(
-            f"Start of Training {args.baseline_folder_name}, {args.baseline_name}, {args.training_repetition}"
+            f"Start of Training {args.baseline_folder_name}, {args.experiment}, {args.training_repetition}"
         )
     logger.create_checkpoint_logs()
     try:
@@ -56,7 +57,7 @@ def main(args):
                     os.environ.get("WORK_DIR"),
                     "_logs",
                     merged_config_object.baseline_folder_name,
-                    merged_config_object.baseline_name,
+                    merged_config_object.experiment,
                     f"repetition_{str(args.training_repetition)}",
                     "checkpoints",
                     get_latest_saved_checkpoint(
@@ -89,7 +90,7 @@ def main(args):
             shared_dict=shared_dict,
             rank=rank,
         )
-        if "keyframes" in args.baseline_name:
+        if "keyframes" in args.experiment:
             # load the correlation weights and reshape them, that the last 3 elements that do not fit into the batch size dimension get dropped, because the dataloader of Carla_Dataset does the same, it should fit
             list_of_files_path = os.path.join(
                 os.environ.get("WORK_DIR"),
@@ -115,7 +116,7 @@ def main(args):
             drop_last=True,
             sampler=sampler,
         )
-        if "arp" in args.baseline_name:
+        if "arp" in args.experiment:
             policy = CoILModel(merged_config_object.model_type,
                 merged_config_object
             )
@@ -133,7 +134,7 @@ def main(args):
             model.to(device_id)
             model = DDP(model, device_ids=[device_id])
         if merged_config_object.optimizer_baselines == "Adam":
-            if "arp" in args.baseline_name:
+            if "arp" in args.experiment:
                 policy_optimizer = optim.Adam(
                     policy.parameters(), lr=merged_config_object.learning_rate
                 )
@@ -156,7 +157,7 @@ def main(args):
                     optimizer, milestones=args.adapt_lr_milestones, gamma=0.1
                 )
         elif merged_config_object.optimizer == "SGD":
-            if "arp" in args.baseline_name:
+            if "arp" in args.experiment:
                 policy_optimizer = optim.SGD(
                     policy.parameters(),
                     lr=merged_config_object.learning_rate,
@@ -192,7 +193,7 @@ def main(args):
         ):
             accumulated_time = checkpoint["total_time"]
             already_trained_epochs = checkpoint["epoch"]
-            if "arp" in args.baseline_name:
+            if "arp" in args.experiment:
                 policy.load_state_dict(checkpoint["policy_state_dict"])
                 policy_optimizer.load_state_dict(checkpoint["policy_optimizer"])
                 mem_extract.load_state_dict(checkpoint["mem_extract_state_dict"])
@@ -208,7 +209,7 @@ def main(args):
             accumulated_time = 0
             already_trained_epochs = 0
         print("Before the loss")
-        if "keyframes" in args.baseline_name:
+        if "keyframes" in args.experiment:
             from coil_network.keyframes_loss import Loss
         else:
             from coil_network.loss import Loss
@@ -244,13 +245,13 @@ def main(args):
                     dim=1,
                 ).reshape(args.batch_size, 3)
                 if (
-                    "arp" in args.baseline_name
-                    or "bcoh" in args.baseline_name
-                    or "keyframes" in args.baseline_name
+                    "arp" in args.experiment
+                    or "bcoh" in args.experiment
+                    or "keyframes" in args.experiment
                 ):
                     temporal_images = data["temporal_rgb"].to(device_id) / 255.0
                     previous_action = data["previous_actions"].to(device_id)
-                if "arp" in args.baseline_name:
+                if "arp" in args.experiment:
                     current_speed_zero_speed = torch.zeros_like(current_speed)
                     mem_extract.zero_grad()
                     mem_extract_branches, memory = mem_extract(temporal_images)
@@ -305,7 +306,7 @@ def main(args):
                                 os.environ.get("WORK_DIR"),
                                 "_logs",
                                 merged_config_object.baseline_folder_name,
-                                merged_config_object.baseline_name,
+                                merged_config_object.experiment,
                                 f"repetition_{str(args.training_repetition)}",
                                 "checkpoints",
                                 str(epoch) + ".pth",
@@ -348,7 +349,7 @@ def main(args):
                     optimizer.zero_grad()
 
                 # TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
-                if "bcoh" in args.baseline_name or "keyframes" in args.baseline_name:
+                if "bcoh" in args.experiment or "keyframes" in args.experiment:
                     temporal_and_current_images = torch.cat(
                         [temporal_images, current_image], axis=1
                     )
@@ -358,10 +359,10 @@ def main(args):
                         )
                     else:
                         branches = model(temporal_and_current_images, current_speed)
-                if "bcso" in args.baseline_name:
+                if "bcso" in args.experiment:
                     branches = model(current_image, current_speed)
 
-                if "keyframes" in args.baseline_name:
+                if "keyframes" in args.experiment:
                     reweight_params = {
                         "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
                         "importance_sampling_threshold": action_predict_threshold,
@@ -373,7 +374,7 @@ def main(args):
                     }
                 else:
                     reweight_params = {}
-                if "arp" not in args.baseline_name:
+                if "arp" not in args.experiment:
                     loss_function_params = {
                         "branches": branches,
                         "targets": targets,
@@ -383,7 +384,7 @@ def main(args):
                         "branch_weights": merged_config_object.branch_loss_weight,
                         "variable_weights": merged_config_object.variable_weight,
                     }
-                    if "keyframes" in args.baseline_name:
+                    if "keyframes" in args.experiment:
                         loss, loss_info, _ = criterion(loss_function_params)
                     else:
                         loss, _ = criterion(loss_function_params)
@@ -412,7 +413,7 @@ def main(args):
                                 os.environ.get("WORK_DIR"),
                                 "_logs",
                                 merged_config_object.baseline_folder_name,
-                                merged_config_object.baseline_name,
+                                merged_config_object.experiment,
                                 f"repetition_{str(args.training_repetition)}",
                                 "checkpoints",
                                 str(epoch) + ".pth",
@@ -429,12 +430,12 @@ def main(args):
                                 f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}"
                             )
                         logger.add_scalar(
-                            f"{merged_config_object.baseline_name}_loss",
+                            f"{merged_config_object.experiment}_loss",
                             loss.data,
                             (epoch - 1) * len(data_loader) + iteration,
                         )
                         logger.add_scalar(
-                            f"{merged_config_object.baseline_name}_loss_Epochs",
+                            f"{merged_config_object.experiment}_loss_Epochs",
                             loss.data,
                             (epoch - 1),
                         )
@@ -454,24 +455,21 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", dest="seed", required=True, type=int, default=345345)
     parser.add_argument(
-        "--training_repetition",
-        dest="training_repetition",
+        "--training-repetition",
         type=int,
         default=0,
         required=True,
     )
     parser.add_argument(
-        "--baseline_folder_name",
-        dest="baseline_folder_name",
+        "--baseline-folder-name",
         default=None,
         required=True,
     )
     parser.add_argument(
-        "--baseline_name", dest="baseline_name", default=None, required=True
+        "--experiment", default=None, required=True
     )
     parser.add_argument(
-        "--number_of_workers",
-        dest="number_of_workers",
+        "--number-of-workers",
         default=12,
         type=int,
         required=True,
@@ -483,7 +481,6 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--adapt-lr-milestones",
-        dest="adapt_lr_milestones",
         nargs="+",
         type=int,
         default=[30],
