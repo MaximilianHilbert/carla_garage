@@ -474,10 +474,10 @@ if __name__ == "__main__":
         type=int,
         required=True,
     )
-    parser.add_argument("--use-disk-cache", dest="use_disk_cache", type=int, default=0)
-    parser.add_argument("--batch-size", dest="batch_size", type=int, default=30)
+    parser.add_argument("--use-disk-cache",type=int, default=0)
+    parser.add_argument("--batch-size", type=int, default=30)
     parser.add_argument(
-        "--printing-step", dest="printing_step", type=int, default=10000
+        "--printing-step", type=int, default=10000
     )
     parser.add_argument(
         "--adapt-lr-milestones",
