@@ -336,10 +336,10 @@ def main(args):
                     accumulated_time += time.time() - capture_time
                     if iteration % args.printing_step == 0 and rank == 0:
                         print(
-                            f"Epoch: {epoch} // Iteration: {iteration} // Policy_Loss: {policy_loss.data}"
+                            f"Epoch: {epoch} // Iteration: {iteration} // Policy_Loss: {policy_loss.data}\n"
                         )
                         print(
-                            f"Epoch: {epoch} // Iteration: {iteration} // Mem_Extract_Loss: {mem_extract_loss.data}"
+                            f"Epoch: {epoch} // Iteration: {iteration} // Mem_Extract_Loss: {mem_extract_loss.data}\n"
                         )
                     policy_scheduler.step()
                     mem_extract_scheduler.step()
@@ -426,7 +426,7 @@ def main(args):
                     if rank == 0:
                         if iteration % args.printing_step == 0:
                             print(
-                                f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}"
+                                f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}\n"
                             )
                         logger.add_scalar(
                             f"{merged_config_object.experiment}_loss",
