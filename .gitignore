@@ -142,5 +142,6 @@ carla_0_9_10
 /carla
 /pretrained_models
 /_logs
-/
 /action_correlation
+/vis
+/job_files
