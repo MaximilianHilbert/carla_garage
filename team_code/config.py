@@ -41,11 +41,11 @@ class GlobalConfig:
     self.model_type=None
     self.mem_extract_model_type = None
     self.mem_extract_model_configuration = {}
-    self.learning_rate= 0.0002
+    self.learning_rate= 0.0003
     self.branch_loss_weight=[0.95, 0.95, 0.95, 0.95, 0.95, 0.95,0.05]
     self.variable_weight = {'Steer': 0.5, 'Gas': 0.45, "Brake": 0.05}
     self.train_with_actions_as_input=False
-    self.every_epoch=5
+    self.every_epoch=2
     self.optimizer_baselines="Adam"
     self.loss_function_baselines="L1"
     #keyframes
@@ -402,7 +402,7 @@ class GlobalConfig:
 
     # Whether to normalize the camera image by the imagenet distribution
     self.normalize_imagenet = True
-    self.use_wp_gru = False  # Whether to use the WP output GRU.
+    self.use_wp_gru = True  # Whether to use the WP output GRU.
 
     # Semantic Segmentation
     self.use_semantic = False  # Whether to use semantic segmentation as auxiliary loss

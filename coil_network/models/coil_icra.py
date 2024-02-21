@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch
 import importlib
 
-
+from .building_blocks.gru import GRUWaypointsPredictorTransFuser
 from .building_blocks.conv import Conv
 from .building_blocks import Branching
 from .building_blocks import FC
@@ -14,6 +14,7 @@ class CoILICRA(nn.Module):
 
         super(CoILICRA, self).__init__()
         self.params = config.model_configuration
+        self.config=config
         number_first_layer_channels = 0
 
         number_first_layer_channels=3*config.img_seq_len    #3 color channels img_seq_len could be != 1, for instance in bcoh, keyframes baseline
@@ -87,13 +88,14 @@ class CoILICRA(nn.Module):
         branch_fc_vector = []
         for i in range(self.params['branches']['number_of_branches']):
             branch_fc_vector.append(FC(params={'neurons': [self.params['join']['fc']['neurons'][-1]] +
-                                                         self.params['branches']['fc']['neurons'] +
-                                                         [len(config.targets)],
+                                                         self.params['branches']['fc']['neurons'] 
+                                                         + [config.gru_input_size if config.use_wp_gru else len(config.targets)],
                                                'dropouts': self.params['branches']['fc']['dropouts'] + [0.0],
                                                'end_layer': True}))
 
         self.branches = Branching(branch_fc_vector)  # Here we set branching automatically
-
+        if config.use_wp_gru:
+            self.gru=GRUWaypointsPredictorTransFuser(config, target_point_size=2)
         if 'conv' in self.params['perception']:
             for m in self.modules():
                 if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
@@ -106,7 +108,7 @@ class CoILICRA(nn.Module):
                     nn.init.constant_(m.bias, 0.1)
 
 
-    def forward(self, x, a, pa=None):
+    def forward(self, x, a, pa=None,target_point=None):
         """ ###### APPLY THE PERCEPTION MODULE """
         x, inter = self.perception(x)
         ## Not a variable, just to store intermediate layers for future vizualization
@@ -130,7 +132,13 @@ class CoILICRA(nn.Module):
         branch_outputs = self.branches(j)
         speed_branch_output = self.speed_branch(x)
         # We concatenate speed with the rest.
-        return branch_outputs + [speed_branch_output]
+        if self.config.use_wp_gru:
+            waypoints_branched=[]
+            for single_branch in branch_outputs:
+                waypoints_branched.append(self.gru.forward(single_branch, target_point))
+            return waypoints_branched+ [speed_branch_output]
+        else:
+            return branch_outputs+ [speed_branch_output]
     def forward_branch(self, x, a, branch_number, pa=None):
         """
         DO a forward operation and return a single branch.

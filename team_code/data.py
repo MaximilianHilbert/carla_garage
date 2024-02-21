@@ -724,7 +724,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                        y_augmentation=aug_translation,
                                        yaw_augmentation=aug_rotation)
 
-        data['ego_waypoints'] = np.array(waypoints)
+        data['ego_waypoints'] = np.array(waypoints, dtype=np.float32)
 
     #Convert target speed to indexes
     brake = np.float32(current_measurement['brake'])
@@ -833,7 +833,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       target_point = self.augment_target_point(target_point,
                                               y_augmentation=aug_translation,
                                               yaw_augmentation=aug_rotation)
-      data['target_point'] = target_point
+      data['target_point'] = np.float32(target_point)
 
       aim_wp = np.array(current_measurement['aim_wp'])
       aim_wp = self.augment_target_point(aim_wp, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
