@@ -52,7 +52,7 @@ def weight_decay_l2(loss, model, intention_factors, alpha, gating):
     return loss
 
 
-def compute_branches_masks(controls, number_targets):
+def compute_branches_masks(controls, config):
     """
         Args
             controls
@@ -66,37 +66,41 @@ def compute_branches_masks(controls, number_targets):
     """
 
     """ A vector with a mask for each of the control branches"""
+    if config.use_wp_gru:
+        number_targets=2
+    else:
+        number_targets=3
     controls_masks = []
     #hardcoded and changes due to new carla dataset
     #0: LEFT, 1: RIGHT, 2: STRAIGHT, 3: LANEFOLLOW, 4: CHANGELANELEFT, 5: CHANGELANERIGHT
     controls_b0 = (controls == 0)
     controls_b0 = controls_b0.to(torch.float32)
-    controls_b0 = torch.cat([controls_b0] * number_targets, 1)
+    controls_b0 = torch.cat([controls_b0] * number_targets, 1).unsqueeze(1).repeat(1, config.pred_len, 1) if config.use_wp_gru else torch.cat([controls_b0] * number_targets, 1)
     controls_masks.append(controls_b0)
 
     controls_b1 = (controls == 1)
     controls_b1 = controls_b1.to(torch.float32)
-    controls_b1 = torch.cat([controls_b1] * number_targets, 1)
+    controls_b1 = torch.cat([controls_b1] * number_targets, 1).unsqueeze(1).repeat(1, config.pred_len, 1) if config.use_wp_gru else torch.cat([controls_b1] * number_targets, 1)
     controls_masks.append(controls_b1)
 
     controls_b2 = (controls == 2)
     controls_b2 = controls_b2.to(torch.float32)
-    controls_b2 = torch.cat([controls_b2] * number_targets, 1)
+    controls_b2 = torch.cat([controls_b2] * number_targets, 1).unsqueeze(1).repeat(1, config.pred_len, 1) if config.use_wp_gru else torch.cat([controls_b2] * number_targets, 1)
     controls_masks.append(controls_b2)
 
     controls_b3 = (controls == 3)
     controls_b3 = controls_b3.to(torch.float32)
-    controls_b3 = torch.cat([controls_b3] * number_targets, 1)
+    controls_b3 = torch.cat([controls_b3] * number_targets, 1).unsqueeze(1).repeat(1, config.pred_len, 1) if config.use_wp_gru else torch.cat([controls_b3] * number_targets, 1)
     controls_masks.append(controls_b3)
 
     controls_b4 = (controls == 4)
     controls_b4 = controls_b4.to(torch.float32)
-    controls_b4 = torch.cat([controls_b4] * number_targets, 1)
+    controls_b4 = torch.cat([controls_b4] * number_targets, 1).unsqueeze(1).repeat(1, config.pred_len, 1) if config.use_wp_gru else torch.cat([controls_b4] * number_targets, 1)
     controls_masks.append(controls_b4)
 
     controls_b5 = (controls == 5)
     controls_b5 = controls_b5.to(torch.float32)
-    controls_b5 = torch.cat([controls_b5] * number_targets, 1)
+    controls_b5 = torch.cat([controls_b5] * number_targets, 1).unsqueeze(1).repeat(1, config.pred_len, 1) if config.use_wp_gru else torch.cat([controls_b5] * number_targets, 1)
     controls_masks.append(controls_b5)
 
     return controls_masks
@@ -147,10 +151,10 @@ def l1_loss(params):
     loss_branches_vec = []
     for i in range(len(params['branches']) -1):
         loss_branches_vec.append(torch.abs((params['branches'][i] - params['targets'])
-                                           * params['controls_mask'][i])
-                                 * params['branch_weights'][i])
+                                        * params['controls_mask'][i])
+                                * params['branch_weights'][i])
     """ The last branch is a speed branch"""
     loss_branches_vec.append(torch.abs(params['branches'][-1] - params['inputs'])
-                             * params['branch_weights'][-1])
+                            * params['branch_weights'][-1])
     return loss_branches_vec, {}
 

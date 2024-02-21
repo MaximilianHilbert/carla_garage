@@ -12,6 +12,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from coil_utils.baseline_logging import Logger
+
 from coil_utils.baseline_helpers import (
     set_seed,
     get_controls_from_data,
@@ -19,6 +20,7 @@ from coil_utils.baseline_helpers import (
     is_ready_to_save,
     get_latest_saved_checkpoint,
     get_action_predict_loss_threshold,
+    visualize_model
 )
 
 
@@ -214,7 +216,7 @@ def main(args):
             from coil_network.loss import Loss
         criterion = Loss(merged_config_object.loss_function_baselines)
         for epoch in tqdm(
-            range(1 + already_trained_epochs, merged_config_object.epochs + 1),
+            range(1 + already_trained_epochs, merged_config_object.epochs_baselines + 1),
             disable=rank != 0,
         ):
             for iteration, data in enumerate(
@@ -235,14 +237,19 @@ def main(args):
                     ),
                 )
                 current_speed = data["speed"].to(device_id).reshape(args.batch_size, 1)
-                targets = torch.concat(
-                    [
-                        data["steer"].to(device_id).reshape(args.batch_size, 1),
-                        data["throttle"].to(device_id).reshape(args.batch_size, 1),
-                        data["brake"].to(device_id).reshape(args.batch_size, 1),
-                    ],
-                    dim=1,
-                ).reshape(args.batch_size, 3)
+                if merged_config_object.use_wp_gru:
+                    target_point=data["target_point"].to(device_id)
+                    targets=data["ego_waypoints"].to(device_id)
+                else:
+                    targets = torch.concat(
+                        [
+                            data["steer"].to(device_id).reshape(args.batch_size, 1),
+                            data["throttle"].to(device_id).reshape(args.batch_size, 1),
+                            data["brake"].to(device_id).reshape(args.batch_size, 1),
+                        ],
+                        dim=1,
+                    ).reshape(args.batch_size, 3)
+                
                 if (
                     "arp" in args.experiment
                     or "bcoh" in args.experiment
@@ -359,8 +366,8 @@ def main(args):
                     else:
                         branches = model(temporal_and_current_images, current_speed)
                 if "bcso" in args.experiment:
-                    branches = model(current_image, current_speed)
-
+                    branches = model(x=current_image, a=current_speed, target_point=target_point)
+                    
                 if "keyframes" in args.experiment:
                     reweight_params = {
                         "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
@@ -382,12 +389,15 @@ def main(args):
                         "inputs": current_speed,
                         "branch_weights": merged_config_object.branch_loss_weight,
                         "variable_weights": merged_config_object.variable_weight,
+                        "config": merged_config_object,
                     }
                     if "keyframes" in args.experiment:
                         loss, loss_info, _ = criterion(loss_function_params)
                     else:
-                        loss, _ = criterion(loss_function_params)
-
+                        loss, _ = criterion(loss_function_params, merged_config_object)
+                    # visualize_model(merged_config_object.baseline_folder_name,config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
+                    #                 rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
+                    #                 step=loss.cpu().detach().item(), target_point=data["target_point"],pred_wp=branches[controls[0].item()], gt_wp=targets)
                     loss.backward()
                     optimizer.step()
                     scheduler.step()

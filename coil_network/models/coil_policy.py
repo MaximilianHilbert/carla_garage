@@ -5,7 +5,7 @@ import importlib
 from .building_blocks import Branching
 from .building_blocks import FC
 from .building_blocks import Join
-
+from .building_blocks.gru import GRUWaypointsPredictorTransFuser
 
 class CoILPolicy(nn.Module):
 
@@ -13,7 +13,7 @@ class CoILPolicy(nn.Module):
 
         super(CoILPolicy, self).__init__()
         self.params = config.model_configuration
-
+        self.config=config
         number_first_layer_channels=3
 
         sensor_input_shape = [number_first_layer_channels,
@@ -80,7 +80,7 @@ class CoILPolicy(nn.Module):
                     params={
                         'neurons': [self.params['join']['fc']['neurons'][-1]]
                                     + self.params['branches']['fc']['neurons']
-                                    + [len(config.targets)],
+                                    + [config.gru_input_size if config.use_wp_gru else len(config.targets)],
                         'dropouts': self.params['branches']['fc']['dropouts'] + [0.0],
                         'end_layer': True
                     }
@@ -88,8 +88,9 @@ class CoILPolicy(nn.Module):
             )
 
         self.branches = Branching(branch_fc_vector)
-
-    def forward(self, x, v, memory):
+        if config.use_wp_gru:
+            self.gru=GRUWaypointsPredictorTransFuser(config, target_point_size=2)
+    def forward(self, x, v, memory, target_point=None):
     
         x, _ = self.perception(x)
 
@@ -101,8 +102,11 @@ class CoILPolicy(nn.Module):
         branch_outputs = self.branches(j)
         
         speed_branch_output = self.speed_branch(x)
-
-        return branch_outputs + [speed_branch_output]
+        if self.config.use_wp_gru:
+            waypoints=self.gru.forward(self.branch_outputs + [speed_branch_output], target_point)
+        else:
+            waypoints=None
+        return branch_outputs + [speed_branch_output], waypoints
 
     def forward_branch(self, x, v, branch_number, memory):
     
