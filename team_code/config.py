@@ -35,13 +35,14 @@ class GlobalConfig:
     self.img_seq_len=1
     self.targets=['steer', 'throttle', "brake"]
     self.inputs=["speed"]
-
+    self.speed_factor=12
     #Training
     self.model_configuration={}
     self.model_type=None
     self.mem_extract_model_type = None
     self.mem_extract_model_configuration = {}
     self.learning_rate= 0.0003
+
     self.branch_loss_weight=[0.95, 0.95, 0.95, 0.95, 0.95, 0.95,0.05]
     self.variable_weight = {'Steer': 0.5, 'Gas': 0.45, "Brake": 0.05}
     self.train_with_actions_as_input=False
@@ -287,7 +288,7 @@ class GlobalConfig:
     self.lidar_aug_prob = 1.0  # Probability with which data augmentation is applied to the LiDAR image.
     self.freeze_backbone = False  # Whether to freeze the image backbone during training. Useful for 2 stage training.
     self.learn_multi_task_weights = False  # Whether to learn the multi-task weights
-    self.use_bev_semantic = False  # Whether to use bev semantic segmentation as auxiliary loss for training.
+    self.use_bev_semantic = True  # Whether to use bev semantic segmentation as auxiliary loss for training.
     self.use_depth = False  # Whether to use depth prediction as auxiliary loss for training.
     self.num_repetitions = 3  # How many repetitions of the dataset we train with.
     self.continue_epoch = True  # Whether to continue the training from the loaded epoch or from 0.
@@ -402,7 +403,7 @@ class GlobalConfig:
 
     # Whether to normalize the camera image by the imagenet distribution
     self.normalize_imagenet = True
-    self.use_wp_gru = True  # Whether to use the WP output GRU.
+    self.use_wp_gru = False  # Whether to use the WP output GRU.
 
     # Semantic Segmentation
     self.use_semantic = False  # Whether to use semantic segmentation as auxiliary loss
@@ -525,10 +526,10 @@ class GlobalConfig:
     # Iou threshold used for non-maximum suppression on the Bounding Box
     # predictions for the ensembles
     self.iou_treshold_nms = 0.2
-    self.route_planner_min_distance = 7.5
+    self.route_planner_min_distance = 10
     self.route_planner_max_distance = 50.0
     # Min distance to the waypoint in the dense rout that the expert is trying to follow
-    self.dense_route_planner_min_distance = 3.5
+    self.dense_route_planner_min_distance = 7.5
     self.dense_route_planner_max_distance = 50.0
     self.action_repeat = 1  # Number of times we repeat the networks action.
     # Number of frames after which the creep controller starts triggering. 1100 is larger than wait time at red light.

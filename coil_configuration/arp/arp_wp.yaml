@@ -44,3 +44,5 @@ mem_extract_model_configuration:  # based on the model_type, we specify the stru
       dropouts: [0.0, 0.5]
 
 pre_trained: true  # if the weights are started with imagenet.
+use_wp_gru: true
+
