@@ -3,9 +3,10 @@ import math
 import itertools
 import numpy.random as random
 
+import os
 import carla
 import py_trees
-from coil_configuration.coil_config import g_conf
+from team_code.nav_planner import interpolate_trajectory
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 from team_code.nav_planner import RoutePlanner
@@ -39,8 +40,7 @@ WEATHERS = {
 class NoCrashEvalScenario(RouteScenario):
     category = "NoCrashEvalScenario"
     
-    def __init__(self, world, agent, start_idx, target_idx, weather_idx, traffic_idx, debug_mode=0, criteria_enable=True):
-
+    def __init__(self, world, agent, start_idx, target_idx, weather_idx, traffic_idx, config,debug_mode=0, criteria_enable=True):
         # Overwrite
         self.list_scenarios = []
         
@@ -49,13 +49,19 @@ class NoCrashEvalScenario(RouteScenario):
         self.start_idx = start_idx
         self.target_idx = target_idx
         self.traffic_idx = traffic_idx
-
+        self.config=config
         self.agent = agent
 
         # Set route
         self._set_route()
-        self.agent._route_planner=RoutePlanner(min_distance=g_conf.PLANNER_MIN_DISTANCE, max_distance=g_conf.PLANNER_MAX_DISTANCE)
 
+        trajectory = [item[0].location for item in self.agent._global_plan_world_coord]
+        self.agent.dense_route, _ = interpolate_trajectory(CarlaDataProvider.get_map(), trajectory)  # privileged
+        self.agent._waypoint_planner=RoutePlanner(min_distance=self.config.route_planner_min_distance, max_distance=self.config.route_planner_max_distance)
+        self.agent._waypoint_planner.set_route(self.agent.dense_route, True)
+
+
+        self.agent._route_planner = RoutePlanner(self.config.route_planner_min_distance, self.config.route_planner_max_distance)
         self.agent._route_planner.set_route(self.agent._global_plan_world_coord, nocrash=True, gps=False)
         
         ego_vehicle = self._update_ego_vehicle()
@@ -71,7 +77,6 @@ class NoCrashEvalScenario(RouteScenario):
         )
 
         self.list_scenarios = []
-        
     def _set_route(self, hop_resolution=1.0):
 
         world = CarlaDataProvider.get_world()

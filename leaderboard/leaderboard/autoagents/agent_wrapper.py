@@ -13,7 +13,8 @@ from __future__ import print_function
 import math
 import os
 import time
-
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
 import carla
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -67,7 +68,6 @@ class AgentWrapper(object):
         Set the autonomous agent
         """
         self._agent = agent
-
     def __call__(self):
         """
         Pass the call directly to the agent
