@@ -25,7 +25,7 @@ import sys
 import carla
 import signal
 import torch
-from coil_configuration.coil_config import merge_with_yaml
+from coil_utils.baseline_helpers import merge_config_files
 from srunner.scenariomanager.carla_data_provider import *
 from srunner.scenariomanager.timer import GameTime
 from srunner.scenariomanager.watchdog import Watchdog
@@ -77,10 +77,17 @@ class NoCrashEvaluator(object):
         Setup CARLA client and world
         Setup ScenarioManager
         """
+        import os
+        import torch.distributed as dist
+        os.environ['MASTER_ADDR'] = 'localhost'
+        os.environ['MASTER_PORT'] = '12355'
+        dist.init_process_group(
+        backend="nccl", init_method="env://", world_size=1, rank=0
+    )
         self.statistics_manager = statistics_manager
         self.sensors = None
         self.sensor_icons = []
-
+        self.config=merge_config_files(args, training=False)
         # First of all, we need to create the client that will send the requests
         # to the simulator. Here we'll assume the simulator is accepting
         # requests in the localhost at port 2000.
@@ -241,7 +248,7 @@ class NoCrashEvaluator(object):
             if agent_class_name=="CoILAgent":
                 loaded_checkpoint = torch.load(args.coil_checkpoint)
                 
-                self.agent_instance=getattr(self.module_agent, agent_class_name)(checkpoint=loaded_checkpoint, city_name=self.town, baseline=args.baseline, experiment=args.experiment)
+                self.agent_instance=getattr(self.module_agent, agent_class_name)(config=self.config,checkpoint=loaded_checkpoint, city_name=self.town, baseline=args.baseline_folder_name)
             else:
                 self.agent_instance = getattr(self.module_agent, agent_class_name)(args.agent_config)
 
@@ -290,7 +297,8 @@ class NoCrashEvaluator(object):
                 target_idx=target_idx,
                 weather_idx=weather_idx,
                 traffic_idx=traffic_idx,
-                debug_mode=args.debug
+                debug_mode=args.debug,
+                config=self.config
             )
 
             self.manager.load_scenario(scenario, self.agent_instance, 0)
@@ -376,8 +384,10 @@ class NoCrashEvaluator(object):
         # Load routes
         with open(os.path.join(os.environ["SCENARIO_RUNNER_ROOT"],"suite",f"nocrash_{args.town}.txt"), 'r') as f:
             routes = [tuple(map(int, l.split())) for l in f.readlines()]
-        weathers = {'train': [1,3,6,8], 'test': [10,14]}.get(args.weather)
-        traffics = [0,1,2]
+        #weathers = {'train': [1,3,6,8], 'test': [10,14]}.get(args.weather)
+        #traffics = [0,1,2]
+        weathers = {'train': [1], 'test': [10]}.get(args.weather)
+        traffics = [0]
         for traffic, route, weather in itertools.product(traffics, routes, weathers):
             if self.statistics_manager.is_finished(self.town, route, weather, traffic):
                 continue

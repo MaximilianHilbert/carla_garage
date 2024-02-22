@@ -48,7 +48,7 @@ if __name__ == '__main__':
     parser.add_argument("--log_path", required=True, help="Set this to be your path to the log file for evaluation")
     parser.add_argument("--coil_checkpoint", help="Set this to be your path to the previously recorded checkpoint file of the coiltraine framework")
     parser.add_argument("--experiment", help="either arp bcoh bcso keyframes")
-    parser.add_argument("--baseline", help="either arp bcoh bcso keyframes")
+    parser.add_argument("--baseline-folder-name", help="either arp bcoh bcso keyframes")
     args = parser.parse_args()
     
     main(args)
