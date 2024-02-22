@@ -366,8 +366,10 @@ def main(args):
                     else:
                         branches = model(temporal_and_current_images, current_speed)
                 if "bcso" in args.experiment:
-                    branches = model(x=current_image, a=current_speed, target_point=target_point)
-                    
+                    if merged_config_object.use_wp_gru:
+                        branches = model(x=current_image, a=current_speed, target_point=target_point)
+                    else:
+                        branches = model(x=current_image, a=current_speed)
                 if "keyframes" in args.experiment:
                     reweight_params = {
                         "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
@@ -486,7 +488,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-disk-cache",type=int, default=0)
     parser.add_argument("--batch-size", type=int, default=30)
     parser.add_argument(
-        "--printing-step", type=int, default=10000
+        "--printing-step", type=int, default=100
     )
     parser.add_argument(
         "--adapt-lr-milestones",

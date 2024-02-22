@@ -10,8 +10,6 @@ from .building_blocks import Join
 class CoILICRA(nn.Module):
 
     def __init__(self, config):
-        # TODO: Improve the model autonaming function
-
         super(CoILICRA, self).__init__()
         self.params = config.model_configuration
         self.config=config
@@ -108,7 +106,7 @@ class CoILICRA(nn.Module):
                     nn.init.constant_(m.bias, 0.1)
 
 
-    def forward(self, x, a, pa=None,target_point=None):
+    def forward(self, x, a, target_point=None, pa=None):
         """ ###### APPLY THE PERCEPTION MODULE """
         x, inter = self.perception(x)
         ## Not a variable, just to store intermediate layers for future vizualization
@@ -139,7 +137,7 @@ class CoILICRA(nn.Module):
             return waypoints_branched+ [speed_branch_output]
         else:
             return branch_outputs+ [speed_branch_output]
-    def forward_branch(self, x, a, branch_number, pa=None):
+    def forward_branch(self, x, a, branch_number, target_point=None,pa=None):
         """
         DO a forward operation and return a single branch.
 
@@ -155,7 +153,7 @@ class CoILICRA(nn.Module):
         """
         # Convert to integer just in case .
         # TODO: take four branches, this is hardcoded
-        output = self.forward(x, a, pa)
+        output = self.forward(x, a, target_point,pa)
         self.predicted_speed = output[-1]
         control = output[0:6]
         output_vec = torch.stack(control)

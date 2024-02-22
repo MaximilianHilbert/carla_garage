@@ -69,6 +69,7 @@ def branched_loss(loss_function, params, config):
     speed_loss = loss_branches_vec[-1]/ (params['branches'][0].shape[0])
     if config.use_wp_gru:
         return torch.mean(loss_function)+ torch.sum(speed_loss) / params['branches'][0].shape[0],plotable_params
+    
     return torch.sum(loss_function) / (params['branches'][0].shape[0])\
                 + torch.sum(speed_loss) / (params['branches'][0].shape[0]),\
            plotable_params
