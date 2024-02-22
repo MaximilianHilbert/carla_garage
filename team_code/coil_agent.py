@@ -9,7 +9,8 @@ import random
 import time
 import cv2
 from collections import deque
-from coil_configuration.coil_config import g_conf
+from coil_utils.baseline_helpers import merge_config_files
+from torch.nn.parallel import DistributedDataParallel as DDP
 import matplotlib.pyplot as plt
 from leaderboard.envs.sensor_interface import SensorInterface
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
@@ -19,34 +20,44 @@ from coil_network.coil_model import CoILModel
 from coil_planner.planner import Planner
 from team_code.transfuser_utils import preprocess_compass, inverse_conversion_2d
 import carla
-from team_code.coil_train import merge_config_files
-
+import torch.distributed as dist
+from team_code.transfuser_utils import PIDController
 def get_entry_point():
   return 'CoILAgent'
 
 class CoILAgent(AutonomousAgent):
     #TODO check for double image input in original_image_list; change from priviledged input to gps/velocity dont forget to correctly transform to new ego vehicle 
     #TODO Before retraining, adapt to modern logging 
-    def __init__(self, checkpoint, baseline, experiment, city_name="Town01",carla_version='0.9'):
+    def __init__(self, checkpoint, baseline, config, city_name="Town01",carla_version='0.9'):
         # Set the carla version that is going to be used by the interface
         self._carla_version = carla_version
         self.checkpoint = checkpoint  # We save the checkpoint for some interesting future use.
-        self.config=merge_config_files(baseline, experiment, training=False)
+        self.config=config
         if baseline in ["bcoh", "bcso"]:
-            self.model=CoILModel("coil-icra", g_conf.MODEL_CONFIGURATION)
+            model=CoILModel("coil-icra", self.config)
+            model.to("cuda:0")
+            self.model=DDP(model, device_ids=["cuda:0"])
             self.model.load_state_dict(checkpoint['state_dict'])
             self.model.cuda()
             self.model.eval()
         else:
-            self._policy = CoILModel("coil-policy", g_conf.MODEL_CONFIGURATION)
-            self._mem_extract = CoILModel("coil-memory", g_conf.MEM_EXTRACT_MODEL_CONFIGURATION)
+            self._policy = CoILModel("coil-policy",self.config)
+            self._mem_extract = CoILModel("coil-memory",self.config)
             self._policy.load_state_dict(checkpoint['policy_state_dict'])
             self._mem_extract.load_state_dict(checkpoint['mem_extract_state_dict'])
             self._mem_extract.cuda()
             self._mem_extract.eval()
             self._policy.cuda()
             self._policy.eval()
-        
+        self.turn_controller = PIDController(k_p=config.turn_kp,
+                                             k_i=config.turn_ki,
+                                             k_d=config.turn_kd,
+                                             n=config.turn_n)
+        self.speed_controller = PIDController(k_p=config.speed_kp,
+                                              k_i=config.speed_ki,
+                                              k_d=config.speed_kd,
+                                              n=config.speed_n)
+
         self.first_iter = True
         #self.rgb_queue=deque(maxlen=g_conf.NUMBER_FRAMES_FUSION)
         self.rgb_queue=deque(maxlen=self.config.img_seq_len-1)
@@ -67,6 +78,8 @@ class CoILAgent(AutonomousAgent):
         self.latest_image = None
         self.latest_image_tensor = None
         self.target_point_prev=0
+    
+        
     def sensors(self):
         return [{'type': 'sensor.camera.rgb', 'x': self.config.camera_pos[0], 'y': self.config.camera_pos[1], 'z': self.config.camera_pos[2], 'roll': self.config.camera_rot_0[0], 'pitch': self.config.camera_rot_0[1], 'yaw': self.config.camera_rot_0[2],
                       'width': self.config.camera_width, 'height': self.config.camera_height, 'fov': self.config.camera_fov, 'id': 'CentralRGB', 'sensor_tick': self.config.carla_fps},
@@ -138,13 +151,13 @@ class CoILAgent(AutonomousAgent):
         measurements=sensor_data.get("imu")
         current_location=self.vehicle.get_location()
         current_location=np.array([current_location.x, current_location.y])
-        waypoint_route=self._route_planner.run_step(current_location)
+        waypoint_route=self._waypoint_planner.run_step(current_location)
         if len(waypoint_route) > 2:
-            target_point_location, end_point_yaw,high_level_command = waypoint_route[1]
+            target_point_location,high_level_command = waypoint_route[1]
         elif len(waypoint_route) > 1:
-            target_point_location, end_point_yaw,high_level_command = waypoint_route[1]
+            target_point_location,high_level_command = waypoint_route[1]
         else:
-            target_point_location, end_point_yaw,high_level_command = waypoint_route[0]
+            target_point_location,high_level_command = waypoint_route[0]
         
         if (target_point_location != self.target_point_prev).all():
             self.target_point_prev=target_point_location
@@ -154,24 +167,33 @@ class CoILAgent(AutonomousAgent):
         current_orientation_ego_system=np.array([*self.yaw_to_orientation(current_yaw_ego_system)])
 
         #do the same for the end_point position/orientation
-        end_point_yaw_ego_system=preprocess_compass(end_point_yaw)
-        end_point_orientation_ego_system=np.array([*self.yaw_to_orientation(end_point_yaw_ego_system)])
+        #end_point_yaw_ego_system=preprocess_compass(end_point_yaw)
+        #end_point_orientation_ego_system=np.array([*self.yaw_to_orientation(end_point_yaw_ego_system)])
         end_point_location_ego_system=inverse_conversion_2d(target_point_location, current_location, current_yaw_ego_system)
 
         #Conversion to old convention necessary in carla >=0.9, only take BGR Values without alpha channel and convert to RGB for the model
         current_image=sensor_data.get("CentralRGB")[1][...,:3]
         current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
 
-       
-        directions = self._get_directions(current_location, current_orientation_ego_system, target_point_location, end_point_orientation_ego_system)
+        dic={
+            4: 3,
+            1:0,
+            2:1,
+            3:2
+        }
+        #directions = self._get_directions(current_location, current_orientation_ego_system, target_point_location, end_point_orientation_ego_system)
+        directions=dic[high_level_command.value]
         velocity_vector=self.vehicle.get_velocity()
         # Take the forward speed and normalize it for it to go from 0-1
-        norm_speed=np.sqrt(np.square(velocity_vector.x)+np.square(velocity_vector.y))/g_conf.SPEED_FACTOR
-        if perturb_speed and norm_speed < 0.01:
-            norm_speed += random.uniform(0.05, 0.15)
+        norm_speed=np.linalg.norm(np.array([velocity_vector.x, velocity_vector.y]))#/self.config.speed_factor
+        # if perturb_speed and norm_speed < 0.01:
+        #     norm_speed += random.uniform(0.05, 0.15)
         norm_speed = torch.cuda.FloatTensor([norm_speed]).unsqueeze(0)
-        if self.config.speed_input:
-            measurement_input = norm_speed
+        if self.config.baseline_folder_name not in ["arp"]:
+            if self.config.use_wp_gru:
+                measurement_input = norm_speed
+            else:
+                measurement_input = norm_speed/self.config.speed_factor
         else:
             measurement_input = torch.zeros_like(norm_speed)
         directions_tensor = torch.cuda.LongTensor([directions])
@@ -196,20 +218,24 @@ class CoILAgent(AutonomousAgent):
                     model_outputs = self.model.forward_branch(torch.unsqueeze(single_image,0), measurement_input,directions_tensor,
                                                               torch.from_numpy(np.array(self.previous_actions).astype(np.float)).type(torch.FloatTensor).unsqueeze(0).cuda())
                 else:
-                    model_outputs = self.model.forward_branch(torch.unsqueeze(single_image,0), measurement_input,
-                                                        directions_tensor)
-            predicted_speed = self.model.extract_predicted_speed().cpu().detach().numpy()
-        
-        steer, throttle, brake = self._process_model_outputs(model_outputs[0], norm_speed, predicted_speed, avoid_stop)
+                    if self.config.use_wp_gru:
+                        model_outputs = self.model.module.forward_branch(x=torch.unsqueeze(single_image,0), a=measurement_input,
+                                                            branch_number=directions_tensor, target_point=torch.tensor([end_point_location_ego_system], device="cuda:0", dtype=torch.float32))
+                    else:
+                        model_outputs = self.model.module.forward_branch(x=torch.unsqueeze(single_image,0), a=measurement_input,
+                                                            branch_number=directions_tensor)
+            predicted_speed = self.model.module.extract_predicted_speed().cpu().detach().numpy()
+        if self.config.use_wp_gru:
+            model_outputs=model_outputs.cpu().detach()
+            steer, throttle, brake=self.control_pid(waypoints=model_outputs,velocity=norm_speed.cpu().detach().numpy())
+        else:
+            steer, throttle, brake = self._process_model_outputs_actions(model_outputs[0], norm_speed, predicted_speed, avoid_stop)
         control = carla.VehicleControl()
         control.steer = float(steer)
         control.throttle=float(throttle)
         control.brake = float(brake)
     
         # There is the posibility to replace some of the predictions with oracle predictions.
-        if g_conf.USE_ORACLE:
-            _, control.throttle, control.brake = self._get_oracle_prediction(
-                measurements, target)
         self.first_iter = False
 
        
@@ -219,7 +245,58 @@ class CoILAgent(AutonomousAgent):
         print("current location")
         print(current_location)
         return control, current_image
+    
+    def control_pid(self, waypoints, velocity):
+        """
+        Predicts vehicle control with a PID controller.
+        Used for waypoint predictions
+        """
+        assert waypoints.size(0) == 1
+        waypoints = waypoints[0]
 
+        speed = velocity[0]
+
+        # m / s required to drive between waypoint 0.5 and 1.0 second in the future
+        one_second = int(self.config.carla_fps // (self.config.wp_dilation * self.config.data_save_freq))
+        half_second = one_second // 2
+        desired_speed = np.linalg.norm(waypoints[half_second - 1] - waypoints[one_second - 1]) * 2.0
+
+        brake = ((desired_speed < self.config.brake_speed) or ((speed / desired_speed) > self.config.brake_ratio))
+
+        delta = np.clip(desired_speed - speed, 0.0, self.config.clip_delta)
+        throttle = self.speed_controller.step(delta)
+        throttle = np.clip(throttle, 0.0, self.config.clip_throttle)
+        throttle = throttle if not brake else 0.0
+
+        # To replicate the slow TransFuser behaviour we have a different distance
+        # inside and outside of intersections (detected by desired_speed)
+        if desired_speed < self.config.aim_distance_threshold:
+            aim_distance = self.config.aim_distance_slow
+        else:
+            aim_distance = self.config.aim_distance_fast
+
+        # We follow the waypoint that is at least a certain distance away
+        aim_index = waypoints.shape[0] - 1
+        for index, predicted_waypoint in enumerate(waypoints):
+            if np.linalg.norm(predicted_waypoint) >= aim_distance:
+                aim_index = index
+                break
+
+        aim = waypoints[aim_index]
+        angle = np.degrees(np.arctan2(aim[1], aim[0])) / 90.0
+        if speed < 0.01:
+        # When we don't move we don't want the angle error to accumulate in the integral
+            angle = 0.0
+        if brake:
+            angle = 0.0
+
+        steer = self.turn_controller.step(angle)
+
+        steer = np.clip(steer, -1.0, 1.0)  # Valid steering values are in [-1,1]
+
+        return steer, throttle, brake
+
+        
     def get_attentions(self, layers=None):
         """
 
@@ -277,21 +354,21 @@ class CoILAgent(AutonomousAgent):
         self.latest_image_tensor=multi_image_input
         return current_image, multi_image_input
 
-    def _process_model_outputs(self, outputs, norm_speed, predicted_speed, avoid_stop=True):
+    def _process_model_outputs_actions(self, outputs, norm_speed, predicted_speed, avoid_stop=True):
         """
          A bit of heuristics in the control, to eventually make car faster, for instance.
         Returns:
 
         """
-        assert len(g_conf.TARGETS) == len(outputs), 'the dimension of outputs does not match the TARGETS!'
-        if len(g_conf.TARGETS) == 3:
+        assert len(self.config.targets) == len(outputs), 'the dimension of outputs does not match the TARGETS!'
+        if len(self.config.targets) == 3:
             steer, throttle, brake = float(outputs[0]), float(outputs[1]), float(outputs[2])
             if brake < 0.05:
                 brake = 0.0
 
             if throttle > brake:
                 brake = 0.0
-        elif len(g_conf.TARGETS) == 2:
+        elif len(self.config.targets) == 2:
             steer, throttle_brake = float(outputs[0]), float(outputs[1])
             if throttle_brake >= 0:
                 throttle = throttle_brake
@@ -303,11 +380,11 @@ class CoILAgent(AutonomousAgent):
             raise Exception('only support 2 or 3 dimensional outputs')
 
         if avoid_stop:
-            real_speed = norm_speed * g_conf.SPEED_FACTOR
-            real_predicted_speed = predicted_speed * g_conf.SPEED_FACTOR
+            real_speed = norm_speed * self.config.speed_factor
+            real_predicted_speed = predicted_speed * self.config.speed_factor
 
             if real_speed < 5.0 and real_predicted_speed > 6.0:  # If (Car Stooped) and ( It should not have stoped)
-                throttle += 20.0 / g_conf.SPEED_FACTOR - norm_speed
+                throttle += 20.0 / self.config.speed_factor - norm_speed
                 brake = 0.0
 
         return steer, throttle, brake
