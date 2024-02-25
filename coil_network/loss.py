@@ -44,11 +44,6 @@ def branched_loss(loss_function, params, config):
     Returns
         The computed loss function, but also a dictionary with plotable variables for tensorboard
     """
-    controls_mask = LF.compute_branches_masks(params['controls'],config)
-   
-    # Update the dictionary to add also the controls mask.
-    params.update({'controls_mask': controls_mask})
-
     # calculate loss for each branch with specific activation
     loss_branches_vec, plotable_params = loss_function(params)
 
@@ -64,8 +59,9 @@ def branched_loss(loss_function, params, config):
                 loss_branches_vec[i] = loss_branches_vec[i][:, 0] * params['variable_weights']['Steer'] \
                                     + loss_branches_vec[i][:, 1] * params['variable_weights']['Gas_Brake']
 
-    loss_function = loss_branches_vec[0] + loss_branches_vec[1] + loss_branches_vec[2] + \
-                        loss_branches_vec[3]+loss_branches_vec[4]+loss_branches_vec[5]
+    # loss_function = loss_branches_vec[0] + loss_branches_vec[1] + loss_branches_vec[2] + \
+    #                     loss_branches_vec[3]+loss_branches_vec[4]+loss_branches_vec[5]
+    loss_function=loss_branches_vec[0]
     speed_loss = loss_branches_vec[-1]/ (params['branches'][0].shape[0])
     if config.use_wp_gru:
         return torch.mean(loss_function)+ torch.sum(speed_loss) / params['branches'][0].shape[0],plotable_params

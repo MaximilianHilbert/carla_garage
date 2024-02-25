@@ -18,12 +18,8 @@ class GRUWaypointsPredictorTransFuser(nn.Module):
   def forward(self, z, target_point):
     output_wp = []
 
-    # initial input variable to GRU
-    if self.config.learn_origin:
-      x = z[:, self.config.gru_hidden_size:(self.config.gru_hidden_size + 2)]  # Origin of the waypoints
-      z = z[:, :self.config.gru_hidden_size]
-    else:
-      x = torch.zeros(size=(z.shape[0], 2), dtype=z.dtype).to(z.device)
+
+    x = torch.zeros(size=(z.shape[0], 2), dtype=z.dtype).to(z.device)
 
     target_point = target_point.clone()
 

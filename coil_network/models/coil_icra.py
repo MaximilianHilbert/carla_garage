@@ -89,7 +89,7 @@ class CoILICRA(nn.Module):
                                                          self.params['branches']['fc']['neurons'] 
                                                          + [config.gru_input_size if config.use_wp_gru else len(config.targets)],
                                                'dropouts': self.params['branches']['fc']['dropouts'] + [0.0],
-                                               'end_layer': True}))
+                                               'end_layer': False}))
 
         self.branches = Branching(branch_fc_vector)  # Here we set branching automatically
         if config.use_wp_gru:
