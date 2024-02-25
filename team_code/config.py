@@ -363,7 +363,7 @@ class GlobalConfig:
     # -----------------------------------------------------------------------------
     # Waypoint GRU
     self.gru_hidden_size = 64
-    self.gru_input_size = 256
+    self.gru_input_size = 64
 
     # Conv Encoder
     self.img_vert_anchors = self.camera_height // 32
