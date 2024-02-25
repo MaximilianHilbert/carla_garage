@@ -70,6 +70,7 @@ def compute_branches_masks(controls, config):
         number_targets=2
     else:
         number_targets=3
+    
     controls_masks = []
     #hardcoded and changes due to new carla dataset
     #0: LEFT, 1: RIGHT, 2: STRAIGHT, 3: LANEFOLLOW, 4: CHANGELANELEFT, 5: CHANGELANERIGHT
@@ -150,8 +151,7 @@ def l1_loss(params):
     """ It is a vec for each branch"""
     loss_branches_vec = []
     for i in range(len(params['branches']) -1):
-        loss_branches_vec.append(torch.abs((params['branches'][i] - params['targets'])
-                                        * params['controls_mask'][i])
+        loss_branches_vec.append(torch.abs((params['branches'][i] - params['targets']))
                                 * params['branch_weights'][i])
     """ The last branch is a speed branch"""
     loss_branches_vec.append(torch.abs(params['branches'][-1] - params['inputs'])
