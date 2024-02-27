@@ -251,10 +251,8 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         images_lidar = t_u.draw_box(images_lidar, box, color=(0, 255, 255), pixel_per_meter=loc_pixels_per_meter)
 
     images_lidar = np.rot90(images_lidar, k=1)
-    if baseline not in ["bcoh", "arp", "keyframes"]:
-        rgb_image = rgb.permute(1, 2, 0).detach().cpu().numpy()
-    else:
-       rgb_image = rgb[0].permute(1, 2, 0).detach().cpu().numpy()
+
+    rgb_image = rgb.permute(1, 2, 0).detach().cpu().numpy()
     if wp_selected is not None:
       colors_name = ['blue', 'yellow']
       colors_idx = [(0, 0, 255), (255, 255, 0)]

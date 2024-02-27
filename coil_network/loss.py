@@ -2,8 +2,8 @@ from . import loss_functional as LF
 import torch
 
 
-def l1(params,config):
-    return branched_loss(LF.l1_loss, params, config)
+def l1(params):
+    return branched_loss(LF.l1_loss, params)
 
 
 def l2(params):
@@ -26,7 +26,7 @@ def l1_attention(params):
     return branched_loss(LF.l1_attention_loss, params)
 
 
-def branched_loss(loss_function, params, config):
+def branched_loss(loss_function, params):
 
     """
     Args
@@ -46,29 +46,10 @@ def branched_loss(loss_function, params, config):
     """
     # calculate loss for each branch with specific activation
     loss_branches_vec, plotable_params = loss_function(params)
-
-    # Apply the variable weights
-    # This is applied to all branches except the last one, that is the speed branch...
-    if not config.use_wp_gru:
-        for i in range(6):
-            if loss_branches_vec[i].shape[1] == 3:
-                loss_branches_vec[i] = loss_branches_vec[i][:, 0] * params['variable_weights']['Steer'] \
-                                    + loss_branches_vec[i][:, 1] * params['variable_weights']['Gas'] \
-                                    + loss_branches_vec[i][:, 2] * params['variable_weights']['Brake']
-            elif loss_branches_vec[i].shape[1] == 2:
-                loss_branches_vec[i] = loss_branches_vec[i][:, 0] * params['variable_weights']['Steer'] \
-                                    + loss_branches_vec[i][:, 1] * params['variable_weights']['Gas_Brake']
-
-    # loss_function = loss_branches_vec[0] + loss_branches_vec[1] + loss_branches_vec[2] + \
-    #                     loss_branches_vec[3]+loss_branches_vec[4]+loss_branches_vec[5]
-    loss_function=loss_branches_vec[0]
-    speed_loss = loss_branches_vec[-1]/ (params['branches'][0].shape[0])
-    if config.use_wp_gru:
-        return torch.mean(loss_function)+ torch.sum(speed_loss) / params['branches'][0].shape[0],plotable_params
     
-    return torch.sum(loss_function) / (params['branches'][0].shape[0])\
-                + torch.sum(speed_loss) / (params['branches'][0].shape[0]),\
-           plotable_params
+    speed_loss = loss_branches_vec[-1]
+    return torch.mean(loss_branches_vec[0])+ torch.sum(speed_loss) / params['branches'][0].shape[0],plotable_params
+    
 
 
 def Loss(loss_name):

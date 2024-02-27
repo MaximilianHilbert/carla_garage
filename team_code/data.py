@@ -154,14 +154,18 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             for idx in range(1, self.config.number_future_actions+1):
               future_measurements.append(route_dir + '/measurements' + (f'/{(seq + idx):04}.json.gz'))
             self.future_measurements.append(future_measurements)
-          if self.config.lidar_seq_len>1 or self.config.number_previous_actions>0:
+          if self.config.lidar_seq_len>1 or self.config.number_previous_waypoints>0:
             temporal_measurements = []
             temporal_lidars = []
-            number_of_required_measurements=max(self.config.lidar_seq_len,self.config.number_previous_actions)
-            for idx in range(1, number_of_required_measurements+1):
+            number_of_required_measurements=max(self.config.lidar_seq_len,self.config.number_previous_waypoints)
+            for idx in reversed(range(1, number_of_required_measurements+1)):
               if seq-idx>=0:
                 if not self.config.use_plant:
                   temporal_measurements.append(route_dir + '/measurements' + (f'/{(seq - idx):04}.json.gz'))
+                  
+            for idx in range(self.config.pred_len):
+              temporal_measurements.append(route_dir + '/measurements' + (f'/{(seq + idx):04}.json.gz'))
+
             for idx in range(1,  self.config.lidar_seq_len):
               if seq-idx>=0:
                 temporal_lidars.append(route_dir + '/lidar' + (f'/{(seq - idx):04}.laz'))
@@ -284,7 +288,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     future_boxes = self.future_boxes[index]
     measurements = self.measurements[index]
     sample_start = self.sample_start[index]
-    if self.config.lidar_seq_len > 1 or self.config.number_previous_actions>0:
+    if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints>0:
       temporal_measurements = self.temporal_measurements[index]
     if self.config.number_future_actions>0:
       future_measurements = self.future_measurements[index]
@@ -544,14 +548,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       loaded_future_boxes.append(future_boxes_i)
 
 
-    if self.config.lidar_seq_len > 1 or self.config.number_previous_actions>0:
+    if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints>0:
       loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
     if self.config.number_future_actions>0:
       loaded_future_measurements=self.load_temporal_measurements(future_measurements, future=True)
 
-    assert len(
-        loaded_temporal_measurements
-    ) == max(self.config.number_previous_actions, self.config.lidar_seq_len-1), "Length of Temporal Measurements and max of img_seq_len, lidar_seq_len is not equal!"
     assert len(
             loaded_future_measurements
         ) == self.config.number_future_actions, "Length of Temporal Measurements and max of img_seq_len, lidar_seq_len is not equal!"
@@ -711,8 +712,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
       future_bounding_boxes_padded = None
 
     if self.config.use_wp_gru:
+      indices = []
+      previous_waypoints=[]
       if self.config.use_plant_labels:
-        indices = []
         for i in range(0, self.config.pred_len, self.config.wp_dilation):
           indices.append(i)
         if augment_sample:
@@ -720,12 +722,17 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         else:
           data['ego_waypoints'] = np.array(current_measurement['plant_wp'])[indices]
       else:
-        waypoints = self.get_waypoints(loaded_measurements[self.config.seq_len - 1:],
+        current_waypoints = self.get_waypoints(loaded_measurements[self.config.seq_len - 1:],
                                        y_augmentation=aug_translation,
                                        yaw_augmentation=aug_rotation)
-
-        data['ego_waypoints'] = np.array(waypoints, dtype=np.float32)
-
+        data['ego_waypoints'] = np.array(current_waypoints, dtype=np.float32)
+        for i in range(self.config.number_previous_waypoints):
+          waypoints_per_step = self.get_waypoints(loaded_temporal_measurements[i:],
+                                        y_augmentation=aug_translation,
+                                        yaw_augmentation=aug_rotation)
+          previous_waypoints.append(waypoints_per_step)
+        
+        data['previous_ego_waypoints'] = np.array(previous_waypoints, dtype=np.float32)
     #Convert target speed to indexes
     brake = np.float32(current_measurement['brake'])
 
@@ -744,35 +751,35 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     future_brake_list=[]
     future_steer_list= []
     #perform necessary data transformations for keyframes/ARP baselines
-    if self.config.number_previous_actions>0:
-      for temporal_measurement_dict in loaded_temporal_measurements:
-        previous_throttle_list.append(temporal_measurement_dict["throttle"])
-        previous_brake_list.append(1. if temporal_measurement_dict["brake"] else 0.)
-        previous_steer_list.append(temporal_measurement_dict["steer"])
-    if self.config.number_future_actions>0:
-      for temporal_measurement_dict in loaded_future_measurements:
-        future_throttle_list.append(temporal_measurement_dict["throttle"])
-        future_brake_list.append(1. if temporal_measurement_dict["brake"] else 0.)
-        future_steer_list.append(temporal_measurement_dict["steer"])
+    # if self.config.number_previous_actions>0:
+    #   for temporal_measurement_dict in loaded_temporal_measurements:
+    #     previous_throttle_list.append(temporal_measurement_dict["throttle"])
+    #     previous_brake_list.append(1. if temporal_measurement_dict["brake"] else 0.)
+    #     previous_steer_list.append(temporal_measurement_dict["steer"])
+    # if self.config.number_future_actions>0:
+    #   for temporal_measurement_dict in loaded_future_measurements:
+    #     future_throttle_list.append(temporal_measurement_dict["throttle"])
+    #     future_brake_list.append(1. if temporal_measurement_dict["brake"] else 0.)
+    #     future_steer_list.append(temporal_measurement_dict["steer"])
 
     
-    previous_action_lst=[]
-    current_and_future_lst=[]
-    for steer, throttle, brake in zip(previous_steer_list, previous_throttle_list, previous_brake_list):
-      previous_action_lst.append(steer)
-      previous_action_lst.append(throttle)
-      previous_action_lst.append(brake)
-        #first add the current measurement, because the baseline training needs (past measurements) as one part,
-      # (current measurement, future measurements) together as one part
-    current_and_future_lst.append(data["steer"])
-    current_and_future_lst.append(data["throttle"])
-    current_and_future_lst.append(data["brake"])
-    for steer, throttle, brake in zip(future_steer_list, future_throttle_list, future_brake_list):
-      current_and_future_lst.append(steer)
-      current_and_future_lst.append(throttle)
-      current_and_future_lst.append(brake)
-    data["current_and_future_actions"]=np.array(current_and_future_lst, dtype=np.float32)
-    data["previous_actions"]=np.array(previous_action_lst, dtype=np.float32)
+    # previous_action_lst=[]
+    # current_and_future_lst=[]
+    # for steer, throttle, brake in zip(previous_steer_list, previous_throttle_list, previous_brake_list):
+    #   previous_action_lst.append(steer)
+    #   previous_action_lst.append(throttle)
+    #   previous_action_lst.append(brake)
+    #     #first add the current measurement, because the baseline training needs (past measurements) as one part,
+    #   # (current measurement, future measurements) together as one part
+    # current_and_future_lst.append(data["steer"])
+    # current_and_future_lst.append(data["throttle"])
+    # current_and_future_lst.append(data["brake"])
+    # for steer, throttle, brake in zip(future_steer_list, future_throttle_list, future_brake_list):
+    #   current_and_future_lst.append(steer)
+    #   current_and_future_lst.append(throttle)
+    #   current_and_future_lst.append(brake)
+    # data["current_and_future_actions"]=np.array(current_and_future_lst, dtype=np.float32)
+    # data["previous_actions"]=np.array(previous_action_lst, dtype=np.float32)
     # data["action_list_previous"]=np.array(action_lst)
     data['angle_index'] = angle_index
 
@@ -879,8 +886,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         with gzip.open(temporal_measurement, 'rt', encoding='utf-8') as f1:
           loaded = ujson.load(f1)
         loaded_temporal_measurements.append(loaded)
-      if not future:
-        loaded_temporal_measurements.reverse()
     return loaded_temporal_measurements
   
 

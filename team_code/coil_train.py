@@ -237,34 +237,25 @@ def main(args):
                     ),
                 )
                 current_speed = data["speed"].to(device_id).reshape(args.batch_size, 1)
-                if merged_config_object.use_wp_gru:
-                    target_point=data["target_point"].to(device_id)
-                    targets=data["ego_waypoints"].to(device_id)
-                else:
-                    targets = torch.concat(
-                        [
-                            data["steer"].to(device_id).reshape(args.batch_size, 1),
-                            data["throttle"].to(device_id).reshape(args.batch_size, 1),
-                            data["brake"].to(device_id).reshape(args.batch_size, 1),
-                        ],
-                        dim=1,
-                    ).reshape(args.batch_size, 3)
-                
+                target_point=data["target_point"].to(device_id)
+                targets=data["ego_waypoints"].to(device_id)
+                previous_targets=data["previous_ego_waypoints"].to(device_id)
+
                 if (
                     "arp" in args.experiment
                     or "bcoh" in args.experiment
                     or "keyframes" in args.experiment
                 ):
                     temporal_images = data["temporal_rgb"].to(device_id) / 255.0
-                    previous_action = data["previous_actions"].to(device_id)
+                    
                 if "arp" in args.experiment:
                     current_speed_zero_speed = torch.zeros_like(current_speed)
                     mem_extract.zero_grad()
-                    mem_extract_branches, memory = mem_extract(temporal_images)
+                    memory_branches, memory = mem_extract(temporal_images, target_point)
 
-                    mem_extract_targets = targets - previous_action
+                    mem_extract_targets = targets - previous_targets
                     loss_function_params_memory = {
-                        "branches": mem_extract_branches,
+                        "branches": memory_branches,
                         "targets": mem_extract_targets,
                         "controls": controls,
                         "inputs": current_speed,
@@ -277,7 +268,7 @@ def main(args):
                     mem_extract_optimizer.step()
                     policy.zero_grad()
                     policy_branches = policy(
-                        current_image, current_speed_zero_speed, memory
+                        current_image, current_speed_zero_speed, memory, target_point
                     )
                     loss_function_params_policy = {
                         "branches": policy_branches,
@@ -350,6 +341,10 @@ def main(args):
                         )
                     policy_scheduler.step()
                     mem_extract_scheduler.step()
+                    # if epoch>3:
+                    #         visualize_model(merged_config_object.baseline_folder_name,config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
+                    #                         rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
+                    #                         step=policy_loss.cpu().detach().item(), target_point=data["target_point"],pred_wp=policy_branches[0], gt_wp=targets)
                 else:
                     model.zero_grad()
                     optimizer.zero_grad()
@@ -364,12 +359,9 @@ def main(args):
                             temporal_and_current_images, current_speed, previous_action
                         )
                     else:
-                        branches = model(temporal_and_current_images, current_speed)
+                        branches = model(temporal_and_current_images, current_speed, target_point=target_point)
                 if "bcso" in args.experiment:
-                    if merged_config_object.use_wp_gru:
-                        branches = model(x=current_image, a=current_speed, target_point=target_point)
-                    else:
-                        branches = model(x=current_image, a=current_speed)
+                    branches = model(x=current_image, a=current_speed, target_point=target_point)
                 if "keyframes" in args.experiment:
                     reweight_params = {
                         "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
@@ -396,10 +388,11 @@ def main(args):
                     if "keyframes" in args.experiment:
                         loss, loss_info, _ = criterion(loss_function_params)
                     else:
-                        loss, _ = criterion(loss_function_params, merged_config_object)
-                    # visualize_model(merged_config_object.baseline_folder_name,config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
-                    #                 rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
-                    #                 step=loss.cpu().detach().item(), target_point=data["target_point"],pred_wp=branches[controls[0].item()], gt_wp=targets)
+                        loss, _ = criterion(loss_function_params)
+                        # if epoch>200:
+                        #     visualize_model(merged_config_object.baseline_folder_name,config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
+                        #                     rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
+                        #                     step=loss.cpu().detach().item(), target_point=data["target_point"],pred_wp=branches[0], gt_wp=targets)
                     loss.backward()
                     optimizer.step()
                     scheduler.step()
