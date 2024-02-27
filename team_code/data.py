@@ -149,11 +149,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
             self.angle_distribution.append(angle_index)
             self.speed_distribution.append(target_speed_index)
-          if self.config.number_future_actions>0:
-            future_measurements=[]
-            for idx in range(1, self.config.number_future_actions+1):
-              future_measurements.append(route_dir + '/measurements' + (f'/{(seq + idx):04}.json.gz'))
-            self.future_measurements.append(future_measurements)
+
           if self.config.lidar_seq_len>1 or self.config.number_previous_waypoints>0:
             temporal_measurements = []
             temporal_lidars = []
@@ -290,8 +286,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     sample_start = self.sample_start[index]
     if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints>0:
       temporal_measurements = self.temporal_measurements[index]
-    if self.config.number_future_actions>0:
-      future_measurements = self.future_measurements[index]
     if self.config.lidar_seq_len > 1:
       temporal_lidars = self.temporal_lidars[index]
     if self.config.img_seq_len > 1:
@@ -550,13 +544,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
     if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints>0:
       loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
-    if self.config.number_future_actions>0:
-      loaded_future_measurements=self.load_temporal_measurements(future_measurements, future=True)
-
-    assert len(
-            loaded_future_measurements
-        ) == self.config.number_future_actions, "Length of Temporal Measurements and max of img_seq_len, lidar_seq_len is not equal!"
-
     
     assert len(loaded_temporal_images)== max(0, self.config.img_seq_len-1), "Length of loaded_temporal_images is not equal to img_seq_len!"
     if self.config.augment:
@@ -726,8 +713,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                        y_augmentation=aug_translation,
                                        yaw_augmentation=aug_rotation)
         data['ego_waypoints'] = np.array(current_waypoints, dtype=np.float32)
-        for i in range(self.config.number_previous_waypoints):
-          waypoints_per_step = self.get_waypoints(loaded_temporal_measurements[i:],
+        for i in reversed(range(self.config.number_previous_waypoints)):
+          waypoints_per_step = self.get_waypoints(loaded_temporal_measurements[i:i+self.config.pred_len+1],
                                         y_augmentation=aug_translation,
                                         yaw_augmentation=aug_rotation)
           previous_waypoints.append(waypoints_per_step)

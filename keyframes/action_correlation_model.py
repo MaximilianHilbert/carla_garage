@@ -10,6 +10,7 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from team_code.data import CARLA_Data
+from torch.nn.functional import mse_loss
 class ActionModel(nn.Module):
     def __init__(self, input_dim, output_dim, neurons=None):
         super(ActionModel, self).__init__()
@@ -32,65 +33,18 @@ class ActionModel(nn.Module):
         self.min_loss = min_loss
         self.max_loss = max_loss
 
-
-# class ActionDataset(Dataset):
-#     def __init__(self, path, prev_actions, curr_actions):
-#         self.path = path
-#         self.prev_actions, self.curr_actions = prev_actions, curr_actions
-#         self.stack_size = self.prev_actions + self.curr_actions
-#         self.actions = []
-#         self.all_steers, self.all_throttles, self.all_brakes = [], [], []
-
-#         img_path_list, measurements = np.load(path, allow_pickle=True)
-#         for index in range(len(img_path_list)):
-#             start_index = index - prev_actions * 3
-#             end_index = index + (curr_actions - 1) * 3
-#             if start_index >= 0 and img_path_list[start_index].split('/')[0] == img_path_list[index].split('/')[0]:
-#                 if end_index < len(img_path_list) and img_path_list[end_index].split('/')[0] == img_path_list[index].split('/')[0]:
-#                     action_list = []
-#                     for idx in range(start_index, end_index+1, 3):
-#                         action_list.append(measurements[idx]['steer'])
-#                         action_list.append(measurements[idx]['throttle'])
-#                         action_list.append(measurements[idx]['brake'])
-#                     self.actions.append(np.array(action_list))
-#                     self.all_steers.append(measurements[index]['steer'])
-#                     self.all_throttles.append(measurements[index]['throttle'])
-#                     self.all_brakes.append(measurements[index]['brake'])
-
-#         self.mean = np.array([np.mean(self.all_steers), np.mean(self.all_throttles), np.mean(self.all_brakes)])
-#         self.std = np.array([np.std(self.all_steers), np.std(self.all_throttles), np.std(self.all_brakes)])
-#         self.stacked_mean = np.tile(self.mean, self.stack_size)
-#         self.stacked_std = np.tile(self.std, self.stack_size)
-
-#         for index in range(len(self.actions)):
-#             stacked_actions = self.actions[index]
-#             self.actions[index] = torch.FloatTensor(stacked_actions)
-
-#     def __getitem__(self, idx):
-#         return self.actions[idx][:-3*self.curr_actions], self.actions[idx][-3*self.curr_actions:]
-
-#     def __len__(self):
-#         return len(self.actions)
-
-#     def get_mean(self):
-#         return self.mean
-
-#     def get_std(self):
-#         return self.std
-from pytictoc import TicToc
-
-def train(model, optimizer, train_loader, loss_func, epoch, all_epochs, logger):
+def train(args,model, optimizer, train_loader, loss_func, epoch, all_epochs, logger):
     model.train()
     optimizer.zero_grad()
     accumulate_loss = []
     all_iterations=len(train_loader)-1
     for idx, data in enumerate(tqdm(train_loader)):
-        previous_values=data["previous_actions"].cuda()
-        current_and_future_values=data["current_and_future_actions"].cuda()
+        previous_wp=data["previous_ego_waypoints"].cuda().reshape(args.batch_size, -1)
+        current_wp=data["ego_waypoints"].cuda().reshape(args.batch_size, -1)
         
         model.zero_grad()
-        output = model(previous_values)
-        loss = loss_func(output, current_and_future_values).mean()
+        output = model(previous_wp)
+        loss = loss_func(output, current_wp).mean()
         accumulate_loss.append(float(loss.item()))
         loss.backward()
         optimizer.step()
@@ -99,18 +53,18 @@ def train(model, optimizer, train_loader, loss_func, epoch, all_epochs, logger):
     print('epoch: {} train loss: {}'.format(epoch, np.mean(accumulate_loss)))
 
 
-def test(model, test_loader, loss_func, epoch, logger):
+def test(args, model, test_loader, loss_func, epoch, logger):
     model.eval()
     accumulate_loss = []
     min_loss, max_loss = np.inf, 0
     with torch.no_grad():
         for data in test_loader:
 
-            previous_values=data["previous_actions"].cuda()
-            current_and_future_values=data["current_and_future_actions"].cuda()
+            previous_wp=data["previous_ego_waypoints"].cuda().reshape(args.batch_size, -1)
+            current_wp=data["ego_waypoints"].cuda().reshape(args.batch_size, -1)
 
-            output = model(previous_values)
-            loss = loss_func(output, current_and_future_values)
+            output = model(previous_wp)
+            loss = loss_func(output, current_wp)
 
             max_value = loss.max().item()
             min_value = loss.min().item()
@@ -158,16 +112,16 @@ def train_ape_model(args, seed,repetition, merged_config_object, checkpoint_full
     torch.manual_seed(seed)
     trainset, testset = torch.utils.data.random_split(dataset, [int(len(dataset)*0.8), len(dataset)-int(len(dataset)*0.8)])
 
-    trainloader = DataLoader(dataset=trainset, batch_size=args.batch_size, num_workers=args.number_of_workers, shuffle=True)
-    testloader = DataLoader(dataset=testset, batch_size=args.batch_size, num_workers=args.number_of_workers, shuffle=False)
+    trainloader = DataLoader(dataset=trainset, batch_size=args.batch_size, num_workers=args.number_of_workers, shuffle=True, drop_last=True)
+    testloader = DataLoader(dataset=testset, batch_size=args.batch_size, num_workers=args.number_of_workers, shuffle=False, drop_last=True)
 
-    model = ActionModel(input_dim=merged_config_object.number_previous_actions*3, output_dim=(merged_config_object.number_future_actions+1)*3, neurons=args.neurons)
+    model = ActionModel(input_dim=merged_config_object.number_previous_waypoints*merged_config_object.pred_len*2, output_dim=merged_config_object.number_future_waypoints*merged_config_object.pred_len*2, neurons=args.neurons)
     model.cuda()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
-    loss_func = partial(weighted_loss, weight=torch.Tensor([0.5, 0.45, 0.05]*(merged_config_object.number_future_actions+1)).cuda())
+    loss_func = mse_loss
 
-    result_dir = os.path.join(os.environ.get("WORK_DIR"), "_logs","keyframes",f"repetition_{str(repetition)}","results", f"prev{merged_config_object.number_previous_actions}-curr{merged_config_object.number_future_actions+1}-repetition-{repetition}-{identifier}")
+    result_dir = os.path.join(os.environ.get("WORK_DIR"), "_logs","keyframes",f"repetition_{str(repetition)}","results", f"prev{merged_config_object.number_previous_waypoints}-repetition-{repetition}-{identifier}")
 
     log_dir = os.path.join(result_dir, 'run')
     os.makedirs(log_dir)
@@ -175,9 +129,9 @@ def train_ape_model(args, seed,repetition, merged_config_object, checkpoint_full
     writer = SummaryWriter(log_dir)
 
     min_loss, max_loss = 0, 0
-    for epoch in tqdm(range(1, merged_config_object.epochs+1)):
-        train(model, optimizer, trainloader, loss_func, epoch, merged_config_object.epochs, writer)
-        min_loss, max_loss = test(model, testloader, loss_func, epoch, writer)
+    for epoch in tqdm(range(1, merged_config_object.epochs_baselines+1)):
+        train(args, model, optimizer, trainloader, loss_func, epoch, merged_config_object.epochs, writer)
+        min_loss, max_loss = test(args,model, testloader, loss_func, epoch, writer)
 
         if epoch % (merged_config_object.epochs // 3) == 0:
             adjustlr(optimizer, 0.1)
