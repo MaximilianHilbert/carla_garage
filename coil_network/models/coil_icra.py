@@ -130,14 +130,11 @@ class CoILICRA(nn.Module):
         branch_outputs = self.branches(j)
         speed_branch_output = self.speed_branch(x)
         # We concatenate speed with the rest.
-        if self.config.use_wp_gru:
-            waypoints_branched=[]
-            for single_branch in branch_outputs:
-                waypoints_branched.append(self.gru.forward(single_branch, target_point))
-            return waypoints_branched+ [speed_branch_output]
-        else:
-            return branch_outputs+ [speed_branch_output]
-    def forward_branch(self, x, a, branch_number, target_point=None,pa=None):
+        waypoints_branched=[]
+        for single_branch in branch_outputs:
+            waypoints_branched.append(self.gru.forward(single_branch, target_point))
+        return waypoints_branched+ [speed_branch_output]
+    def forward_branch(self, x, a, target_point=None,pa=None):
         """
         DO a forward operation and return a single branch.
 
@@ -155,26 +152,10 @@ class CoILICRA(nn.Module):
         # TODO: take four branches, this is hardcoded
         output = self.forward(x, a, target_point,pa)
         self.predicted_speed = output[-1]
-        control = output[0:6]
-        output_vec = torch.stack(control)
-
-        return self.extract_branch(output_vec, branch_number)
+        return output
 
     def get_perception_layers(self, x):
         return self.perception.get_layers_features(x)
-
-    def extract_branch(self, output_vec, branch_number):
-
-
-        if len(branch_number) > 1:
-            branch_number = torch.squeeze(branch_number.type(torch.cuda.LongTensor))
-        else:
-            branch_number = branch_number.type(torch.cuda.LongTensor)
-
-        branch_number = torch.stack([branch_number,
-                                     torch.cuda.LongTensor(range(0, len(branch_number)))])
-
-        return output_vec[branch_number[0], branch_number[1], :]
 
     def extract_predicted_speed(self):
         # return the speed predicted in forward_branch()

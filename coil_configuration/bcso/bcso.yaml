@@ -21,8 +21,10 @@ model_configuration:  # based on the model_type, we specify the structure
       neurons: [256, 256]
       dropouts: [0.0, 0.5]
   branches:  # the output branches for the different possible directions 
-    number_of_branches: 6
+    number_of_branches: 1
     fc:
-      neurons: [256, 256]
+      neurons: [256, 128]
       dropouts: [0.0, 0.5]
 pre_trained: true  # if the weights are started with imagenet.
+use_wp_gru: true
+branch_loss_weight: [1,0]

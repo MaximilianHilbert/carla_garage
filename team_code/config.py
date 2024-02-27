@@ -27,6 +27,7 @@ class GlobalConfig:
     """ base architecture configurations """
     #COIL Baselines
     #Dataloader
+    self.number_previous_waypoints=0
     self.number_previous_actions=0
     self.keyframes=None
     self.number_future_actions=0
@@ -153,6 +154,13 @@ class GlobalConfig:
     # Number of initial frames to skip during data loading
     self.skip_first = int(2.5 * self.carla_fps) // self.data_save_freq
     self.pred_len = int(2.0 * self.carla_fps) // self.data_save_freq  # number of future waypoints predicted
+    ##########################################################################################################
+    #baselines
+
+
+
+
+
     # Width and height of the LiDAR grid that the point cloud is voxelized into.
     self.lidar_resolution_width = 256
     self.lidar_resolution_height = 256
