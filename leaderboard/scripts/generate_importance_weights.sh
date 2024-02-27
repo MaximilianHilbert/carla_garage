@@ -50,5 +50,5 @@ export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 
-python $WORK_DIR/keyframes/get_importance_weights_training.py --seeds 111 --training-repetition 0 --baseline-folder-name keyframes --experiment keyframes_weights --number-of-workers 12 --neurons 300 --batch-size 512
-#python $WORK_DIR/keyframes/get_importance_weights_inference.py --training-repetition 0 --baseline-folder-name keyframes --baseline-name keyframes_vanilla_weights --number-of-workers 25
+python $WORK_DIR/keyframes/get_importance_weights_training.py --seeds 111 --training-repetition 0 --baseline-folder-name keyframes --experiment keyframes_weights --number-of-workers 12 --neurons 300 --batch-size 512 --setting all
+python $WORK_DIR/keyframes/get_importance_weights_inference.py --training-repetition 0 --baseline-folder-name keyframes --experiment keyframes_weights --number-of-workers 12 --setting all
