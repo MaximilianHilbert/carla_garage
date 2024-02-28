@@ -285,7 +285,7 @@ def is_ready_to_save(epoch, iteration, data_loader, merged_config):
         return False
 
 
-def get_latest_saved_checkpoint(shared_config_object, repetition):
+def get_latest_saved_checkpoint(shared_config_object, repetition, setting):
     """
     Returns the , latest checkpoint number that was saved
 
@@ -297,6 +297,7 @@ def get_latest_saved_checkpoint(shared_config_object, repetition):
             shared_config_object.baseline_folder_name,
             shared_config_object.experiment,
             f"repetition_{str(repetition)}",
+            setting,
             "checkpoints",
         )
     )
@@ -304,7 +305,7 @@ def get_latest_saved_checkpoint(shared_config_object, repetition):
         return None
     else:
         sorted(checkpoint_files)
-        return checkpoint_files[-1]
+        return checkpoint_files[0]
 
 
 def get_controls_from_data(data, batch_size, device_id):

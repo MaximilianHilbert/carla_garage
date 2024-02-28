@@ -40,6 +40,7 @@ def main(args):
         merged_config_object.baseline_folder_name,
         merged_config_object.experiment,
         args.training_repetition,
+        args.setting
     )
     if rank == 0:
         logger.create_tensorboard_logs()
@@ -50,7 +51,7 @@ def main(args):
     try:
         set_seed(args.seed)
         checkpoint_file = get_latest_saved_checkpoint(
-            merged_config_object, repetition=args.training_repetition
+            merged_config_object, repetition=args.training_repetition, setting=args.setting
         )
         if checkpoint_file is not None:
             checkpoint = torch.load(
@@ -60,10 +61,9 @@ def main(args):
                     merged_config_object.baseline_folder_name,
                     merged_config_object.experiment,
                     f"repetition_{str(args.training_repetition)}",
+                    args.setting,
                     "checkpoints",
-                    get_latest_saved_checkpoint(
-                        merged_config_object, repetition=args.training_repetition
-                    ),
+                    checkpoint_file,
                 )
             )
             epoch = checkpoint["epoch"]
@@ -305,6 +305,7 @@ def main(args):
                                 merged_config_object.baseline_folder_name,
                                 merged_config_object.experiment,
                                 f"repetition_{str(args.training_repetition)}",
+                                args.setting,
                                 "checkpoints",
                                 str(epoch) + ".pth",
                             ),
@@ -419,6 +420,7 @@ def main(args):
                                 merged_config_object.baseline_folder_name,
                                 merged_config_object.experiment,
                                 f"repetition_{str(args.training_repetition)}",
+                                args.setting,
                                 "checkpoints",
                                 str(epoch) + ".pth",
                             ),
