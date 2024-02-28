@@ -108,28 +108,13 @@ class CoILPolicy(nn.Module):
             waypoints=None
         return [waypoints] + [speed_branch_output]
 
-    def forward_branch(self, x, v, branch_number, memory):
+    def forward_branch(self, x, v, memory, target_point):
     
-        output = self.forward(x, v, memory)
+        output = self.forward(x, v, memory, target_point)
         self.predicted_speed = output[-1]
-        control = output[0:6]
-        output_vec = torch.stack(control)
 
-        return self.extract_branch(output_vec, branch_number)
+        return output[:-1]
 
-    def extract_branch(self, output_vec, branch_number):
-
-        #branch_number = command_number_to_index(branch_number)
-
-        if len(branch_number) > 1:
-            branch_number = torch.squeeze(branch_number.type(torch.cuda.LongTensor))
-        else:
-            branch_number = branch_number.type(torch.cuda.LongTensor)
-
-        branch_number = torch.stack([branch_number,
-                                     torch.cuda.LongTensor(range(0, len(branch_number)))])
-
-        return output_vec[branch_number[0], branch_number[1], :]
 
     def extract_predicted_speed(self):
         # return the speed predicted in forward_branch()

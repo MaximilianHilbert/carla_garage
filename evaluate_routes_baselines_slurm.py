@@ -137,8 +137,8 @@ def main():
   num_repetitions = 1
   code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
   benchmark = 'nocrash'
-  experiment = 'arp_vanilla'
-  model_dir = os.path.join(code_root, "_logs/arp/arp_vanilla/repetition_0/checkpoints/40000.pth")
+  experiment = 'arp'
+  model_dir = os.path.join(code_root, "_logs/arp/arp/repetition_0/checkpoints/2.pth")
 
   carla_root = os.path.join(code_root, "carla")
   town="Town01"
