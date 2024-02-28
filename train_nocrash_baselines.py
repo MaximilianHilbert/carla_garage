@@ -30,7 +30,7 @@ def generate_batch_script(
 #SBATCH --nodes=1
 #SBATCH --time=0-{walltime*args.dataset_repetition}:00
 #SBATCH --gres=gpu:8
-#SBATCH --partition=gpu-2080ti,gpu-v100
+#SBATCH --partition=gpu-2080ti,gpu-v100,gpu-2080ti-preemptable,gpu-v100-preemptable
 #SBATCH --cpus-per-task={args.number_of_cpus}
 #SBATCH --mem=320G
 #SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
