@@ -10,6 +10,7 @@ from team_code.nav_planner import interpolate_trajectory
 from agents.navigation.global_route_planner import GlobalRoutePlanner
 from agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
 from team_code.nav_planner import RoutePlanner
+from leaderboard.utils.route_manipulation import downsample_route
 from srunner.scenarioconfigs.scenario_configuration import ScenarioConfiguration, ActorConfigurationData
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from srunner.scenariomanager.weather_sim import WeatherBehavior
@@ -55,15 +56,6 @@ class NoCrashEvalScenario(RouteScenario):
         # Set route
         self._set_route()
 
-        trajectory = [item[0].location for item in self.agent._global_plan_world_coord]
-        self.agent.dense_route, _ = interpolate_trajectory(CarlaDataProvider.get_map(), trajectory)  # privileged
-        self.agent._waypoint_planner=RoutePlanner(min_distance=self.config.route_planner_min_distance, max_distance=self.config.route_planner_max_distance)
-        self.agent._waypoint_planner.set_route(self.agent.dense_route, True)
-
-
-        self.agent._route_planner = RoutePlanner(self.config.route_planner_min_distance, self.config.route_planner_max_distance)
-        self.agent._route_planner.set_route(self.agent._global_plan_world_coord, nocrash=True, gps=False)
-        
         ego_vehicle = self._update_ego_vehicle()
         traffic_lvl = ['Empty', 'Regular', 'Dense'][traffic_idx]
         
@@ -95,7 +87,6 @@ class NoCrashEvalScenario(RouteScenario):
         CarlaDataProvider.set_ego_vehicle_route([(w.transform.location, c) for w, c in route])
         gps_route = location_route_to_gps(self.route, *_get_latlon_ref(world))
         self.agent.set_global_plan(gps_route, self.route)
-
         self.timeout = self._estimate_route_timeout()
         
     def _initialize_actors(self, config):
