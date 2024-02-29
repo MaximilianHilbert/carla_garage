@@ -282,9 +282,9 @@ def main():
                           num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
                         time.sleep(0.05)
                         print(f'Submitting job {job_nr}: {job_file}')
-                        # jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
-                        #                                                                                                   maxsplit=1)[-1]
-                        # meta_jobs[jobid] = (False, job_file, result_file, 0)
+                        jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
+                                                                                                                          maxsplit=1)[-1]
+                        meta_jobs[jobid] = (False, job_file, result_file, 0)
 
                         job_nr += 1
 
