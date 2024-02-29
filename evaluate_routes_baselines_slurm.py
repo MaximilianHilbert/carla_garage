@@ -140,13 +140,13 @@ def get_num_jobs(job_name, username):
 def main():
   towns=["Town01", "Town02"]
   weathers=["train", "test"]
-  partition = 'gpu-2080ti-preemptable'
+  partition = 'gpu-2080ti-preemptable,gpu-2080ti,gpu-v100-preemptable,gpu-v100,gpu-2080ti-dev'
   username = 'gwb629'
   epochs = ['2']
   seeds=[234213,252534,290246]
   num_repetitions = 3
-  code_root = '/home/maximilian/Master/carla_garage/'
-  #code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
+  #code_root = '/home/maximilian/Master/carla_garage/'
+  code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
   benchmark = 'nocrash'
   model_dir = os.path.join(code_root, "_logs")
   carla_root = os.path.join(code_root, "carla")
@@ -241,7 +241,7 @@ def main():
                             f'SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0 {carla_root}/CarlaUE4.sh '
                             f'-carla-rpc-port=${{FREE_WORLD_PORT}} -nosound -carla-streaming-port=${{FREE_STREAMING_PORT}} -opengl &')
                         commands.append('sleep 180')  # Waits for CARLA to finish starting
-                        current_model=os.path.join(model_dir, baseline, experiment, repetition, setting,checkpoint_file)
+                        current_model=os.path.join(model_dir, baseline, experiment, repetition, setting,"checkpoints",checkpoint_file)
                         create_run_eval_bash(code_root,
                                              yaml_path,
                                              town, 
@@ -278,9 +278,9 @@ def main():
                           num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
                         time.sleep(0.05)
                         print(f'Submitting job {job_nr}: {job_file}')
-                        jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
-                                                                                                                          maxsplit=1)[-1]
-                        meta_jobs[jobid] = (False, job_file, result_file, 0)
+                        # jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
+                        #                                                                                                   maxsplit=1)[-1]
+                        # meta_jobs[jobid] = (False, job_file, result_file, 0)
 
                         job_nr += 1
 
