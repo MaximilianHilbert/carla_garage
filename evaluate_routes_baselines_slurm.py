@@ -84,7 +84,7 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --agent-yaml=${AGENT_YAML} \
 --experiment=${EXPERIMENT} \
 --baseline=${BASELINE} \
---checkpoint=${CHECKPOINT}
+--checkpoint=${CHECKPOINT} \
 --coil_checkpoint=${COIL_CHECKPOINT} \
 --eval_id=${EVAL_ID} \
 --log_path=${ADDITIONAL_LOG_PATH} \
@@ -254,7 +254,7 @@ def main():
                                               experiment,
                                               current_model,
                                               bash_save_dir,
-                                              logs_save_dir,
+                                              results_save_dir,
                                               carla_tm_port_start,
                                               carla_root)
                         commands.append(f'chmod u+x {bash_save_dir}/eval_{eval_filename}.sh')
