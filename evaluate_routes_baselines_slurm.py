@@ -21,16 +21,20 @@ import sys
 #   os.environ['LD_LIBRARY_PATH'] += ':' + newlib
 
 
-def create_run_eval_bash(work_dir,yaml_path,
+def create_run_eval_bash(work_dir,
+                         yaml_path,
                              town, 
                              weather,
                              seed,
                              eval_id,
                              baseline,
-                             experiment,model_dir,bash_save_dir, results_save_dir, route_path, route, checkpoint, logs_save_dir,
-                         carla_tm_port_start, benchmark, carla_root):
+                             experiment,
+                             model_dir,
+                             bash_save_dir, 
+                             results_save_dir, 
+                         carla_tm_port_start, carla_root):
   Path(f'{results_save_dir}').mkdir(parents=True, exist_ok=True)
-  with open(f'{bash_save_dir}/eval_b-{baseline}_ex-{experiment}_w-{weather}_t-{town}_{route}.sh', 'w', encoding='utf-8') as rsh:
+  with open(f'{bash_save_dir}/eval_{eval_id}.sh', 'w', encoding='utf-8') as rsh:
     rsh.write(f'''\
           
 export WORK_DIR={work_dir}
@@ -93,12 +97,12 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 ''')
 
 
-def make_jobsub_file(commands,baseline,experiment,training_rep,epoch,weather,town,eval_rep,job_number, exp_name, exp_root_name, partition):
+def make_jobsub_file(commands,job_number, exp_name, exp_root_name, filename,partition):
   os.makedirs(f'evaluation/{exp_root_name}/{exp_name}/run_files/logs', exist_ok=True)
   os.makedirs(f'evaluation/{exp_root_name}/{exp_name}/run_files/job_files', exist_ok=True)
-  job_file = f'evaluation/{exp_root_name}/{exp_name}/run_files/job_files/{baseline}_{experiment}_{training_rep}_{epoch}_{weather}_{town}_{eval_rep}_{job_number}.sh'
+  job_file = f'evaluation/{exp_root_name}/{exp_name}/run_files/job_files/{filename}.sh'
   qsub_template = f"""#!/bin/bash
-#SBATCH --job-name=b-{baseline}_ex-{experiment}_tr-{training_rep}_er-{eval_rep}_e-{epoch}_w-{weather}_t-{town}
+#SBATCH --job-name={filename}
 #SBATCH --partition={partition}
 #SBATCH -o evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_out{job_number}.log
 #SBATCH -e evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_err{job_number}.log
@@ -136,18 +140,19 @@ def get_num_jobs(job_name, username):
 def main():
   towns=["Town01", "Town02"]
   weathers=["train", "test"]
-  partition = 'gpu-2080ti'
+  partition = 'gpu-2080ti-preemptable'
   username = 'gwb629'
   epochs = ['2']
   seeds=[234213,252534,290246]
   num_repetitions = 3
-  #code_root = '/home/maximilian/Master/carla_garage/'
-  code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
+  code_root = '/home/maximilian/Master/carla_garage/'
+  #code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
   benchmark = 'nocrash'
   model_dir = os.path.join(code_root, "_logs")
   carla_root = os.path.join(code_root, "carla")
 
   job_nr = 0
+  experiment_name_stem = f'{benchmark}'
   for baseline in os.listdir(model_dir) :
     for experiment in os.listdir(os.path.join(model_dir, baseline)):
       yaml_path=f'{os.path.join(code_root, "coil_configuration", baseline, experiment+".yaml")}'
@@ -160,7 +165,7 @@ def main():
               for weather in weathers:
                 for town in towns:
                   for evaluation_repetition, seed in zip(range(1,num_repetitions+1), seeds): #evaluation repetition
-                    experiment_name_stem = f'{experiment}_{benchmark}'
+                    eval_filename=experiment_name_stem+f"_b-{baseline}_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}"
                     exp_names_tmp = []
                     exp_names_tmp.append(experiment_name_stem + f'_e{evaluation_repetition}')
                     route_path = f'leaderboard/data/{benchmark}_split/{town}'
@@ -237,24 +242,21 @@ def main():
                             f'-carla-rpc-port=${{FREE_WORLD_PORT}} -nosound -carla-streaming-port=${{FREE_STREAMING_PORT}} -opengl &')
                         commands.append('sleep 180')  # Waits for CARLA to finish starting
                         current_model=os.path.join(model_dir, baseline, experiment, repetition, setting,checkpoint_file)
-                        create_run_eval_bash(code_root,yaml_path,town, 
+                        create_run_eval_bash(code_root,
+                                             yaml_path,
+                                             town, 
                                               weather,
                                               seed,
-                                              exp_name,
+                                              eval_filename,
                                               baseline,
                                               experiment,
                                               current_model,
                                               bash_save_dir,
-                                              results_save_dir,
-                                              route_path,
-                                              route,
-                                              checkpoint_new_name,
                                               logs_save_dir,
                                               carla_tm_port_start,
-                                              benchmark=benchmark,
-                                              carla_root=carla_root)
-                        commands.append(f'chmod u+x {bash_save_dir}/eval_{route}.sh')
-                        commands.append(f'{bash_save_dir}/eval_{route}.sh $FREE_WORLD_PORT')
+                                              carla_root)
+                        commands.append(f'chmod u+x {bash_save_dir}/eval_{eval_filename}.sh')
+                        commands.append(f'{bash_save_dir}/eval_{eval_filename}.sh $FREE_WORLD_PORT')
                         commands.append('sleep 2')
 
                         carla_world_port_start += 50
@@ -262,18 +264,12 @@ def main():
                         carla_tm_port_start += 50
 
                         job_file = make_jobsub_file(commands=commands,
-                                                    baseline=baseline,
-                                                    experiment=experiment,
-                                                    training_rep=repetition,
-                                                    epoch=epoch,
-                                                    weather=weather,
-                                                    town=town,
-                                                    eval_rep=evaluation_repetition,
                                                     job_number=job_nr,
                                                     exp_name=experiment_name_stem,
                                                     exp_root_name=experiment_name_root,
+                                                    filename=eval_filename,
                                                     partition=partition)
-                        result_file = f'{results_save_dir}/{route}.json'
+                        result_file = f'{results_save_dir}/{eval_filename}.json'
 
                         # Wait until submitting new jobs that the #jobs are at below max
                         num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
