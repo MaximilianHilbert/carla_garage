@@ -67,6 +67,7 @@ export AGENT_YAML={yaml_path}
 export EXPERIMENT={experiment}
 export BASELINE={baseline}
 export COIL_CHECKPOINT={model_dir}
+export CHECKPOINT={results_save_dir}/{eval_id}.json
 export EVAL_ID={eval_id}
 export ADDITIONAL_LOG_PATH={results_save_dir}
 export TOWN={town}
@@ -83,6 +84,7 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --agent-yaml=${AGENT_YAML} \
 --experiment=${EXPERIMENT} \
 --baseline=${BASELINE} \
+--checkpoint=${CHECKPOINT}
 --coil_checkpoint=${COIL_CHECKPOINT} \
 --eval_id=${EVAL_ID} \
 --log_path=${ADDITIONAL_LOG_PATH} \
