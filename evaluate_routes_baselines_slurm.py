@@ -152,140 +152,141 @@ def main():
     for experiment in os.listdir(os.path.join(model_dir, baseline)):
       yaml_path=f'{os.path.join(code_root, "coil_configuration", baseline, experiment+".yaml")}'
       for repetition in os.listdir(os.path.join(model_dir, baseline, experiment)): #training repetition
-        checkpoints=os.listdir(os.path.join(model_dir, baseline, experiment, repetition, "checkpoints"))
-        for epoch in epochs:
-          checkpoint_file=f"{epoch}.pth"
-          if checkpoint_file in checkpoints:
-            for weather in weathers:
-              for town in towns:
-                for evaluation_repetition, seed in zip(range(1,num_repetitions+1), seeds): #evaluation repetition
-                  experiment_name_stem = f'{experiment}_{benchmark}'
-                  exp_names_tmp = []
-                  exp_names_tmp.append(experiment_name_stem + f'_e{evaluation_repetition}')
-                  route_path = f'leaderboard/data/{benchmark}_split/{town}'
-                  route_pattern = '*.txt'
+        for setting in os.listdir(os.path.join(model_dir, baseline, experiment, repetition)):
+          checkpoints=os.listdir(os.path.join(model_dir, baseline, experiment, repetition, setting, "checkpoints"))
+          for epoch in epochs:
+            checkpoint_file=f"{epoch}.pth"
+            if checkpoint_file in checkpoints:
+              for weather in weathers:
+                for town in towns:
+                  for evaluation_repetition, seed in zip(range(1,num_repetitions+1), seeds): #evaluation repetition
+                    experiment_name_stem = f'{experiment}_{benchmark}'
+                    exp_names_tmp = []
+                    exp_names_tmp.append(experiment_name_stem + f'_e{evaluation_repetition}')
+                    route_path = f'leaderboard/data/{benchmark}_split/{town}'
+                    route_pattern = '*.txt'
 
-                  carla_world_port_start = 10000
-                  carla_streaming_port_start = 20000
-                  carla_tm_port_start = 30000
+                    carla_world_port_start = 10000
+                    carla_streaming_port_start = 20000
+                    carla_tm_port_start = 30000
 
 
-                  
-                  
-                  # Root folder in which each of the evaluation seeds will be stored
-                  experiment_name_root = experiment_name_stem + '_' + epoch
-                  exp_names = []
-                  for name in exp_names_tmp:
-                    exp_names.append(name + '_' + epoch)
+                    
+                    
+                    # Root folder in which each of the evaluation seeds will be stored
+                    experiment_name_root = experiment_name_stem + '_' + epoch
+                    exp_names = []
+                    for name in exp_names_tmp:
+                      exp_names.append(name + '_' + epoch)
 
-                  checkpoint = experiment
-                  checkpoint_new_name = checkpoint + '_' + epoch
+                    checkpoint = experiment
+                    checkpoint_new_name = checkpoint + '_' + epoch
 
-                  # Links the model file into team_code
-                  copy_model = False
+                    # Links the model file into team_code
+                    copy_model = False
 
-                  if copy_model:
-                    # copy checkpoint to my folder
-                    cmd = f'mkdir team_code/checkpoints/{checkpoint_new_name}'
-                    print(cmd)
-                    os.system(cmd)
-                    cmd = f'cp {model_dir}/{checkpoint}/config.pickle team_code/checkpoints/{checkpoint_new_name}/'
-                    print(cmd)
-                    os.system(cmd)
-                    cmd = f'ln -sf {model_dir}/{checkpoint}/{epoch}.pth team_code/checkpoints/{checkpoint_new_name}/model.pth'
-                    print(cmd)
-                    os.system(cmd)
+                    if copy_model:
+                      # copy checkpoint to my folder
+                      cmd = f'mkdir team_code/checkpoints/{checkpoint_new_name}'
+                      print(cmd)
+                      os.system(cmd)
+                      cmd = f'cp {model_dir}/{checkpoint}/config.pickle team_code/checkpoints/{checkpoint_new_name}/'
+                      print(cmd)
+                      os.system(cmd)
+                      cmd = f'ln -sf {model_dir}/{checkpoint}/{epoch}.pth team_code/checkpoints/{checkpoint_new_name}/model.pth'
+                      print(cmd)
+                      os.system(cmd)
 
-                  route_files = []
-                  for root, _, files in os.walk(route_path):
-                    for name in files:
-                      if fnmatch.fnmatch(name, route_pattern):
-                        route_files.append(os.path.join(root, name))
+                    route_files = []
+                    for root, _, files in os.walk(route_path):
+                      for name in files:
+                        if fnmatch.fnmatch(name, route_pattern):
+                          route_files.append(os.path.join(root, name))
 
-                  for exp_name in exp_names:
-                    bash_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "run_bashs"))
-                    results_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "results"))
-                    logs_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "logs"))
-                    bash_save_dir.mkdir(parents=True, exist_ok=True)
-                    results_save_dir.mkdir(parents=True, exist_ok=True)
-                    logs_save_dir.mkdir(parents=True, exist_ok=True)
-
-                  meta_jobs = {}
-
-                  for exp_name in exp_names:
-                    for route in route_files:
-                      route = Path(route).stem
-
+                    for exp_name in exp_names:
                       bash_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "run_bashs"))
                       results_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "results"))
                       logs_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "logs"))
+                      bash_save_dir.mkdir(parents=True, exist_ok=True)
+                      results_save_dir.mkdir(parents=True, exist_ok=True)
+                      logs_save_dir.mkdir(parents=True, exist_ok=True)
 
-                      commands = []
+                    meta_jobs = {}
 
-                      # Finds a free port
-                      commands.append(
-                          f'FREE_WORLD_PORT=`comm -23 <(seq {carla_world_port_start} {carla_world_port_start + 49} | sort) '
-                          f'<(ss -Htan | awk \'{{print $4}}\' | cut -d\':\' -f2 | sort -u) | shuf | head -n 1`')
-                      commands.append("echo 'World Port:' $FREE_WORLD_PORT")
-                      commands.append(
-                          f'FREE_STREAMING_PORT=`comm -23 <(seq {carla_streaming_port_start} {carla_streaming_port_start + 49} '
-                          f'| sort) <(ss -Htan | awk \'{{print $4}}\' | cut -d\':\' -f2 | sort -u) | shuf | head -n 1`')
-                      commands.append("echo 'Streaming Port:' $FREE_STREAMING_PORT")
-                      commands.append(
-                          f'SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0 {carla_root}/CarlaUE4.sh '
-                          f'-carla-rpc-port=${{FREE_WORLD_PORT}} -nosound -carla-streaming-port=${{FREE_STREAMING_PORT}} -opengl &')
-                      commands.append('sleep 180')  # Waits for CARLA to finish starting
-                      current_model=os.path.join(model_dir, baseline, experiment, repetition, checkpoint_file)
-                      create_run_eval_bash(code_root,yaml_path,town, 
-                                            weather,
-                                            seed,
-                                            exp_name,
-                                            baseline,
-                                            experiment,
-                                            current_model,
-                                            bash_save_dir,
-                                            results_save_dir,
-                                            route_path,
-                                            route,
-                                            checkpoint_new_name,
-                                            logs_save_dir,
-                                            carla_tm_port_start,
-                                            benchmark=benchmark,
-                                            carla_root=carla_root)
-                      commands.append(f'chmod u+x {bash_save_dir}/eval_{route}.sh')
-                      commands.append(f'{bash_save_dir}/eval_{route}.sh $FREE_WORLD_PORT')
-                      commands.append('sleep 2')
+                    for exp_name in exp_names:
+                      for route in route_files:
+                        route = Path(route).stem
 
-                      carla_world_port_start += 50
-                      carla_streaming_port_start += 50
-                      carla_tm_port_start += 50
+                        bash_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "run_bashs"))
+                        results_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "results"))
+                        logs_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "logs"))
 
-                      job_file = make_jobsub_file(commands=commands,
-                                                  baseline=baseline,
-                                                  experiment=experiment,
-                                                  training_rep=repetition,
-                                                  epoch=epoch,
-                                                  weather=weather,
-                                                  town=town,
-                                                  eval_rep=evaluation_repetition,
-                                                  job_number=job_nr,
-                                                  exp_name=experiment_name_stem,
-                                                  exp_root_name=experiment_name_root,
-                                                  partition=partition)
-                      result_file = f'{results_save_dir}/{route}.json'
+                        commands = []
 
-                      # Wait until submitting new jobs that the #jobs are at below max
-                      num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
-                      print(f'{num_running_jobs}/{max_num_parallel_jobs} jobs are running...')
-                      while num_running_jobs >= max_num_parallel_jobs:
+                        # Finds a free port
+                        commands.append(
+                            f'FREE_WORLD_PORT=`comm -23 <(seq {carla_world_port_start} {carla_world_port_start + 49} | sort) '
+                            f'<(ss -Htan | awk \'{{print $4}}\' | cut -d\':\' -f2 | sort -u) | shuf | head -n 1`')
+                        commands.append("echo 'World Port:' $FREE_WORLD_PORT")
+                        commands.append(
+                            f'FREE_STREAMING_PORT=`comm -23 <(seq {carla_streaming_port_start} {carla_streaming_port_start + 49} '
+                            f'| sort) <(ss -Htan | awk \'{{print $4}}\' | cut -d\':\' -f2 | sort -u) | shuf | head -n 1`')
+                        commands.append("echo 'Streaming Port:' $FREE_STREAMING_PORT")
+                        commands.append(
+                            f'SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0 {carla_root}/CarlaUE4.sh '
+                            f'-carla-rpc-port=${{FREE_WORLD_PORT}} -nosound -carla-streaming-port=${{FREE_STREAMING_PORT}} -opengl &')
+                        commands.append('sleep 180')  # Waits for CARLA to finish starting
+                        current_model=os.path.join(model_dir, baseline, experiment, repetition, setting,checkpoint_file)
+                        create_run_eval_bash(code_root,yaml_path,town, 
+                                              weather,
+                                              seed,
+                                              exp_name,
+                                              baseline,
+                                              experiment,
+                                              current_model,
+                                              bash_save_dir,
+                                              results_save_dir,
+                                              route_path,
+                                              route,
+                                              checkpoint_new_name,
+                                              logs_save_dir,
+                                              carla_tm_port_start,
+                                              benchmark=benchmark,
+                                              carla_root=carla_root)
+                        commands.append(f'chmod u+x {bash_save_dir}/eval_{route}.sh')
+                        commands.append(f'{bash_save_dir}/eval_{route}.sh $FREE_WORLD_PORT')
+                        commands.append('sleep 2')
+
+                        carla_world_port_start += 50
+                        carla_streaming_port_start += 50
+                        carla_tm_port_start += 50
+
+                        job_file = make_jobsub_file(commands=commands,
+                                                    baseline=baseline,
+                                                    experiment=experiment,
+                                                    training_rep=repetition,
+                                                    epoch=epoch,
+                                                    weather=weather,
+                                                    town=town,
+                                                    eval_rep=evaluation_repetition,
+                                                    job_number=job_nr,
+                                                    exp_name=experiment_name_stem,
+                                                    exp_root_name=experiment_name_root,
+                                                    partition=partition)
+                        result_file = f'{results_save_dir}/{route}.json'
+
+                        # Wait until submitting new jobs that the #jobs are at below max
                         num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
-                      time.sleep(0.05)
-                      print(f'Submitting job {job_nr}: {job_file}')
-                      jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
-                                                                                                                        maxsplit=1)[-1]
-                      meta_jobs[jobid] = (False, job_file, result_file, 0)
+                        print(f'{num_running_jobs}/{max_num_parallel_jobs} jobs are running...')
+                        while num_running_jobs >= max_num_parallel_jobs:
+                          num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
+                        time.sleep(0.05)
+                        print(f'Submitting job {job_nr}: {job_file}')
+                        # jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
+                        #                                                                                                   maxsplit=1)[-1]
+                        # meta_jobs[jobid] = (False, job_file, result_file, 0)
 
-                      job_nr += 1
+                        job_nr += 1
 
   training_finished = False
   while not training_finished:
