@@ -139,7 +139,7 @@ def get_num_jobs(job_name, username):
 
 
 def main():
-  towns=["Town01", "Town02"]
+  towns=["Town01"]
   weathers = {'train': [1,3,6,8], 'test': [10,14]}
   traffics_len=3
   weathers_conditions=["train", "test"]
@@ -147,7 +147,7 @@ def main():
   username = 'gwb629'
   epochs = ['2']
   seeds=[234213,252534,290246]
-  num_repetitions = 3
+  num_repetitions = 1
   #code_root = '/home/maximilian/Master/carla_garage'
   code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
   benchmark = 'nocrash'
