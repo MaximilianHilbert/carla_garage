@@ -28,7 +28,7 @@ def generate_batch_script(
 #SBATCH --job-name={baseline_folder_name}_{experiment}_{training_repetition}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --time=0-{walltime*args.dataset_repetition}:00
+#SBATCH --time=0-{walltime}:00
 #SBATCH --gres=gpu:8
 #SBATCH --partition=gpu-2080ti,gpu-v100
 #SBATCH --cpus-per-task={args.number_of_cpus}
