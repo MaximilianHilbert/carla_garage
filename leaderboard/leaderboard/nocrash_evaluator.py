@@ -347,7 +347,7 @@ class NoCrashEvaluator(object):
             
             route_completion, lights_ran, duration, timeout, collision = self.manager.get_nocrash_diagnostics()
             self.statistics_manager.log(
-                self.town, args.baseline_folder_name, args.experiment,traffic_idx, weather_idx, start_idx, target_idx, 
+                self.town, args.baseline_folder_name, args.experiment,args.setting,traffic_idx, weather_idx, start_idx, target_idx, 
                 route_completion, lights_ran, duration, timeout, collision
             )
 
