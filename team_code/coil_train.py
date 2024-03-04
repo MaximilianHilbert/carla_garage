@@ -74,7 +74,7 @@ def main(args):
                     args.setting,
                     "checkpoints",
                     checkpoint_file,
-                )
+                ),map_location=lambda storage, loc: storage
             )
             epoch = checkpoint["epoch"]
             best_loss = checkpoint["best_loss"]
@@ -151,15 +151,15 @@ def main(args):
             model = DDP(model, device_ids=[device_id])
         if merged_config_object.optimizer_baselines == "Adam":
             if "arp" in args.experiment:
-                policy_optimizer = ZeroRedundancyOptimizer(policy.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
+                #policy_optimizer = ZeroRedundancyOptimizer(policy.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
 
-                # policy_optimizer = optim.Adam(
-                #     policy.parameters(), lr=merged_config_object.learning_rate
-                # )
-                # mem_extract_optimizer = optim.Adam(
-                #     mem_extract.parameters(), lr=merged_config_object.learning_rate
-                # )
-                mem_extract_optimizer = ZeroRedundancyOptimizer(mem_extract.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
+                policy_optimizer = optim.Adam(
+                    policy.parameters(), lr=merged_config_object.learning_rate
+                )
+                mem_extract_optimizer = optim.Adam(
+                    mem_extract.parameters(), lr=merged_config_object.learning_rate
+                )
+                #mem_extract_optimizer = ZeroRedundancyOptimizer(mem_extract.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
 
                 mem_extract_scheduler = MultiStepLR(
                     mem_extract_optimizer,
