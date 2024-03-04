@@ -33,8 +33,8 @@ def generate_batch_script(
 #SBATCH --partition=gpu-2080ti,gpu-v100,gpu-2080ti-preemptable,gpu-v100-preemptable
 #SBATCH --cpus-per-task={args.number_of_cpus}
 #SBATCH --mem=320G
-#SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
-#SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
+#SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.out  # File to which STDOUT will be written
+#SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.err   # File to which STDERR will be written
 
 #export WORK_DIR=/home/hilbert/carla_garage
 #export CONFIG_ROOT=$WORK_DIR/coil_configuration
