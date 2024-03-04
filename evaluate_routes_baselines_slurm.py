@@ -156,6 +156,7 @@ def main():
 
   job_nr = 0
   already_placed_files={}
+  meta_jobs = {}
   experiment_name_stem = f'{benchmark}'
   for baseline in os.listdir(model_dir):
     for experiment in os.listdir(os.path.join(model_dir, baseline)):
@@ -223,7 +224,7 @@ def main():
                       results_save_dir.mkdir(parents=True, exist_ok=True)
                       logs_save_dir.mkdir(parents=True, exist_ok=True)
 
-                    meta_jobs = {}
+                    
 
                     for exp_name in exp_names:
                       for route in route_files:
@@ -288,9 +289,9 @@ def main():
                           print(f'Submitting job {job_nr}: {job_file}')
                           
                           
-                          jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
-                                                                                                                            maxsplit=1)[-1]
-                          meta_jobs[jobid] = (False, job_file, expected_result_length,result_file, 0)
+                          # jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
+                          #                                                                                                   maxsplit=1)[-1]
+                          meta_jobs[job_nr] = (False, job_file, expected_result_length,result_file, 0)
                           already_placed_files[eval_filename]=job_file
                           job_nr += 1
   print(meta_jobs)
