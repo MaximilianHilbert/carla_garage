@@ -7,6 +7,8 @@ import torch
 import cv2
 import random
 import time
+import gzip
+import ujson
 import cv2
 from collections import deque
 from coil_utils.baseline_helpers import merge_config_files
@@ -85,7 +87,18 @@ class CoILAgent(AutonomousAgent):
         self.latest_image_tensor = None
         self.target_point_prev=0
     
+    def destroy(self, results=None):  # pylint: disable=locally-disabled, unused-argument
+        """
+        Gets called after a route finished.
+        The leaderboard client doesn't properly clear up the agent after the route finishes so we need to do it here.
+        Also writes logging files to disk.
+        """
         
+
+        del self._policy
+        del self._mem_extract
+        
+
     def sensors(self):
         return [{'type': 'sensor.camera.rgb', 'x': self.config.camera_pos[0], 'y': self.config.camera_pos[1], 'z': self.config.camera_pos[2], 'roll': self.config.camera_rot_0[0], 'pitch': self.config.camera_rot_0[1], 'yaw': self.config.camera_rot_0[2],
                       'width': self.config.camera_width, 'height': self.config.camera_height, 'fov': self.config.camera_fov, 'id': 'CentralRGB', 'sensor_tick': self.config.carla_fps},
