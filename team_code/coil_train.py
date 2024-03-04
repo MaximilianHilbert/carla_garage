@@ -33,13 +33,12 @@ def find_free_port():
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return str(s.getsockname()[1])
 def main(args):
+    torch.cuda.empty_cache()
     world_size = int(os.environ["WORLD_SIZE"])
     rank = int(os.environ["LOCAL_RANK"])
-    os.environ["MASTER_ADDR"] = "127.0.0.1"
-    os.environ["MASTER_PORT"] = find_free_port()
     print(f"World-size {world_size}, Rank {rank}")
     dist.init_process_group(
-        backend="nccl", init_method="env://", world_size=world_size, rank=rank,timeout=datetime.timedelta(seconds=3600)
+        backend="nccl", init_method=f"env://127.0.0.1:{find_free_port()}", world_size=world_size, rank=rank,timeout=datetime.timedelta(seconds=3600)
     )
     if rank == 0:
         print("Backend initialized")
