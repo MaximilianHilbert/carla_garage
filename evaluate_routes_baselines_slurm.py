@@ -284,14 +284,14 @@ def main():
                         while num_running_jobs >= max_num_parallel_jobs:
                           num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
                         time.sleep(0.05)
-                        if job_nr not in already_placed_files.keys():
+                        if eval_filename not in already_placed_files.keys():
                           print(f'Submitting job {job_nr}: {job_file}')
                           
                           
                           jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
                                                                                                                             maxsplit=1)[-1]
                           meta_jobs[jobid] = (False, job_file, expected_result_length,result_file, 0)
-                          already_placed_files[job_nr]=job_file
+                          already_placed_files[eval_filename]=job_file
                           job_nr += 1
 
   training_finished = False
