@@ -31,6 +31,7 @@ class StatisticsManager:
         'town',
         "baseline",
         "experiment",
+        "setting",
         'traffic',
         'weather',
         'start',
@@ -68,6 +69,7 @@ class StatisticsManager:
                 self.finished_tasks[row['town']][(
                     str(row["baseline"]),
                     str(row["experiment"]),
+                    str(row["setting"]),
                     int(row['traffic']),
                     int(row['weather']),
                     int(row['start']),
@@ -78,12 +80,13 @@ class StatisticsManager:
                     float(row['duration']),
                 ]
     
-    def log(self, town, baseline, experiment,traffic, weather, start, target, route_completion, lights_ran, duration, timeout, collision):
+    def log(self, town, baseline, experiment,setting,traffic, weather, start, target, route_completion, lights_ran, duration, timeout, collision):
         with open(self.path_to_file, "a") as csv_file:
             csv_writer = csv.DictWriter(csv_file, fieldnames=self.headers)
             csv_writer.writerow({
                 "baseline": baseline,
                 "experiment": experiment,
+                "setting":setting,
                 'town'            : town,
                 'traffic'         : traffic,
                 'weather'         : weather,
