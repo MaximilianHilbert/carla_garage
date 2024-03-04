@@ -117,8 +117,7 @@ def main(args):
                 dataset.get_correlation_weights(), merged_config_object.threshold_ratio
             )
         print("Loaded dataset")
-        g_cuda = torch.Generator(device='cpu')
-        g_cuda.manual_seed(torch.initial_seed())
+        
         sampler = DistributedSampler(dataset)
         data_loader = torch.utils.data.DataLoader(
             dataset,
@@ -127,7 +126,6 @@ def main(args):
             pin_memory=True,
             shuffle=False,  # because of DDP
             drop_last=True,
-            generator=g_cuda,
             sampler=sampler,
         )
         if "arp" in args.experiment:
