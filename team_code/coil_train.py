@@ -12,7 +12,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from coil_utils.baseline_logging import Logger
-
+import datetime
 from coil_utils.baseline_helpers import (
     set_seed,
     get_controls_from_data,
@@ -23,13 +23,23 @@ from coil_utils.baseline_helpers import (
     visualize_model
 )
 
+def find_free_port():
+    """ https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number """
+    import socket
+    from contextlib import closing
 
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(('', 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return str(s.getsockname()[1])
 def main(args):
     world_size = int(os.environ["WORLD_SIZE"])
     rank = int(os.environ["LOCAL_RANK"])
+    os.environ["MASTER_ADDR"] = "127.0.0.1"
+    os.environ["MASTER_PORT"] = find_free_port()
     print(f"World-size {world_size}, Rank {rank}")
     dist.init_process_group(
-        backend="nccl", init_method="env://", world_size=world_size, rank=rank
+        backend="nccl", init_method="env://", world_size=world_size, rank=rank,timeout=datetime.timedelta(seconds=3600)
     )
     if rank == 0:
         print("Backend initialized")
