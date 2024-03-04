@@ -142,7 +142,7 @@ def main():
   towns=["Town01"]
   weathers = {'train': [1,3,6,8], 'test': [10,14]}
   traffics_len=3
-  weathers_conditions=["train", "test"]
+  weathers_conditions=["train"]
   partition = 'gpu-2080ti-preemptable,gpu-2080ti,gpu-v100-preemptable,gpu-v100,gpu-2080ti-dev'
   username = 'gwb629'
   epochs = ['2']
@@ -157,7 +157,7 @@ def main():
   job_nr = 0
   already_placed_files={}
   experiment_name_stem = f'{benchmark}'
-  for baseline in os.listdir(model_dir) :
+  for baseline in os.listdir(model_dir):
     for experiment in os.listdir(os.path.join(model_dir, baseline)):
       yaml_path=f'{os.path.join(code_root, "coil_configuration", baseline, experiment+".yaml")}'
       for repetition in os.listdir(os.path.join(model_dir, baseline, experiment)): #training repetition
@@ -293,7 +293,7 @@ def main():
                           meta_jobs[jobid] = (False, job_file, expected_result_length,result_file, 0)
                           already_placed_files[eval_filename]=job_file
                           job_nr += 1
-
+  print(meta_jobs)
   training_finished = False
   while not training_finished:
     num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
