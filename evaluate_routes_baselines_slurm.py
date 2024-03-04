@@ -13,7 +13,8 @@ import os
 import fnmatch
 import ujson
 import sys
-
+import numpy as np
+import pandas as pd
 # Our centOS is missing some c libraries.
 # Usually miniconda has them, so we tell the linker to look there as well.
 # newlib = '/mnt/qb/work/geiger/gwb629/conda/garage/lib'
@@ -67,7 +68,6 @@ export AGENT_YAML={yaml_path}
 export EXPERIMENT={experiment}
 export BASELINE={baseline}
 export COIL_CHECKPOINT={model_dir}
-export CHECKPOINT={results_save_dir}/{eval_id}.json
 export EVAL_ID={eval_id}
 export ADDITIONAL_LOG_PATH={results_save_dir}
 export TOWN={town}
@@ -84,7 +84,6 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --agent-yaml=${AGENT_YAML} \
 --experiment=${EXPERIMENT} \
 --baseline=${BASELINE} \
---checkpoint=${CHECKPOINT} \
 --coil_checkpoint=${COIL_CHECKPOINT} \
 --eval_id=${EVAL_ID} \
 --log_path=${ADDITIONAL_LOG_PATH} \
@@ -141,13 +140,15 @@ def get_num_jobs(job_name, username):
 
 def main():
   towns=["Town01", "Town02"]
-  weathers=["train", "test"]
+  weathers = {'train': [1,3,6,8], 'test': [10,14]}
+  traffics_len=3
+  weathers_conditions=["train", "test"]
   partition = 'gpu-2080ti-preemptable,gpu-2080ti,gpu-v100-preemptable,gpu-v100,gpu-2080ti-dev'
   username = 'gwb629'
   epochs = ['2']
   seeds=[234213,252534,290246]
   num_repetitions = 3
-  #code_root = '/home/maximilian/Master/carla_garage/'
+  #code_root = '/home/maximilian/Master/carla_garage'
   code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
   benchmark = 'nocrash'
   model_dir = os.path.join(code_root, "_logs")
@@ -164,9 +165,10 @@ def main():
           for epoch in epochs:
             checkpoint_file=f"{epoch}.pth"
             if checkpoint_file in checkpoints:
-              for weather in weathers:
+              for weather in weathers_conditions:
                 for town in towns:
                   for evaluation_repetition, seed in zip(range(1,num_repetitions+1), seeds): #evaluation repetition
+                    expected_result_length=0
                     eval_filename=experiment_name_stem+f"_b-{baseline}_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}"
                     exp_names_tmp = []
                     exp_names_tmp.append(experiment_name_stem + f'_e{evaluation_repetition}')
@@ -209,7 +211,9 @@ def main():
                       for name in files:
                         if fnmatch.fnmatch(name, route_pattern):
                           route_files.append(os.path.join(root, name))
-
+                          with open(os.path.join(root, name)) as route_split_file:
+                            expected_result_length+=len(route_split_file.readlines())
+                    expected_result_length+=len(weathers[weather])*traffics_len
                     for exp_name in exp_names:
                       bash_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "run_bashs"))
                       results_save_dir = Path(os.path.join(code_root, "evaluation", experiment_name_root, exp_name, "results"))
@@ -271,7 +275,7 @@ def main():
                                                     exp_root_name=experiment_name_root,
                                                     filename=eval_filename,
                                                     partition=partition)
-                        result_file = f'{results_save_dir}/{eval_filename}.json'
+                        result_file = f'{results_save_dir}/{eval_filename}.csv'
 
                         # Wait until submitting new jobs that the #jobs are at below max
                         num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
@@ -280,9 +284,11 @@ def main():
                           num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
                         time.sleep(0.05)
                         print(f'Submitting job {job_nr}: {job_file}')
+                        
+                        
                         jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
                                                                                                                           maxsplit=1)[-1]
-                        meta_jobs[jobid] = (False, job_file, result_file, 0)
+                        meta_jobs[jobid] = (False, job_file, expected_result_length,result_file, 0)
 
                         job_nr += 1
 
@@ -290,11 +296,11 @@ def main():
   while not training_finished:
     num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
     print(f'{num_running_jobs} jobs are running...')
-    time.sleep(10)
+    #time.sleep(10)
 
     # resubmit unfinished jobs
     for k in list(meta_jobs.keys()):
-      job_finished, job_file, result_file, resubmitted = meta_jobs[k]
+      job_finished, job_file, expected_result_length,result_file,resubmitted = meta_jobs[k]
       need_to_resubmit = False
       if not job_finished and resubmitted < 5:
         # check whether job is running
@@ -302,27 +308,13 @@ def main():
           # check whether result file is finished?
           if os.path.exists(result_file):
             with open(result_file, 'r', encoding='utf-8') as f_result:
-              evaluation_data = ujson.load(f_result)
-            progress = evaluation_data['_checkpoint']['progress']
-
-            if len(progress) < 2 or progress[0] < progress[1]:
-              need_to_resubmit = True
-            else:
-              for record in evaluation_data['_checkpoint']['records']:
-                if record['status'] == 'Failed - Agent couldn\'t be set up':
-                  need_to_resubmit = True
-                  print('Resubmit - Agent not setup')
-                elif record['status'] == 'Failed':
-                  need_to_resubmit = True
-                elif record['status'] == 'Failed - Simulation crashed':
-                  need_to_resubmit = True
-                elif record['status'] == 'Failed - Agent crashed':
-                  need_to_resubmit = True
-
+              evaluation_data_lines = len(f_result.readlines()[1:])
+              if evaluation_data_lines!=expected_result_length:
+                need_to_resubmit=True
             if not need_to_resubmit:
               # delete old job
               print(f'Finished job {job_file}')
-              meta_jobs[k] = (True, None, None, 0)
+              meta_jobs[k] = (True, None, None,None,0)
           else:
             need_to_resubmit = True
 
@@ -335,7 +327,7 @@ def main():
         jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
                                                                                                          maxsplit=1)[-1]
         meta_jobs[jobid] = (False, job_file, result_file, resubmitted + 1)
-        meta_jobs[k] = (True, None, None, 0)
+        meta_jobs[k] = (True, None, None, None,0)
 
     time.sleep(10)
 
@@ -343,16 +335,15 @@ def main():
       training_finished = True
 
   print('Evaluation finished. Start parsing results.')
-  eval_root = f'{code_root}/evaluation/{experiment_name_root}'
-  subprocess.check_call(
-      f'python {code_root}/tools/result_parser.py --xml {code_root}/leaderboard/data/{benchmark}.xml '
-      f'--results {eval_root} --log_dir {eval_root} --town_maps {code_root}/leaderboard/data/town_maps_xodr '
-      f'--map_dir {code_root}/leaderboard/data/town_maps_tga --device cpu '
-      f'--map_data_folder {code_root}/tools/proxy_simulator/map_data --subsample 1 --strict --visualize_infractions',
-      stdout=sys.stdout,
-      stderr=sys.stderr,
-      shell=True)
-
+  #eval_root = f'{code_root}/evaluation'
+  # subprocess.check_call(
+  #     f'python {code_root}/tools/result_parser.py --xml {code_root}/leaderboard/data/{benchmark}.xml '
+  #     f'--results {eval_root} --log_dir {eval_root} --town_maps {code_root}/leaderboard/data/town_maps_xodr '
+  #     f'--map_dir {code_root}/leaderboard/data/town_maps_tga --device cpu '
+  #     f'--map_data_folder {code_root}/tools/proxy_simulator/map_data --subsample 1 --strict --visualize_infractions',
+  #     stdout=sys.stdout,
+  #     stderr=sys.stderr,
+  #     shell=True)
 
 if __name__ == '__main__':
   main()
