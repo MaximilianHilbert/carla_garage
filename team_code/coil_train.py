@@ -11,6 +11,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
+from torch.distributed.optim import ZeroRedundancyOptimizer
 from coil_utils.baseline_logging import Logger
 import datetime
 from coil_utils.baseline_helpers import (
@@ -116,6 +117,8 @@ def main(args):
                 dataset.get_correlation_weights(), merged_config_object.threshold_ratio
             )
         print("Loaded dataset")
+        g_cuda = torch.Generator(device='cpu')
+        g_cuda.manual_seed(torch.initial_seed())
         sampler = DistributedSampler(dataset)
         data_loader = torch.utils.data.DataLoader(
             dataset,
@@ -124,6 +127,7 @@ def main(args):
             pin_memory=True,
             shuffle=False,  # because of DDP
             drop_last=True,
+            generator=g_cuda,
             sampler=sampler,
         )
         if "arp" in args.experiment:
@@ -131,11 +135,13 @@ def main(args):
                 merged_config_object
             )
             policy.to(device_id)
+            #policy = torch.nn.SyncBatchNorm.convert_sync_batchnorm(policy)
             policy = DDP(policy, device_ids=[device_id])
             mem_extract = CoILModel(merged_config_object.mem_extract_model_type,
                 merged_config_object
             )
             mem_extract.to(device_id)
+            #mem_extract = torch.nn.SyncBatchNorm.convert_sync_batchnorm(mem_extract)
             mem_extract = DDP(mem_extract, device_ids=[device_id])
         else:
             model = CoILModel(merged_config_object.model_type,
@@ -145,12 +151,16 @@ def main(args):
             model = DDP(model, device_ids=[device_id])
         if merged_config_object.optimizer_baselines == "Adam":
             if "arp" in args.experiment:
-                policy_optimizer = optim.Adam(
-                    policy.parameters(), lr=merged_config_object.learning_rate
-                )
-                mem_extract_optimizer = optim.Adam(
-                    mem_extract.parameters(), lr=merged_config_object.learning_rate
-                )
+                policy_optimizer = ZeroRedundancyOptimizer(policy.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
+
+                # policy_optimizer = optim.Adam(
+                #     policy.parameters(), lr=merged_config_object.learning_rate
+                # )
+                # mem_extract_optimizer = optim.Adam(
+                #     mem_extract.parameters(), lr=merged_config_object.learning_rate
+                # )
+                mem_extract_optimizer = ZeroRedundancyOptimizer(mem_extract.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
+
                 mem_extract_scheduler = MultiStepLR(
                     mem_extract_optimizer,
                     milestones=args.adapt_lr_milestones,
