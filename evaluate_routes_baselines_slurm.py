@@ -289,12 +289,12 @@ def main():
                           print(f'Submitting job {job_nr}: {job_file}')
                           
                           
-                          # jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
-                          #                                                                                                   maxsplit=1)[-1]
-                          meta_jobs[job_nr] = (False, job_file, expected_result_length,result_file, 0)
+                          jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
+                                                                                                                            maxsplit=1)[-1]
+                          meta_jobs[jobid] = (False, job_file, expected_result_length,result_file, 0)
                           already_placed_files[eval_filename]=job_file
                           job_nr += 1
-  print(meta_jobs)
+
   training_finished = False
   while not training_finished:
     num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
@@ -307,10 +307,10 @@ def main():
       need_to_resubmit = False
       if not job_finished and resubmitted < 5:
         # check whether job is running
-        print(int(subprocess.check_output(f'squeue | grep {k} | wc -l', shell=True).decode('utf-8').strip()) == 0)
         if int(subprocess.check_output(f'squeue | grep {k} | wc -l', shell=True).decode('utf-8').strip()) == 0:
           # check whether result file is finished?
           if os.path.exists(result_file):
+            print("file exists")
             with open(result_file, 'r', encoding='utf-8') as f_result:
               evaluation_data_lines = len(f_result.readlines()[1:])
               if evaluation_data_lines!=expected_result_length:
@@ -330,7 +330,7 @@ def main():
         print(f'resubmit sbatch {job_file}')
         jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
                                                                                                          maxsplit=1)[-1]
-        meta_jobs[jobid] = (False, job_file, result_file, resubmitted + 1)
+        meta_jobs[jobid] = (False, job_file, expected_result_length,result_file, resubmitted + 1)
         meta_jobs[k] = (True, None, None, None,0)
 
     time.sleep(10)
