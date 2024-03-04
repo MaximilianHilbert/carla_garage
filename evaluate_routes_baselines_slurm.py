@@ -155,6 +155,7 @@ def main():
   carla_root = os.path.join(code_root, "carla")
 
   job_nr = 0
+  already_placed_files={}
   experiment_name_stem = f'{benchmark}'
   for baseline in os.listdir(model_dir) :
     for experiment in os.listdir(os.path.join(model_dir, baseline)):
@@ -283,20 +284,21 @@ def main():
                         while num_running_jobs >= max_num_parallel_jobs:
                           num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
                         time.sleep(0.05)
-                        print(f'Submitting job {job_nr}: {job_file}')
-                        
-                        
-                        jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
-                                                                                                                          maxsplit=1)[-1]
-                        meta_jobs[jobid] = (False, job_file, expected_result_length,result_file, 0)
-
-                        job_nr += 1
+                        if job_nr not in already_placed_files.keys():
+                          print(f'Submitting job {job_nr}: {job_file}')
+                          
+                          
+                          jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
+                                                                                                                            maxsplit=1)[-1]
+                          meta_jobs[jobid] = (False, job_file, expected_result_length,result_file, 0)
+                          already_placed_files[job_nr]=job_file
+                          job_nr += 1
 
   training_finished = False
   while not training_finished:
     num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
     print(f'{num_running_jobs} jobs are running...')
-    #time.sleep(10)
+    time.sleep(10)
 
     # resubmit unfinished jobs
     for k in list(meta_jobs.keys()):
@@ -304,6 +306,7 @@ def main():
       need_to_resubmit = False
       if not job_finished and resubmitted < 5:
         # check whether job is running
+        print(int(subprocess.check_output(f'squeue | grep {k} | wc -l', shell=True).decode('utf-8').strip()) == 0)
         if int(subprocess.check_output(f'squeue | grep {k} | wc -l', shell=True).decode('utf-8').strip()) == 0:
           # check whether result file is finished?
           if os.path.exists(result_file):
