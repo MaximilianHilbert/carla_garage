@@ -26,6 +26,7 @@ def create_run_eval_bash(work_dir,
                          yaml_path,
                              town, 
                              weather,
+                             setting,
                              seed,
                              eval_id,
                              baseline,
@@ -76,6 +77,7 @@ export SEED={seed}
 export CHALLENGE_TRACK_CODENAME=SENSORS
 export REPETITIONS=1
 export RESUME=1
+export SETTING={setting}
 source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 """)
@@ -94,7 +96,8 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --tm_port=${TM_PORT} \
 --timeout=600 \
 --resume=${RESUME} \
---repetitions=${REPETITIONS}
+--repetitions=${REPETITIONS} \
+--setting=${SETTING}
 ''')
 
 
@@ -254,6 +257,7 @@ def main():
                                              yaml_path,
                                              town, 
                                               weather,
+                                              setting,
                                               seed,
                                               eval_filename,
                                               baseline,
