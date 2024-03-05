@@ -142,21 +142,26 @@ def get_num_jobs(job_name, username):
 
 
 def main():
-  towns=["Town01"]
+
+  single_test=False
+  settings_to_be_tested=["coil"] # only set when single test is True
+  training_reps_to_be_tested=["repetition_2"] # only set when single test is True
+  
+  towns=["Town01", "Town02"]
   weathers = {'train': [1,3,6,8], 'test': [10,14]}
   traffics_len=3
-  weathers_conditions=["train"]
+  weathers_conditions=["train", "test"]
   partition = 'gpu-2080ti-preemptable,gpu-2080ti,gpu-v100-preemptable,gpu-v100,gpu-2080ti-dev'
   username = 'gwb629'
-  epochs = ['28']
+  epochs = ['2']
   seeds=[234213,252534,290246]
-  num_repetitions = 1
+  num_repetitions = 3
   #code_root = '/home/maximilian/Master/carla_garage'
   code_root = '/mnt/qb/work/geiger/gwb629/carla_garage'
   benchmark = 'nocrash'
   model_dir = os.path.join(code_root, "_logs")
   carla_root = os.path.join(code_root, "carla")
-
+  
   job_nr = 0
   already_placed_files={}
   meta_jobs = {}
@@ -164,8 +169,8 @@ def main():
   for baseline in os.listdir(model_dir):
     for experiment in os.listdir(os.path.join(model_dir, baseline)):
       yaml_path=f'{os.path.join(code_root, "coil_configuration", baseline, experiment+".yaml")}'
-      for repetition in os.listdir(os.path.join(model_dir, baseline, experiment)): #training repetition
-        for setting in os.listdir(os.path.join(model_dir, baseline, experiment, repetition)):
+      for repetition in os.listdir(os.path.join(model_dir, baseline, experiment)) if not single_test else training_reps_to_be_tested: #training repetition
+        for setting in os.listdir(os.path.join(model_dir, baseline, experiment, repetition)) if not single_test else settings_to_be_tested:
           checkpoints=os.listdir(os.path.join(model_dir, baseline, experiment, repetition, setting, "checkpoints"))
           for epoch in epochs:
             checkpoint_file=f"{epoch}.pth"
