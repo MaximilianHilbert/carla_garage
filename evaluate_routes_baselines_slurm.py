@@ -151,7 +151,7 @@ def main():
   weathers = {'train': [1,3,6,8], 'test': [10,14]}
   traffics_len=3
   weathers_conditions=["train", "test"]
-  partition = 'gpu-2080ti-preemptable,gpu-2080ti,gpu-v100-preemptable,gpu-v100,gpu-2080ti-dev'
+  partition = 'gpu-2080ti-preemptable,gpu-v100-preemptable,gpu-2080ti-dev'
   username = 'gwb629'
   epochs = ['28']
   seeds=[234213,252534,290246]
