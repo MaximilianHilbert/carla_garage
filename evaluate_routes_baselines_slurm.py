@@ -323,16 +323,12 @@ def main():
             need_to_resubmit = True
 
       if need_to_resubmit:
-        # Remove crashed results file
-        if os.path.exists(result_file):
-          print('Remove file: ', result_file)
-          Path(result_file).unlink()
         print(f'resubmit sbatch {job_file}')
         jobid = subprocess.check_output(f'sbatch {job_file}', shell=True).decode('utf-8').strip().rsplit(' ',
                                                                                                          maxsplit=1)[-1]
         meta_jobs[jobid] = (False, job_file, expected_result_length,result_file, resubmitted + 1)
         meta_jobs[k] = (True, None, None, None,0)
-
+        num_running_jobs+=1
     time.sleep(10)
 
     if num_running_jobs == 0:
