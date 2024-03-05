@@ -174,7 +174,7 @@ def main():
                 for town in towns:
                   for evaluation_repetition, seed in zip(range(1,num_repetitions+1), seeds): #evaluation repetition
                     expected_result_length=0
-                    eval_filename=experiment_name_stem+f"_b-{baseline}_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}"
+                    eval_filename=experiment_name_stem+f"_b-{baseline}_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}_s-{setting}"
                     exp_names_tmp = []
                     exp_names_tmp.append(experiment_name_stem + f'_e{evaluation_repetition}')
                     route_path = f'leaderboard/data/{benchmark}_split/{town}'
