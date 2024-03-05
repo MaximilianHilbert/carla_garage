@@ -411,7 +411,7 @@ class NoCrashEvaluator(object):
         # route_indexer.save_state(args.checkpoint)
 
         # Load routes
-        with open(self.args,
+        with open(args.route,
             "r",
         ) as f:
             routes = [tuple(map(int, l.split())) for l in f.readlines()]
