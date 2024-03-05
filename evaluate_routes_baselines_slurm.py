@@ -171,11 +171,11 @@ def main():
     weathers_conditions = ["train", "test"]
     partition = "gpu-2080ti-preemptable,gpu-2080ti,gpu-v100-preemptable,gpu-v100,gpu-2080ti-dev"
     username = "gwb629"
-    epochs = ["2"]
+    epochs = ["28"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3
-    code_root = '/home/maximilian/Master/carla_garage'
-    #code_root = "/mnt/qb/work/geiger/gwb629/carla_garage"
+    #code_root = '/home/maximilian/Master/carla_garage'
+    code_root = "/mnt/qb/work/geiger/gwb629/carla_garage"
     benchmark = "nocrash"
     model_dir = os.path.join(code_root, "_logs")
     carla_root = os.path.join(code_root, "carla")
@@ -412,22 +412,22 @@ def main():
                                           if eval_filename not in already_placed_files.keys():
                                               print(f"Submitting job {job_nr}: {job_file}")
 
-                                              # jobid = (
-                                              #     subprocess.check_output(
-                                              #         f"sbatch {job_file}",
-                                              #         shell=True,
-                                              #     )
-                                              #     .decode("utf-8")
-                                              #     .strip()
-                                              #     .rsplit(" ", maxsplit=1)[-1]
-                                              # )
-                                              # meta_jobs[jobid] = (
-                                              #     False,
-                                              #     job_file,
-                                              #     expected_result_length,
-                                              #     result_file,
-                                              #     0,
-                                              # )
+                                              jobid = (
+                                                  subprocess.check_output(
+                                                      f"sbatch {job_file}",
+                                                      shell=True,
+                                                  )
+                                                  .decode("utf-8")
+                                                  .strip()
+                                                  .rsplit(" ", maxsplit=1)[-1]
+                                              )
+                                              meta_jobs[jobid] = (
+                                                  False,
+                                                  job_file,
+                                                  expected_result_length,
+                                                  result_file,
+                                                  0,
+                                              )
                                               already_placed_files[eval_filename] = job_file
                                               job_nr += 1
 
