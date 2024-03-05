@@ -210,6 +210,7 @@ class CoILAgent(AutonomousAgent):
         #end_point_orientation_ego_system=np.array([*self.yaw_to_orientation(end_point_yaw_ego_system)])
         end_point_location_ego_system=inverse_conversion_2d(target_point_location, current_location, current_yaw_ego_system)
         end_point_location_ego_system=torch.unsqueeze(torch.tensor(end_point_location_ego_system, dtype=torch.float32), dim=0).to("cuda:0")
+        
         #Conversion to old convention necessary in carla >=0.9, only take BGR Values without alpha channel and convert to RGB for the model
         current_image=sensor_data.get("CentralRGB")[1][...,:3]
         current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
@@ -250,7 +251,7 @@ class CoILAgent(AutonomousAgent):
                 else:
                     if self.config.use_wp_gru:
                         model_outputs = self.model.module.forward_branch(x=torch.unsqueeze(single_image,0), a=measurement_input,
-                                                            target_point=torch.tensor([end_point_location_ego_system], device="cuda:0", dtype=torch.float32))
+                                                            target_point=end_point_location_ego_system)
                     else:
                         model_outputs = self.model.module.forward_branch(x=torch.unsqueeze(single_image,0), a=measurement_input,)
             predicted_speed = self.model.module.extract_predicted_speed().cpu().detach().numpy()
