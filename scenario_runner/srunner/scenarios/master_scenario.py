@@ -12,13 +12,15 @@ import py_trees
 
 from srunner.scenarioconfigs.route_scenario_configuration import RouteConfiguration
 from srunner.scenariomanager.scenarioatomics.atomic_behaviors import Idle
-from srunner.scenariomanager.scenarioatomics.atomic_criteria import (CollisionTest,
-                                                                     InRouteTest,
-                                                                     RouteCompletionTest,
-                                                                     OutsideRouteLanesTest,
-                                                                     RunningRedLightTest,
-                                                                     RunningStopTest,
-                                                                     ActorSpeedAboveThresholdTest)
+from srunner.scenariomanager.scenarioatomics.atomic_criteria import (
+    CollisionTest,
+    InRouteTest,
+    RouteCompletionTest,
+    OutsideRouteLanesTest,
+    RunningRedLightTest,
+    RunningStopTest,
+    ActorSpeedAboveThresholdTest,
+)
 from srunner.scenarios.basic_scenario import BasicScenario
 
 
@@ -30,10 +32,18 @@ class MasterScenario(BasicScenario):
     This is a single ego vehicle scenario
     """
 
-    radius = 10.0           # meters
+    radius = 10.0  # meters
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, criteria_enable=True,
-                 timeout=300):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        timeout=300,
+    ):
         """
         Setup all relevant parameters and create scenario
         """
@@ -42,14 +52,20 @@ class MasterScenario(BasicScenario):
         # Timeout of scenario in seconds
         self.timeout = timeout
 
-        if hasattr(self.config, 'route'):
+        if hasattr(self.config, "route"):
             self.route = self.config.route
         else:
             raise ValueError("Master scenario must have a route")
 
-        super(MasterScenario, self).__init__("MasterScenario", ego_vehicles=ego_vehicles, config=config,
-                                             world=world, debug_mode=debug_mode,
-                                             terminate_on_failure=True, criteria_enable=criteria_enable)
+        super(MasterScenario, self).__init__(
+            "MasterScenario",
+            ego_vehicles=ego_vehicles,
+            config=config,
+            world=world,
+            debug_mode=debug_mode,
+            terminate_on_failure=True,
+            criteria_enable=criteria_enable,
+        )
 
     def _create_behavior(self):
         """
@@ -76,10 +92,7 @@ class MasterScenario(BasicScenario):
 
         collision_criterion = CollisionTest(self.ego_vehicles[0], terminate_on_failure=False)
 
-        route_criterion = InRouteTest(self.ego_vehicles[0],
-                                      route=route,
-                                      offroad_max=30,
-                                      terminate_on_failure=True)
+        route_criterion = InRouteTest(self.ego_vehicles[0], route=route, offroad_max=30, terminate_on_failure=True)
 
         completion_criterion = RouteCompletionTest(self.ego_vehicles[0], route=route)
 
@@ -89,13 +102,16 @@ class MasterScenario(BasicScenario):
 
         stop_criterion = RunningStopTest(self.ego_vehicles[0])
 
-        blocked_criterion = ActorSpeedAboveThresholdTest(self.ego_vehicles[0],
-                                                         speed_threshold=0.1,
-                                                         below_threshold_max_time=90.0,
-                                                         terminate_on_failure=True)
+        blocked_criterion = ActorSpeedAboveThresholdTest(
+            self.ego_vehicles[0],
+            speed_threshold=0.1,
+            below_threshold_max_time=90.0,
+            terminate_on_failure=True,
+        )
 
-        parallel_criteria = py_trees.composites.Parallel("group_criteria",
-                                                         policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+        parallel_criteria = py_trees.composites.Parallel(
+            "group_criteria", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE
+        )
 
         parallel_criteria.add_child(completion_criterion)
         parallel_criteria.add_child(collision_criterion)

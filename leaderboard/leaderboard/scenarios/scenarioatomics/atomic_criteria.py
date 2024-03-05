@@ -34,8 +34,14 @@ class ActorSpeedAboveThresholdTest(Criterion):
     - terminate_on_failure [optional]: If True, the complete scenario will terminate upon failure of this test
     """
 
-    def __init__(self, actor, speed_threshold, below_threshold_max_time,
-                 name="ActorSpeedAboveThresholdTest", terminate_on_failure=False):
+    def __init__(
+        self,
+        actor,
+        speed_threshold,
+        below_threshold_max_time,
+        name="ActorSpeedAboveThresholdTest",
+        terminate_on_failure=False,
+    ):
         """
         Class constructor.
         """
@@ -80,16 +86,21 @@ class ActorSpeedAboveThresholdTest(Criterion):
         Sets the message of the event
         """
 
-        event.set_message('Agent got blocked at (x={}, y={}, z={})'.format(round(location.x, 3),
-                                                                               round(location.y, 3),
-                                                                               round(location.z, 3)))
+        event.set_message(
+            "Agent got blocked at (x={}, y={}, z={})".format(
+                round(location.x, 3), round(location.y, 3), round(location.z, 3)
+            )
+        )
+
     @staticmethod
     def _set_event_dict(event, location):
         """
         Sets the dictionary of the event
         """
-        event.set_dict({
-            'x': location.x,
-            'y': location.y,
-            'z': location.z,
-          })
+        event.set_dict(
+            {
+                "x": location.x,
+                "y": location.y,
+                "z": location.z,
+            }
+        )

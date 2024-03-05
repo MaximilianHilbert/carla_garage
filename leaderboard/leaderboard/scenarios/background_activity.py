@@ -29,19 +29,27 @@ class BackgroundActivity(BasicScenario):
     category = "BackgroundActivity"
 
     town_amount = {
-        'Town01': 120,
-        'Town02': 100,
-        'Town03': 120,
-        'Town04': 200,
-        'Town05': 120,
-        'Town06': 150,
-        'Town07': 110,
-        'Town08': 180,
-        'Town09': 300,
-        'Town10': 120,
+        "Town01": 120,
+        "Town02": 100,
+        "Town03": 120,
+        "Town04": 200,
+        "Town05": 120,
+        "Town06": 150,
+        "Town07": 110,
+        "Town08": 180,
+        "Town09": 300,
+        "Town10": 120,
     }
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, timeout=35 * 60):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        timeout=35 * 60,
+    ):
         """
         Setup all relevant parameters and create scenario
         """
@@ -50,28 +58,31 @@ class BackgroundActivity(BasicScenario):
 
         self.timeout = timeout  # Timeout of scenario in seconds
 
-        super(BackgroundActivity, self).__init__("BackgroundActivity",
-                                                 ego_vehicles,
-                                                 config,
-                                                 world,
-                                                 debug_mode,
-                                                 terminate_on_failure=True,
-                                                 criteria_enable=True)
+        super(BackgroundActivity, self).__init__(
+            "BackgroundActivity",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            terminate_on_failure=True,
+            criteria_enable=True,
+        )
 
     def _initialize_actors(self, config):
-
         town_name = config.town
         if town_name in self.town_amount:
             amount = self.town_amount[town_name]
         else:
             amount = 0
 
-        new_actors = CarlaDataProvider.request_new_batch_actors('vehicle.*',
-                                                                amount,
-                                                                carla.Transform(),
-                                                                autopilot=True,
-                                                                random_location=True,
-                                                                rolename='background')
+        new_actors = CarlaDataProvider.request_new_batch_actors(
+            "vehicle.*",
+            amount,
+            carla.Transform(),
+            autopilot=True,
+            random_location=True,
+            rolename="background",
+        )
 
         if new_actors is None:
             raise Exception("Error: Unable to add the background activity, all spawn points were occupied")

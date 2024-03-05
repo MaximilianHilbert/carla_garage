@@ -79,31 +79,37 @@ class SimpleVehicleControl(BasicControl):
         self._generated_waypoint_list = []
         self._last_update = None
         self._consider_obstacles = False
-        self._proximity_threshold = float('inf')
+        self._proximity_threshold = float("inf")
 
         self._cv_image = None
         self._camera = None
         self._obstacle_sensor = None
-        self._obstacle_distance = float('inf')
+        self._obstacle_distance = float("inf")
         self._obstacle_actor = None
 
-        if args and 'consider_obstacles' in args and strtobool(args['consider_obstacles']):
-            self._consider_obstacles = strtobool(args['consider_obstacles'])
-            bp = CarlaDataProvider.get_world().get_blueprint_library().find('sensor.other.obstacle')
-            bp.set_attribute('distance', '250')
-            if args and 'proximity_threshold' in args:
-                self._proximity_threshold = float(args['proximity_threshold'])
-                bp.set_attribute('distance', str(max(float(args['proximity_threshold']), 250)))
-            bp.set_attribute('hit_radius', '1')
-            bp.set_attribute('only_dynamics', 'True')
+        if args and "consider_obstacles" in args and strtobool(args["consider_obstacles"]):
+            self._consider_obstacles = strtobool(args["consider_obstacles"])
+            bp = CarlaDataProvider.get_world().get_blueprint_library().find("sensor.other.obstacle")
+            bp.set_attribute("distance", "250")
+            if args and "proximity_threshold" in args:
+                self._proximity_threshold = float(args["proximity_threshold"])
+                bp.set_attribute("distance", str(max(float(args["proximity_threshold"]), 250)))
+            bp.set_attribute("hit_radius", "1")
+            bp.set_attribute("only_dynamics", "True")
             self._obstacle_sensor = CarlaDataProvider.get_world().spawn_actor(
-                bp, carla.Transform(carla.Location(x=self._actor.bounding_box.extent.x, z=1.0)), attach_to=self._actor)
+                bp,
+                carla.Transform(carla.Location(x=self._actor.bounding_box.extent.x, z=1.0)),
+                attach_to=self._actor,
+            )
             self._obstacle_sensor.listen(lambda event: self._on_obstacle(event))  # pylint: disable=unnecessary-lambda
 
-        if args and 'attach_camera' in args and strtobool(args['attach_camera']):
-            bp = CarlaDataProvider.get_world().get_blueprint_library().find('sensor.camera.rgb')
-            self._camera = CarlaDataProvider.get_world().spawn_actor(bp, carla.Transform(
-                carla.Location(x=0.0, z=30.0), carla.Rotation(pitch=-60)), attach_to=self._actor)
+        if args and "attach_camera" in args and strtobool(args["attach_camera"]):
+            bp = CarlaDataProvider.get_world().get_blueprint_library().find("sensor.camera.rgb")
+            self._camera = CarlaDataProvider.get_world().spawn_actor(
+                bp,
+                carla.Transform(carla.Location(x=0.0, z=30.0), carla.Rotation(pitch=-60)),
+                attach_to=self._actor,
+            )
             self._camera.listen(lambda image: self._on_camera_update(image))  # pylint: disable=unnecessary-lambda
 
     def _on_obstacle(self, event):
@@ -234,12 +240,16 @@ class SimpleVehicleControl(BasicControl):
             if self._obstacle_distance < self._proximity_threshold:
                 distance = max(self._obstacle_distance, 0)
                 if distance > 0:
-                    current_speed = math.sqrt(self._actor.get_velocity().x**2 + self._actor.get_velocity().y**2)
+                    current_speed = math.sqrt(self._actor.get_velocity().x ** 2 + self._actor.get_velocity().y ** 2)
                     current_speed_other = math.sqrt(
-                        self._obstacle_actor.get_velocity().x**2 + self._obstacle_actor.get_velocity().y**2)
+                        self._obstacle_actor.get_velocity().x ** 2 + self._obstacle_actor.get_velocity().y ** 2
+                    )
                     if current_speed_other < current_speed:
-                        acceleration = -0.5 * (current_speed - current_speed_other)**2 / distance
-                        target_speed = max(acceleration * (current_time - self._last_update) + current_speed, 0)
+                        acceleration = -0.5 * (current_speed - current_speed_other) ** 2 / distance
+                        target_speed = max(
+                            acceleration * (current_time - self._last_update) + current_speed,
+                            0,
+                        )
                 else:
                     target_speed = 0
 

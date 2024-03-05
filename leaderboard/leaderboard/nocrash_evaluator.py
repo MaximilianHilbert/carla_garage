@@ -37,26 +37,27 @@ from leaderboard.scenarios.train_scenario import TrainScenario
 from leaderboard.scenarios.nocrash_train_scenario import NoCrashTrainScenario
 from leaderboard.scenarios.nocrash_eval_scenario import NoCrashEvalScenario
 from leaderboard.envs.sensor_interface import SensorConfigurationInvalid
-from leaderboard.autoagents.agent_wrapper import  AgentWrapper, AgentError
+from leaderboard.autoagents.agent_wrapper import AgentWrapper, AgentError
 from leaderboard.utils.route_indexer import RouteIndexer
-#TODO whatch out there is the new statistics manager and not the original / nocrash one!
+
+# TODO whatch out there is the new statistics manager and not the original / nocrash one!
 from leaderboard.utils.statistics_manager_local import StatisticsManager
 
 sensors_to_icons = {
-    'sensor.camera.rgb':        'carla_camera',
-    'sensor.lidar.ray_cast':    'carla_lidar',
-    'sensor.other.radar':       'carla_radar',
-    'sensor.other.gnss':        'carla_gnss',
-    'sensor.other.imu':         'carla_imu',
-    'sensor.opendrive_map':     'carla_opendrive_map',
-    'sensor.speedometer':       'carla_speedometer',
+    "sensor.camera.rgb": "carla_camera",
+    "sensor.lidar.ray_cast": "carla_lidar",
+    "sensor.other.radar": "carla_radar",
+    "sensor.other.gnss": "carla_gnss",
+    "sensor.other.imu": "carla_imu",
+    "sensor.opendrive_map": "carla_opendrive_map",
+    "sensor.speedometer": "carla_speedometer",
     # Training sensors
-    'sensor.map':               'carla_map',
-    'sensor.pretty_map':        'carla_map',
-    'sensor.collision':         'carla_collision',
-    'sensor.stitch_camera.rgb': 'carla_stich_rgb',
-    'sensor.stitch_camera.semantic_segmentation': 'carla_stich_sem',
-    'sensor.camera.semantic_segmentation':        'carla_sem'
+    "sensor.map": "carla_map",
+    "sensor.pretty_map": "carla_map",
+    "sensor.collision": "carla_collision",
+    "sensor.stitch_camera.rgb": "carla_stich_rgb",
+    "sensor.stitch_camera.semantic_segmentation": "carla_stich_sem",
+    "sensor.camera.semantic_segmentation": "carla_sem",
 }
 
 
@@ -71,7 +72,7 @@ class NoCrashEvaluator(object):
     # Tunable parameters
     client_timeout = 10.0  # in seconds
     wait_for_world = 20.0  # in seconds
-    frame_rate = 20.0      # in Hz
+    frame_rate = 20.0  # in Hz
 
     def __init__(self, args, statistics_manager):
         """
@@ -80,15 +81,19 @@ class NoCrashEvaluator(object):
         """
         import os
         import torch.distributed as dist
-        os.environ['MASTER_ADDR'] = '127.0.0.1'
-        os.environ['MASTER_PORT'] = find_free_port()
+
+        os.environ["MASTER_ADDR"] = "127.0.0.1"
+        os.environ["MASTER_PORT"] = find_free_port()
         dist.init_process_group(
-        backend="nccl", init_method=f"env://127.0.0.1:{os.environ.get('MASTER_PORT')}", world_size=1, rank=0
-    )
+            backend="nccl",
+            init_method=f"env://127.0.0.1:{os.environ.get('MASTER_PORT')}",
+            world_size=1,
+            rank=0,
+        )
         self.statistics_manager = statistics_manager
         self.sensors = None
         self.sensor_icons = []
-        self.config=merge_config_files(args, training=False)
+        self.config = merge_config_files(args, training=False)
         # First of all, we need to create the client that will send the requests
         # to the simulator. Here we'll assume the simulator is accepting
         # requests in the localhost at port 2000.
@@ -100,12 +105,12 @@ class NoCrashEvaluator(object):
         self.traffic_manager = self.client.get_trafficmanager(int(args.trafficManagerPort))
 
         dist = pkg_resources.get_distribution("carla")
-        if dist.version != 'leaderboard':
-            if LooseVersion(dist.version) < LooseVersion('0.9.10'):
+        if dist.version != "leaderboard":
+            if LooseVersion(dist.version) < LooseVersion("0.9.10"):
                 raise ImportError("CARLA version 0.9.10.1 or newer required. CARLA version found: {}".format(dist))
 
         # Load agent
-        module_name = os.path.basename(args.agent).split('.')[0]
+        module_name = os.path.basename(args.agent).split(".")[0]
         sys.path.insert(0, os.path.dirname(args.agent))
         self.module_agent = importlib.import_module(module_name)
 
@@ -122,7 +127,6 @@ class NoCrashEvaluator(object):
 
         self.town = args.town
 
-
     def _signal_handler(self, signum, frame):
         """
         Terminate scenario ticking when receiving a signal interrupt
@@ -138,9 +142,9 @@ class NoCrashEvaluator(object):
         """
 
         self._cleanup()
-        if hasattr(self, 'manager') and self.manager:
+        if hasattr(self, "manager") and self.manager:
             del self.manager
-        if hasattr(self, 'world') and self.world:
+        if hasattr(self, "world") and self.world:
             del self.world
 
     def _cleanup(self):
@@ -149,8 +153,7 @@ class NoCrashEvaluator(object):
         """
 
         # Simulation still running and in synchronous mode?
-        if self.manager and self.manager.get_running_status() \
-                and hasattr(self, 'world') and self.world:
+        if self.manager and self.manager.get_running_status() and hasattr(self, "world") and self.world:
             # Reset to asynchronous mode
             settings = self.world.get_settings()
             settings.synchronous_mode = False
@@ -172,13 +175,12 @@ class NoCrashEvaluator(object):
         if self._agent_watchdog:
             self._agent_watchdog.stop()
 
-        if hasattr(self, 'agent_instance') and self.agent_instance:
+        if hasattr(self, "agent_instance") and self.agent_instance:
             self.agent_instance.destroy()
             self.agent_instance = None
 
-        if hasattr(self, 'statistics_manager') and self.statistics_manager:
+        if hasattr(self, "statistics_manager") and self.statistics_manager:
             self.statistics_manager.scenario = None
-
 
     def _load_and_wait_for_world(self, args):
         """
@@ -196,7 +198,7 @@ class NoCrashEvaluator(object):
         CarlaDataProvider.set_client(self.client)
         CarlaDataProvider.set_world(self.world)
         CarlaDataProvider.set_traffic_manager_port(int(args.trafficManagerPort))
-        
+
         self.traffic_manager.set_synchronous_mode(True)
         self.traffic_manager.set_random_device_seed(int(args.trafficManagerSeed))
 
@@ -207,8 +209,9 @@ class NoCrashEvaluator(object):
             self.world.wait_for_tick()
 
         if CarlaDataProvider.get_map().name != args.town:
-            raise Exception("The CARLA server uses the wrong map!"
-                            "This scenario requires to use map {}".format(args.town))
+            raise Exception(
+                "The CARLA server uses the wrong map!" "This scenario requires to use map {}".format(args.town)
+            )
 
     # def _register_statistics(self, config, checkpoint, entry_status, crash_message=""):
     #     """
@@ -237,19 +240,28 @@ class NoCrashEvaluator(object):
         entry_status = "Started"
 
         start_idx, target_idx = route
-        traffic_lvl = ['Empty', 'Regular', 'Dense'][traffic_idx]
+        traffic_lvl = ["Empty", "Regular", "Dense"][traffic_idx]
 
-        print("\n\033[1m========= Preparing {} {}: {} to {}, weather {} =========".format(args.town, traffic_lvl, start_idx, target_idx, weather_idx))
+        print(
+            "\n\033[1m========= Preparing {} {}: {} to {}, weather {} =========".format(
+                args.town, traffic_lvl, start_idx, target_idx, weather_idx
+            )
+        )
         print("> Setting up the agent\033[0m")
 
         # Set up the user's agent, and the timer to avoid freezing the simulation
         try:
             self._agent_watchdog.start()
-            agent_class_name = getattr(self.module_agent, 'get_entry_point')()
-            if agent_class_name=="CoILAgent":
+            agent_class_name = getattr(self.module_agent, "get_entry_point")()
+            if agent_class_name == "CoILAgent":
                 loaded_checkpoint = torch.load(args.coil_checkpoint)
-                
-                self.agent_instance=getattr(self.module_agent, agent_class_name)(config=self.config,checkpoint=loaded_checkpoint, city_name=self.town, baseline=args.baseline_folder_name)
+
+                self.agent_instance = getattr(self.module_agent, agent_class_name)(
+                    config=self.config,
+                    checkpoint=loaded_checkpoint,
+                    city_name=self.town,
+                    baseline=args.baseline_folder_name,
+                )
             else:
                 self.agent_instance = getattr(self.module_agent, agent_class_name)(args.agent_config)
 
@@ -289,17 +301,16 @@ class NoCrashEvaluator(object):
 
         # Load the world and the scenario
         try:
-            
             self._load_and_wait_for_world(args)
             scenario = NoCrashEvalScenario(
                 world=self.world,
                 agent=self.agent_instance,
-                start_idx=start_idx, 
+                start_idx=start_idx,
                 target_idx=target_idx,
                 weather_idx=weather_idx,
                 traffic_idx=traffic_idx,
                 debug_mode=args.debug,
-                config=self.config
+                config=self.config,
             )
 
             self.manager.load_scenario(scenario, self.agent_instance, 0)
@@ -345,11 +356,28 @@ class NoCrashEvaluator(object):
         try:
             print("\033[1m> Stopping the route\033[0m")
             self.manager.stop_scenario()
-            
-            route_completion, lights_ran, duration, timeout, collision = self.manager.get_nocrash_diagnostics()
+
+            (
+                route_completion,
+                lights_ran,
+                duration,
+                timeout,
+                collision,
+            ) = self.manager.get_nocrash_diagnostics()
             self.statistics_manager.log(
-                self.town, args.baseline_folder_name, args.experiment,args.setting,traffic_idx, weather_idx, start_idx, target_idx, 
-                route_completion, lights_ran, duration, timeout, collision
+                self.town,
+                args.baseline_folder_name,
+                args.experiment,
+                args.setting,
+                traffic_idx,
+                weather_idx,
+                start_idx,
+                target_idx,
+                route_completion,
+                lights_ran,
+                duration,
+                timeout,
+                collision,
             )
 
             if args.record:
@@ -376,19 +404,21 @@ class NoCrashEvaluator(object):
         """
 
         # if args.resume:
-            # route_indexer.resume(args.checkpoint)
-            # self.statistics_manager.resume(args.checkpoint)
+        # route_indexer.resume(args.checkpoint)
+        # self.statistics_manager.resume(args.checkpoint)
         # else:
-            # self.statistics_manager.clear_record(args.checkpoint)
-            # route_indexer.save_state(args.checkpoint)
+        # self.statistics_manager.clear_record(args.checkpoint)
+        # route_indexer.save_state(args.checkpoint)
 
         # Load routes
-        with open(os.path.join(os.environ["SCENARIO_RUNNER_ROOT"],"suite",f"nocrash_{args.town}.txt"), 'r') as f:
+        with open(self.args,
+            "r",
+        ) as f:
             routes = [tuple(map(int, l.split())) for l in f.readlines()]
-        weathers = {'train': [1,3,6,8], 'test': [10,14]}.get(args.weather)
-        traffics = [0,1,2]
-        #weathers = {'train': [1], 'test': [10]}.get(args.weather)
-        #traffics = [1]
+        weathers = {"train": [1, 3, 6, 8], "test": [10, 14]}.get(args.weather)
+        traffics = [0, 1, 2]
+        # weathers = {'train': [1], 'test': [10]}.get(args.weather)
+        # traffics = [1]
         for traffic, route, weather in itertools.product(traffics, routes, weathers):
             if self.statistics_manager.is_finished(self.town, route, weather, traffic):
                 continue
@@ -406,40 +436,72 @@ def main():
 
     # general parameters
     parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter)
-    parser.add_argument('--host', default='localhost',
-                        help='IP of the host server (default: localhost)')
-    parser.add_argument('--port', default='2000', help='TCP port to listen to (default: 2000)')
-    parser.add_argument('--trafficManagerPort', default='8000',
-                        help='Port to use for the TrafficManager (default: 8000)')
-    parser.add_argument('--trafficManagerSeed', default='0',
-                        help='Seed used by the TrafficManager (default: 0)')
-    parser.add_argument('--debug', type=int, help='Run with debug output', default=0)
-    parser.add_argument('--record', type=str, default='',
-                        help='Use CARLA recording feature to create a recording of the scenario')
-    parser.add_argument('--timeout', default="60.0",
-                        help='Set the CARLA client timeout value in seconds')
+    parser.add_argument("--host", default="localhost", help="IP of the host server (default: localhost)")
+    parser.add_argument("--port", default="2000", help="TCP port to listen to (default: 2000)")
+    parser.add_argument(
+        "--trafficManagerPort",
+        default="8000",
+        help="Port to use for the TrafficManager (default: 8000)",
+    )
+    parser.add_argument(
+        "--trafficManagerSeed",
+        default="0",
+        help="Seed used by the TrafficManager (default: 0)",
+    )
+    parser.add_argument("--debug", type=int, help="Run with debug output", default=0)
+    parser.add_argument(
+        "--record",
+        type=str,
+        default="",
+        help="Use CARLA recording feature to create a recording of the scenario",
+    )
+    parser.add_argument(
+        "--timeout",
+        default="60.0",
+        help="Set the CARLA client timeout value in seconds",
+    )
 
     # simulation setup
-    parser.add_argument('--routes',
-                        help='Name of the route to be executed. Point to the route_xml_file to be executed.',
-                        required=True)
-    parser.add_argument('--scenarios',
-                        help='Name of the scenario annotation file to be mixed with the route.',
-                        required=True)
-    parser.add_argument('--repetitions',
-                        type=int,
-                        default=1,
-                        help='Number of repetitions per route.')
+    parser.add_argument(
+        "--routes",
+        help="Name of the route to be executed. Point to the route_xml_file to be executed.",
+        required=True,
+    )
+    parser.add_argument(
+        "--scenarios",
+        help="Name of the scenario annotation file to be mixed with the route.",
+        required=True,
+    )
+    parser.add_argument("--repetitions", type=int, default=1, help="Number of repetitions per route.")
 
     # agent-related options
-    parser.add_argument("-a", "--agent", type=str, help="Path to Agent's py file to evaluate", required=True)
-    parser.add_argument("--agent-config", type=str, help="Path to Agent's configuration file", default="")
+    parser.add_argument(
+        "-a",
+        "--agent",
+        type=str,
+        help="Path to Agent's py file to evaluate",
+        required=True,
+    )
+    parser.add_argument(
+        "--agent-config",
+        type=str,
+        help="Path to Agent's configuration file",
+        default="",
+    )
 
-    parser.add_argument("--track", type=str, default='SENSORS', help="Participation track: SENSORS, MAP")
-    parser.add_argument('--resume', type=bool, default=False, help='Resume execution from last checkpoint?')
-    parser.add_argument("--checkpoint", type=str,
-                        default='./simulation_results.json',
-                        help="Path to checkpoint used for saving statistics and resuming")
+    parser.add_argument("--track", type=str, default="SENSORS", help="Participation track: SENSORS, MAP")
+    parser.add_argument(
+        "--resume",
+        type=bool,
+        default=False,
+        help="Resume execution from last checkpoint?",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default="./simulation_results.json",
+        help="Path to checkpoint used for saving statistics and resuming",
+    )
 
     arguments = parser.parse_args()
 
@@ -454,5 +516,6 @@ def main():
     finally:
         del leaderboard_evaluator
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

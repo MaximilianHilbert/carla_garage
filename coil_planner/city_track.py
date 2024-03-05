@@ -12,9 +12,7 @@ from coil_planner.map import CarlaMap
 
 
 class CityTrack(object):
-
     def __init__(self, city_name):
-
         # These values are fixed for every city.
         self._node_density = 50.0
         self._pixel_density = 0.1643
@@ -31,7 +29,7 @@ class CityTrack(object):
 
     def project_node(self, position):
         """
-            Projecting the graph node into the city road
+        Projecting the graph node into the city road
         """
 
         node = self._map.convert_to_node(position)
@@ -42,8 +40,10 @@ class CityTrack(object):
         # Set to zero if it is less than zero.
 
         node = (max(0, node[0]), max(0, node[1]))
-        node = (min(self._map.get_graph_resolution()[0] - 1, node[0]),
-                min(self._map.get_graph_resolution()[1] - 1, node[1]))
+        node = (
+            min(self._map.get_graph_resolution()[0] - 1, node[0]),
+            min(self._map.get_graph_resolution()[1] - 1, node[1]),
+        )
 
         node = self._map.search_on_grid(node)
         # print("Final Node ", node)
@@ -66,7 +66,6 @@ class CityTrack(object):
         return source == target
 
     def is_at_new_node(self, current_node):
-
         return current_node != self._previous_node
 
     def is_away_from_intersection(self, current_node):
@@ -75,34 +74,37 @@ class CityTrack(object):
     def is_far_away_from_route_intersection(self, current_node):
         # CHECK FOR THE EMPTY CASE
         if self._route is None:
-            raise RuntimeError('Impossible to find route'
-                               + ' Current planner is limited'
-                               + ' Try to select start points away from intersections')
+            raise RuntimeError(
+                "Impossible to find route"
+                + " Current planner is limited"
+                + " Try to select start points away from intersections"
+            )
 
-        return self._closest_intersection_route_position(current_node,
-                                                         self._route) > 4
+        return self._closest_intersection_route_position(current_node, self._route) > 4
 
     def move_node(self, node, direction, displacement):
-
-        moved_node = [round(node[0] + displacement * direction[0]),
-                      round(node[1] + displacement * direction[1])]
+        moved_node = [
+            round(node[0] + displacement * direction[0]),
+            round(node[1] + displacement * direction[1]),
+        ]
 
         return moved_node
 
     def compute_route(self, node_source, source_ori, node_target, target_ori):
-
         self._previous_node = node_source
 
         printing_grid = np.copy(self._map._grid._structure)
 
-        np.set_printoptions(edgeitems=3, infstr='inf', threshold=sys.maxsize, linewidth=129)
+        np.set_printoptions(edgeitems=3, infstr="inf", threshold=sys.maxsize, linewidth=129)
 
         a_star = AStar()
-        a_star.init_grid(self._map.get_graph_resolution()[0],
-                         self._map.get_graph_resolution()[1],
-                         self._map.get_walls_directed(node_source, source_ori,
-                                                      node_target, target_ori), node_source,
-                         node_target)
+        a_star.init_grid(
+            self._map.get_graph_resolution()[0],
+            self._map.get_graph_resolution()[1],
+            self._map.get_walls_directed(node_source, source_ori, node_target, target_ori),
+            node_source,
+            node_target,
+        )
 
         route = a_star.solve(printing_grid)
         printing_grid[node_source[0], node_source[1]] = 7
@@ -118,17 +120,18 @@ class CityTrack(object):
 
             printing_grid[node_target[0], node_target[1]] = 2
             a_star = AStar()
-            a_star.init_grid(self._map.get_graph_resolution()[0],
-                             self._map.get_graph_resolution()[1],
-                             self._map.get_walls_directed(node_source, source_ori,
-                                                          node_target, target_ori,
-                                                          both_walls=False), node_source,
-                             node_target)
+            a_star.init_grid(
+                self._map.get_graph_resolution()[0],
+                self._map.get_graph_resolution()[1],
+                self._map.get_walls_directed(node_source, source_ori, node_target, target_ori, both_walls=False),
+                node_source,
+                node_target,
+            )
 
             route = a_star.solve(printing_grid)
 
         if route is None:
-            print('Impossible to find route, returning previous route')
+            print("Impossible to find route, returning previous route")
             return self._route
 
         self._route = route
@@ -139,7 +142,6 @@ class CityTrack(object):
         distance = []
 
         for node_iter in route:
-
             if node_iter in self._map.get_intersection_nodes():
                 distance.append(sldist(node_iter, pos))
 
@@ -148,7 +150,6 @@ class CityTrack(object):
         return sorted(distance)[0]
 
     def closest_intersection_position(self, current_node):
-
         distance_vector = []
         for node_iterator in self._map.get_intersection_nodes():
             distance_vector.append(sldist(node_iterator, current_node))
@@ -156,7 +157,6 @@ class CityTrack(object):
         return sorted(distance_vector)[0]
 
     def closest_curve_position(self, current_node):
-
         distance_vector = []
         for node_iterator in self._map.get_curve_nodes():
             distance_vector.append(sldist(node_iterator, current_node))
@@ -164,7 +164,6 @@ class CityTrack(object):
         return sorted(distance_vector)[0]
 
     def _closest_intersection_route_position(self, current_node, route):
-
         distance_vector = []
         for _ in route:
             for node_iterator in self._map.get_intersection_nodes():

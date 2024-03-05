@@ -15,8 +15,10 @@ from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent, Track
 
+
 def get_entry_point():
-    return 'NpcAgent'
+    return "NpcAgent"
+
 
 class NpcAgent(AutonomousAgent):
 
@@ -55,8 +57,19 @@ class NpcAgent(AutonomousAgent):
         """
 
         sensors = [
-            {'type': 'sensor.camera.rgb', 'x': 0.7, 'y': -0.4, 'z': 1.60, 'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
-             'width': 300, 'height': 200, 'fov': 100, 'id': 'Left'},
+            {
+                "type": "sensor.camera.rgb",
+                "x": 0.7,
+                "y": -0.4,
+                "z": 1.60,
+                "roll": 0.0,
+                "pitch": 0.0,
+                "yaw": 0.0,
+                "width": 300,
+                "height": 200,
+                "fov": 100,
+                "id": "Left",
+            },
         ]
 
         return sensors
@@ -74,7 +87,7 @@ class NpcAgent(AutonomousAgent):
         if not self._agent:
             hero_actor = None
             for actor in CarlaDataProvider.get_world().get_actors():
-                if 'role_name' in actor.attributes and actor.attributes['role_name'] == 'hero':
+                if "role_name" in actor.attributes and actor.attributes["role_name"] == "hero":
                     hero_actor = actor
                     break
             if hero_actor:
@@ -89,14 +102,14 @@ class NpcAgent(AutonomousAgent):
                 prev = None
                 for transform, _ in self._global_plan_world_coord:
                     wp = CarlaDataProvider.get_map().get_waypoint(transform.location)
-                    if  prev:
+                    if prev:
                         route_segment = self._agent._trace_route(prev, wp)
                         plan.extend(route_segment)
 
                     prev = wp
 
-                #loc = plan[-1][0].transform.location
-                #self._agent.set_destination([loc.x, loc.y, loc.z])
+                # loc = plan[-1][0].transform.location
+                # self._agent.set_destination([loc.x, loc.y, loc.z])
                 self._agent._local_planner.set_global_plan(plan)  # pylint: disable=protected-access
                 self._route_assigned = True
 

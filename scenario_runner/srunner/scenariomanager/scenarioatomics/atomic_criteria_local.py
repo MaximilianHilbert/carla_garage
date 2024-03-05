@@ -45,13 +45,15 @@ class Criterion(py_trees.behaviour.Behaviour):
     - optional: Indicates if a criterion is optional (not used for overall analysis)
     """
 
-    def __init__(self,
-                 name,
-                 actor,
-                 expected_value_success,
-                 expected_value_acceptable=None,
-                 optional=False,
-                 terminate_on_failure=False):
+    def __init__(
+        self,
+        name,
+        actor,
+        expected_value_success,
+        expected_value_acceptable=None,
+        optional=False,
+        terminate_on_failure=False,
+    ):
         super(Criterion, self).__init__(name)
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
         self._terminate_on_failure = terminate_on_failure
@@ -138,12 +140,14 @@ class DrivenDistanceTest(Criterion):
     - optional [optional]: If True, the result is not considered for an overall pass/fail result
     """
 
-    def __init__(self,
-                 actor,
-                 distance_success,
-                 distance_acceptable=None,
-                 optional=False,
-                 name="CheckDrivenDistance"):
+    def __init__(
+        self,
+        actor,
+        distance_success,
+        distance_acceptable=None,
+        optional=False,
+        name="CheckDrivenDistance",
+    ):
         """
         Setup actor
         """
@@ -177,8 +181,7 @@ class DrivenDistanceTest(Criterion):
 
         if self.actual_value > self.expected_value_success:
             self.test_status = "SUCCESS"
-        elif (self.expected_value_acceptable is not None and
-              self.actual_value > self.expected_value_acceptable):
+        elif self.expected_value_acceptable is not None and self.actual_value > self.expected_value_acceptable:
             self.test_status = "ACCEPTABLE"
         else:
             self.test_status = "RUNNING"
@@ -214,19 +217,18 @@ class AverageVelocityTest(Criterion):
     - optional [optional]: If True, the result is not considered for an overall pass/fail result
     """
 
-    def __init__(self,
-                 actor,
-                 avg_velocity_success,
-                 avg_velocity_acceptable=None,
-                 optional=False,
-                 name="CheckAverageVelocity"):
+    def __init__(
+        self,
+        actor,
+        avg_velocity_success,
+        avg_velocity_acceptable=None,
+        optional=False,
+        name="CheckAverageVelocity",
+    ):
         """
         Setup actor and average velovity expected
         """
-        super(AverageVelocityTest, self).__init__(name, actor,
-                                                  avg_velocity_success,
-                                                  avg_velocity_acceptable,
-                                                  optional)
+        super(AverageVelocityTest, self).__init__(name, actor, avg_velocity_success, avg_velocity_acceptable, optional)
         self._last_location = None
         self._distance = 0.0
 
@@ -261,8 +263,7 @@ class AverageVelocityTest(Criterion):
 
         if self.actual_value > self.expected_value_success:
             self.test_status = "SUCCESS"
-        elif (self.expected_value_acceptable is not None and
-              self.actual_value > self.expected_value_acceptable):
+        elif self.expected_value_acceptable is not None and self.actual_value > self.expected_value_acceptable:
             self.test_status = "ACCEPTABLE"
         else:
             self.test_status = "RUNNING"
@@ -297,12 +298,19 @@ class CollisionTest(Criterion):
     - optional [optional]: If True, the result is not considered for an overall pass/fail result
     """
 
-    MIN_AREA_OF_COLLISION = 3       # If closer than this distance, the collision is ignored
-    MAX_AREA_OF_COLLISION = 5       # If further than this distance, the area is forgotten
-    MAX_ID_TIME = 5                 # Amount of time the last collision if is remembered
+    MIN_AREA_OF_COLLISION = 3  # If closer than this distance, the collision is ignored
+    MAX_AREA_OF_COLLISION = 5  # If further than this distance, the area is forgotten
+    MAX_ID_TIME = 5  # Amount of time the last collision if is remembered
 
-    def __init__(self, actor, other_actor=None, other_actor_type=None,
-                 optional=False, name="CollisionTest", terminate_on_failure=False):
+    def __init__(
+        self,
+        actor,
+        other_actor=None,
+        other_actor_type=None,
+        optional=False,
+        name="CollisionTest",
+        terminate_on_failure=False,
+    ):
         """
         Construction with sensor setup
         """
@@ -310,7 +318,7 @@ class CollisionTest(Criterion):
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
 
         world = self.actor.get_world()
-        blueprint = world.get_blueprint_library().find('sensor.other.collision')
+        blueprint = world.get_blueprint_library().find("sensor.other.collision")
         self._collision_sensor = world.spawn_actor(blueprint, carla.Transform(), attach_to=self.actor)
         self._collision_sensor.listen(lambda event: self._count_collisions(weakref.ref(self), event))
 
@@ -334,7 +342,6 @@ class CollisionTest(Criterion):
 
         # Loops through all the previous registered collisions
         for collision_location in self.registered_collisions:
-
             # Get the distance to the collision point
             distance_vector = actor_location - collision_location
             distance = math.sqrt(math.pow(distance_vector.x, 2) + math.pow(distance_vector.y, 2))
@@ -363,7 +370,7 @@ class CollisionTest(Criterion):
         super(CollisionTest, self).terminate(new_status)
 
     @staticmethod
-    def _count_collisions(weak_self, event):     # pylint: disable=too-many-return-statements
+    def _count_collisions(weak_self, event):  # pylint: disable=too-many-return-statements
         """
         Callback to update collision count
         """
@@ -384,8 +391,7 @@ class CollisionTest(Criterion):
         # Filter to only a specific type
         if self.other_actor_type:
             if self.other_actor_type == "miscellaneous":
-                if "traffic" not in event.other_actor.type_id \
-                        and "static" not in event.other_actor.type_id:
+                if "traffic" not in event.other_actor.type_id and "static" not in event.other_actor.type_id:
                     return
             else:
                 if self.other_actor_type not in event.other_actor.type_id:
@@ -393,37 +399,42 @@ class CollisionTest(Criterion):
 
         # Ignore it if its too close to a previous collision (avoid micro collisions)
         for collision_location in self.registered_collisions:
-
             distance_vector = actor_location - collision_location
             distance = math.sqrt(math.pow(distance_vector.x, 2) + math.pow(distance_vector.y, 2))
 
             if distance <= self.MIN_AREA_OF_COLLISION:
                 return
 
-        if ('static' in event.other_actor.type_id or 'traffic' in event.other_actor.type_id) \
-                and 'sidewalk' not in event.other_actor.type_id:
+        if (
+            "static" in event.other_actor.type_id or "traffic" in event.other_actor.type_id
+        ) and "sidewalk" not in event.other_actor.type_id:
             actor_type = TrafficEventType.COLLISION_STATIC
-        elif 'vehicle' in event.other_actor.type_id:
+        elif "vehicle" in event.other_actor.type_id:
             actor_type = TrafficEventType.COLLISION_VEHICLE
-        elif 'walker' in event.other_actor.type_id:
+        elif "walker" in event.other_actor.type_id:
             actor_type = TrafficEventType.COLLISION_PEDESTRIAN
         else:
             return
 
         collision_event = TrafficEvent(event_type=actor_type)
-        collision_event.set_dict({
-            'type': event.other_actor.type_id,
-            'id': event.other_actor.id,
-            'x': actor_location.x,
-            'y': actor_location.y,
-            'z': actor_location.z})
+        collision_event.set_dict(
+            {
+                "type": event.other_actor.type_id,
+                "id": event.other_actor.id,
+                "x": actor_location.x,
+                "y": actor_location.y,
+                "z": actor_location.z,
+            }
+        )
         collision_event.set_message(
             "Agent collided against object with type={} and id={} at (x={}, y={}, z={})".format(
                 event.other_actor.type_id,
                 event.other_actor.id,
                 round(actor_location.x, 3),
                 round(actor_location.y, 3),
-                round(actor_location.z, 3)))
+                round(actor_location.z, 3),
+            )
+        )
 
         self.test_status = "FAILURE"
         self.actual_value += 1
@@ -449,8 +460,14 @@ class ActorSpeedAboveThresholdTest(Criterion):
     - terminate_on_failure [optional]: If True, the complete scenario will terminate upon failure of this test
     """
 
-    def __init__(self, actor, speed_threshold, below_threshold_max_time,
-                 name="ActorSpeedAboveThresholdTest", terminate_on_failure=False):
+    def __init__(
+        self,
+        actor,
+        speed_threshold,
+        below_threshold_max_time,
+        name="ActorSpeedAboveThresholdTest",
+        terminate_on_failure=False,
+    ):
         """
         Class constructor.
         """
@@ -495,20 +512,24 @@ class ActorSpeedAboveThresholdTest(Criterion):
         Sets the message of the event
         """
 
-        event.set_message('Agent got blocked at (x={}, y={}, z={})'.format(round(location.x, 3),
-                                                                           round(location.y, 3),
-                                                                           round(location.z, 3)))
+        event.set_message(
+            "Agent got blocked at (x={}, y={}, z={})".format(
+                round(location.x, 3), round(location.y, 3), round(location.z, 3)
+            )
+        )
 
     @staticmethod
     def _set_event_dict(event, location):
         """
         Sets the dictionary of the event
         """
-        event.set_dict({
-            'x': location.x,
-            'y': location.y,
-            'z': location.z,
-        })
+        event.set_dict(
+            {
+                "x": location.x,
+                "y": location.y,
+                "z": location.z,
+            }
+        )
 
 
 class KeepLaneTest(Criterion):
@@ -529,7 +550,7 @@ class KeepLaneTest(Criterion):
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
 
         world = self.actor.get_world()
-        blueprint = world.get_blueprint_library().find('sensor.other.lane_invasion')
+        blueprint = world.get_blueprint_library().find("sensor.other.lane_invasion")
         self._lane_sensor = world.spawn_actor(blueprint, carla.Transform(), attach_to=self.actor)
         self._lane_sensor.listen(lambda event: self._count_lane_invasion(weakref.ref(self), event))
 
@@ -608,7 +629,8 @@ class ReachedRegionTest(Criterion):
         in_region = False
         if self.test_status != "SUCCESS":
             in_region = (location.x > self._min_x and location.x < self._max_x) and (
-                location.y > self._min_y and location.y < self._max_y)
+                location.y > self._min_y and location.y < self._max_y
+            )
             if in_region:
                 self.test_status = "SUCCESS"
             else:
@@ -638,7 +660,14 @@ class OffRoadTest(Criterion):
         terminate_on_failure (bool): If True, the atomic will fail when the duration condition has been met.
     """
 
-    def __init__(self, actor, duration=0, optional=False, terminate_on_failure=False, name="OffRoadTest"):
+    def __init__(
+        self,
+        actor,
+        duration=0,
+        optional=False,
+        terminate_on_failure=False,
+        name="OffRoadTest",
+    ):
         """
         Setup of the variables
         """
@@ -667,14 +696,9 @@ class OffRoadTest(Criterion):
         current_location = CarlaDataProvider.get_location(self.actor)
 
         # Get the waypoint at the current location to see if the actor is offroad
-        drive_waypoint = self._map.get_waypoint(
-            current_location,
-            project_to_road=False
-        )
+        drive_waypoint = self._map.get_waypoint(current_location, project_to_road=False)
         park_waypoint = self._map.get_waypoint(
-            current_location,
-            project_to_road=False,
-            lane_type=carla.LaneType.Parking
+            current_location, project_to_road=False, lane_type=carla.LaneType.Parking
         )
         if drive_waypoint or park_waypoint:
             self._offroad = False
@@ -717,7 +741,14 @@ class EndofRoadTest(Criterion):
         terminate_on_failure (bool): If True, the atomic will fail when the duration condition has been met.
     """
 
-    def __init__(self, actor, duration=0, optional=False, terminate_on_failure=False, name="EndofRoadTest"):
+    def __init__(
+        self,
+        actor,
+        duration=0,
+        optional=False,
+        terminate_on_failure=False,
+        name="EndofRoadTest",
+    ):
         """
         Setup of the variables
         """
@@ -753,7 +784,6 @@ class EndofRoadTest(Criterion):
         else:
             # Wait until the actor has left the road
             if self._road_id != current_waypoint.road_id or self._start_time:
-
                 # Start counting
                 if self._start_time is None:
                     self._start_time = GameTime.get_time()
@@ -787,7 +817,14 @@ class OnSidewalkTest(Criterion):
         terminate_on_failure (bool): If True, the atomic will fail when the duration condition has been met.
     """
 
-    def __init__(self, actor, duration=0, optional=False, terminate_on_failure=False, name="OnSidewalkTest"):
+    def __init__(
+        self,
+        actor,
+        duration=0,
+        optional=False,
+        terminate_on_failure=False,
+        name="OnSidewalkTest",
+    ):
         """
         Construction with sensor setup
         """
@@ -836,9 +873,7 @@ class OnSidewalkTest(Criterion):
                 self._sidewalk_start_location = current_loc
 
         # Case 2) Not inside allowed zones (Driving and Parking)
-        elif current_wp.lane_type != carla.LaneType.Driving \
-                and current_wp.lane_type != carla.LaneType.Parking:
-
+        elif current_wp.lane_type != carla.LaneType.Driving and current_wp.lane_type != carla.LaneType.Parking:
             # Get the vertices of the vehicle
             heading_vec = current_tra.get_forward_vector()
             heading_vec.z = 0
@@ -853,29 +888,33 @@ class OnSidewalkTest(Criterion):
                 current_loc + carla.Location(x_boundary_vector - y_boundary_vector),
                 current_loc + carla.Location(x_boundary_vector + y_boundary_vector),
                 current_loc + carla.Location(-1 * x_boundary_vector - y_boundary_vector),
-                current_loc + carla.Location(-1 * x_boundary_vector + y_boundary_vector)]
+                current_loc + carla.Location(-1 * x_boundary_vector + y_boundary_vector),
+            ]
 
             bbox_wp = [
                 self._map.get_waypoint(bbox[0], lane_type=carla.LaneType.Any),
                 self._map.get_waypoint(bbox[1], lane_type=carla.LaneType.Any),
                 self._map.get_waypoint(bbox[2], lane_type=carla.LaneType.Any),
-                self._map.get_waypoint(bbox[3], lane_type=carla.LaneType.Any)]
+                self._map.get_waypoint(bbox[3], lane_type=carla.LaneType.Any),
+            ]
 
             # Case 2.1) Not quite outside yet
-            if bbox_wp[0].lane_type == (carla.LaneType.Driving or carla.LaneType.Parking) \
-                or bbox_wp[1].lane_type == (carla.LaneType.Driving or carla.LaneType.Parking) \
-                or bbox_wp[2].lane_type == (carla.LaneType.Driving or carla.LaneType.Parking) \
-                    or bbox_wp[3].lane_type == (carla.LaneType.Driving or carla.LaneType.Parking):
-
+            if (
+                bbox_wp[0].lane_type == (carla.LaneType.Driving or carla.LaneType.Parking)
+                or bbox_wp[1].lane_type == (carla.LaneType.Driving or carla.LaneType.Parking)
+                or bbox_wp[2].lane_type == (carla.LaneType.Driving or carla.LaneType.Parking)
+                or bbox_wp[3].lane_type == (carla.LaneType.Driving or carla.LaneType.Parking)
+            ):
                 self._onsidewalk_active = False
                 self._outside_lane_active = False
 
             # Case 2.2) At the mini Shoulders between Driving and Sidewalk
-            elif bbox_wp[0].lane_type == carla.LaneType.Sidewalk \
-                or bbox_wp[1].lane_type == carla.LaneType.Sidewalk \
-                or bbox_wp[2].lane_type == carla.LaneType.Sidewalk \
-                    or bbox_wp[3].lane_type == carla.LaneType.Sidewalk:
-
+            elif (
+                bbox_wp[0].lane_type == carla.LaneType.Sidewalk
+                or bbox_wp[1].lane_type == carla.LaneType.Sidewalk
+                or bbox_wp[2].lane_type == carla.LaneType.Sidewalk
+                or bbox_wp[3].lane_type == carla.LaneType.Sidewalk
+            ):
                 if not self._onsidewalk_active:
                     self._onsidewalk_active = True
                     self._sidewalk_start_location = current_loc
@@ -885,7 +924,6 @@ class OnSidewalkTest(Criterion):
 
                 # Case 2.3) Outside lane
                 if distance_vehicle_wp >= current_wp.lane_width / 2:
-
                     if not self._outside_lane_active:
                         self._outside_lane_active = True
                         self._outside_lane_start_location = current_loc
@@ -900,15 +938,15 @@ class OnSidewalkTest(Criterion):
             # Check for false positives at junctions
             if current_wp.is_junction:
                 distance_vehicle_wp = math.sqrt(
-                    math.pow(current_wp.transform.location.x - current_loc.x, 2) +
-                    math.pow(current_wp.transform.location.y - current_loc.y, 2))
+                    math.pow(current_wp.transform.location.x - current_loc.x, 2)
+                    + math.pow(current_wp.transform.location.y - current_loc.y, 2)
+                )
 
                 if distance_vehicle_wp <= current_wp.lane_width / 2:
                     self._onsidewalk_active = False
                     self._outside_lane_active = False
                 # Else, do nothing, the waypoint is too far to consider it a correct position
             else:
-
                 self._onsidewalk_active = False
                 self._outside_lane_active = False
 
@@ -941,14 +979,19 @@ class OnSidewalkTest(Criterion):
 
         # Register the sidewalk event
         if not self._onsidewalk_active and self._wrong_sidewalk_distance > 0:
-
             self.actual_value += 1
 
             onsidewalk_event = TrafficEvent(event_type=TrafficEventType.ON_SIDEWALK_INFRACTION)
             self._set_event_message(
-                onsidewalk_event, self._sidewalk_start_location, self._wrong_sidewalk_distance)
+                onsidewalk_event,
+                self._sidewalk_start_location,
+                self._wrong_sidewalk_distance,
+            )
             self._set_event_dict(
-                onsidewalk_event, self._sidewalk_start_location, self._wrong_sidewalk_distance)
+                onsidewalk_event,
+                self._sidewalk_start_location,
+                self._wrong_sidewalk_distance,
+            )
 
             self._onsidewalk_active = False
             self._wrong_sidewalk_distance = 0
@@ -956,14 +999,19 @@ class OnSidewalkTest(Criterion):
 
         # Register the outside of a lane event
         if not self._outside_lane_active and self._wrong_outside_lane_distance > 0:
-
             self.actual_value += 1
 
             outsidelane_event = TrafficEvent(event_type=TrafficEventType.OUTSIDE_LANE_INFRACTION)
             self._set_event_message(
-                outsidelane_event, self._outside_lane_start_location, self._wrong_outside_lane_distance)
+                outsidelane_event,
+                self._outside_lane_start_location,
+                self._wrong_outside_lane_distance,
+            )
             self._set_event_dict(
-                outsidelane_event, self._outside_lane_start_location, self._wrong_outside_lane_distance)
+                outsidelane_event,
+                self._outside_lane_start_location,
+                self._wrong_outside_lane_distance,
+            )
 
             self._outside_lane_active = False
             self._wrong_outside_lane_distance = 0
@@ -979,14 +1027,19 @@ class OnSidewalkTest(Criterion):
         """
         # If currently at a sidewalk, register the event
         if self._onsidewalk_active:
-
             self.actual_value += 1
 
             onsidewalk_event = TrafficEvent(event_type=TrafficEventType.ON_SIDEWALK_INFRACTION)
             self._set_event_message(
-                onsidewalk_event, self._sidewalk_start_location, self._wrong_sidewalk_distance)
+                onsidewalk_event,
+                self._sidewalk_start_location,
+                self._wrong_sidewalk_distance,
+            )
             self._set_event_dict(
-                onsidewalk_event, self._sidewalk_start_location, self._wrong_sidewalk_distance)
+                onsidewalk_event,
+                self._sidewalk_start_location,
+                self._wrong_sidewalk_distance,
+            )
 
             self._onsidewalk_active = False
             self._wrong_sidewalk_distance = 0
@@ -994,14 +1047,19 @@ class OnSidewalkTest(Criterion):
 
         # If currently outside of our lane, register the event
         if self._outside_lane_active:
-
             self.actual_value += 1
 
             outsidelane_event = TrafficEvent(event_type=TrafficEventType.OUTSIDE_LANE_INFRACTION)
             self._set_event_message(
-                outsidelane_event, self._outside_lane_start_location, self._wrong_outside_lane_distance)
+                outsidelane_event,
+                self._outside_lane_start_location,
+                self._wrong_outside_lane_distance,
+            )
             self._set_event_dict(
-                outsidelane_event, self._outside_lane_start_location, self._wrong_outside_lane_distance)
+                outsidelane_event,
+                self._outside_lane_start_location,
+                self._wrong_outside_lane_distance,
+            )
 
             self._outside_lane_active = False
             self._wrong_outside_lane_distance = 0
@@ -1014,27 +1072,25 @@ class OnSidewalkTest(Criterion):
         Sets the message of the event
         """
         if event.get_type() == TrafficEventType.ON_SIDEWALK_INFRACTION:
-            message_start = 'Agent invaded the sidewalk'
+            message_start = "Agent invaded the sidewalk"
         else:
-            message_start = 'Agent went outside the lane'
+            message_start = "Agent went outside the lane"
 
         event.set_message(
-            '{} for about {} meters, starting at (x={}, y={}, z={})'.format(
+            "{} for about {} meters, starting at (x={}, y={}, z={})".format(
                 message_start,
                 round(distance, 3),
                 round(location.x, 3),
                 round(location.y, 3),
-                round(location.z, 3)))
+                round(location.z, 3),
+            )
+        )
 
     def _set_event_dict(self, event, location, distance):
         """
         Sets the dictionary of the event
         """
-        event.set_dict({
-            'x': location.x,
-            'y': location.y,
-            'z': location.z,
-            'distance': distance})
+        event.set_dict({"x": location.x, "y": location.y, "z": location.z, "distance": distance})
 
 
 class OutsideRouteLanesTest(Criterion):
@@ -1049,10 +1105,10 @@ class OutsideRouteLanesTest(Criterion):
         optional (bool): If True, the result is not considered for an overall pass/fail result
     """
 
-    ALLOWED_OUT_DISTANCE = 1.3          # At least 0.5, due to the mini-shoulder between lanes and sidewalks
-    MAX_ALLOWED_VEHICLE_ANGLE = 120.0   # Maximum angle between the yaw and waypoint lane
+    ALLOWED_OUT_DISTANCE = 1.3  # At least 0.5, due to the mini-shoulder between lanes and sidewalks
+    MAX_ALLOWED_VEHICLE_ANGLE = 120.0  # Maximum angle between the yaw and waypoint lane
     MAX_ALLOWED_WAYPOINT_ANGLE = 150.0  # Maximum change between the yaw-lane angle between frames
-    WINDOWS_SIZE = 3                    # Amount of additional waypoints checked (in case the first on fails)
+    WINDOWS_SIZE = 3  # Amount of additional waypoints checked (in case the first on fails)
 
     def __init__(self, actor, route, optional=False, name="OutsideRouteLanesTest"):
         """
@@ -1104,8 +1160,10 @@ class OutsideRouteLanesTest(Criterion):
             self.test_status = "FAILURE"
 
         # 2) Get the traveled distance
-        for index in range(self._current_index + 1,
-                           min(self._current_index + self.WINDOWS_SIZE + 1, self._route_length)):
+        for index in range(
+            self._current_index + 1,
+            min(self._current_index + self.WINDOWS_SIZE + 1, self._route_length),
+        ):
             # Get the dot product to know if it has passed this location
             index_location = self._waypoints[index]
             index_waypoint = self._map.get_waypoint(index_location)
@@ -1144,7 +1202,7 @@ class OutsideRouteLanesTest(Criterion):
         if current_parking_wp is not None:  # Some towns have no parking
             parking_distance = location.distance(current_parking_wp.transform.location)
         else:
-            parking_distance = float('inf')
+            parking_distance = float("inf")
 
         if driving_distance >= parking_distance:
             distance = parking_distance
@@ -1168,7 +1226,6 @@ class OutsideRouteLanesTest(Criterion):
         if current_waypoint.is_junction:
             self._wrong_lane_active = False
         elif self._last_road_id != current_road_id or self._last_lane_id != current_lane_id:
-
             # Route direction can be considered continuous, except after exiting a junction.
             if self._pre_ego_waypoint.is_junction:
                 yaw_waypt = current_waypoint.transform.rotation.yaw % 360
@@ -1176,8 +1233,9 @@ class OutsideRouteLanesTest(Criterion):
 
                 vehicle_lane_angle = (yaw_waypt - yaw_actor) % 360
 
-                if vehicle_lane_angle < self.MAX_ALLOWED_VEHICLE_ANGLE \
-                        or vehicle_lane_angle > (360 - self.MAX_ALLOWED_VEHICLE_ANGLE):
+                if vehicle_lane_angle < self.MAX_ALLOWED_VEHICLE_ANGLE or vehicle_lane_angle > (
+                    360 - self.MAX_ALLOWED_VEHICLE_ANGLE
+                ):
                     self._wrong_lane_active = False
                 else:
                     self._wrong_lane_active = True
@@ -1189,13 +1247,12 @@ class OutsideRouteLanesTest(Criterion):
 
                 waypoint_angle = (yaw_pre_wp - yaw_cur_wp) % 360
 
-                if waypoint_angle >= self.MAX_ALLOWED_WAYPOINT_ANGLE \
-                        and waypoint_angle <= (360 - self.MAX_ALLOWED_WAYPOINT_ANGLE):
-
+                if waypoint_angle >= self.MAX_ALLOWED_WAYPOINT_ANGLE and waypoint_angle <= (
+                    360 - self.MAX_ALLOWED_WAYPOINT_ANGLE
+                ):
                     # Is the ego vehicle going back to the lane, or going out? Take the opposite
                     self._wrong_lane_active = not bool(self._wrong_lane_active)
                 else:
-
                     # Changing to a lane with the same direction
                     self._wrong_lane_active = False
 
@@ -1210,20 +1267,15 @@ class OutsideRouteLanesTest(Criterion):
         """
 
         if self._wrong_distance > 0:
-
             percentage = self._wrong_distance / self._total_distance * 100
 
             outside_lane = TrafficEvent(event_type=TrafficEventType.OUTSIDE_ROUTE_LANES_INFRACTION)
             outside_lane.set_message(
                 "Agent went outside its route lanes for about {} meters "
-                "({}% of the completed route)".format(
-                    round(self._wrong_distance, 3),
-                    round(percentage, 2)))
+                "({}% of the completed route)".format(round(self._wrong_distance, 3), round(percentage, 2))
+            )
 
-            outside_lane.set_dict({
-                'distance': self._wrong_distance,
-                'percentage': percentage
-            })
+            outside_lane.set_dict({"distance": self._wrong_distance, "percentage": percentage})
 
             self._wrong_distance = 0
             self.list_traffic_events.append(outside_lane)
@@ -1241,6 +1293,7 @@ class WrongLaneTest(Criterion):
     - actor: CARLA actor to be used for this test
     - optional [optional]: If True, the result is not considered for an overall pass/fail result
     """
+
     MAX_ALLOWED_ANGLE = 120.0
     MAX_ALLOWED_WAYPOINT_ANGLE = 150.0
 
@@ -1276,8 +1329,9 @@ class WrongLaneTest(Criterion):
         current_lane_id = lane_waypoint.lane_id
         current_road_id = lane_waypoint.road_id
 
-        if (self._last_road_id != current_road_id or self._last_lane_id != current_lane_id) \
-                and not lane_waypoint.is_junction:
+        if (
+            self._last_road_id != current_road_id or self._last_lane_id != current_lane_id
+        ) and not lane_waypoint.is_junction:
             next_waypoint = lane_waypoint.next(2.0)[0]
 
             if not next_waypoint:
@@ -1292,11 +1346,17 @@ class WrongLaneTest(Criterion):
             c_lane_vector = np.array([current_lane_direction.x, current_lane_direction.y])
 
             waypoint_angle = math.degrees(
-                math.acos(np.clip(np.dot(p_lane_vector, c_lane_vector) /
-                                  (np.linalg.norm(p_lane_vector) * np.linalg.norm(c_lane_vector)), -1.0, 1.0)))
+                math.acos(
+                    np.clip(
+                        np.dot(p_lane_vector, c_lane_vector)
+                        / (np.linalg.norm(p_lane_vector) * np.linalg.norm(c_lane_vector)),
+                        -1.0,
+                        1.0,
+                    )
+                )
+            )
 
             if waypoint_angle > self.MAX_ALLOWED_WAYPOINT_ANGLE and self._in_lane:
-
                 self.test_status = "FAILURE"
                 self._in_lane = False
                 self.actual_value += 1
@@ -1308,18 +1368,31 @@ class WrongLaneTest(Criterion):
 
             # Continuity is broken after a junction so check vehicle-lane angle instead
             if self._previous_lane_waypoint.is_junction:
+                vector_wp = np.array(
+                    [
+                        next_waypoint.transform.location.x - lane_waypoint.transform.location.x,
+                        next_waypoint.transform.location.y - lane_waypoint.transform.location.y,
+                    ]
+                )
 
-                vector_wp = np.array([next_waypoint.transform.location.x - lane_waypoint.transform.location.x,
-                                      next_waypoint.transform.location.y - lane_waypoint.transform.location.y])
-
-                vector_actor = np.array([math.cos(math.radians(self._actor.get_transform().rotation.yaw)),
-                                         math.sin(math.radians(self._actor.get_transform().rotation.yaw))])
+                vector_actor = np.array(
+                    [
+                        math.cos(math.radians(self._actor.get_transform().rotation.yaw)),
+                        math.sin(math.radians(self._actor.get_transform().rotation.yaw)),
+                    ]
+                )
 
                 vehicle_lane_angle = math.degrees(
-                    math.acos(np.clip(np.dot(vector_actor, vector_wp) / (np.linalg.norm(vector_wp)), -1.0, 1.0)))
+                    math.acos(
+                        np.clip(
+                            np.dot(vector_actor, vector_wp) / (np.linalg.norm(vector_wp)),
+                            -1.0,
+                            1.0,
+                        )
+                    )
+                )
 
                 if vehicle_lane_angle > self.MAX_ALLOWED_ANGLE:
-
                     self.test_status = "FAILURE"
                     self._in_lane = False
                     self.actual_value += 1
@@ -1337,12 +1410,21 @@ class WrongLaneTest(Criterion):
 
         # Register the event
         if self._in_lane and self._wrong_distance > 0:
-
             wrong_way_event = TrafficEvent(event_type=TrafficEventType.WRONG_WAY_INFRACTION)
-            self._set_event_message(wrong_way_event, self._wrong_lane_start_location,
-                                    self._wrong_distance, current_road_id, current_lane_id)
-            self._set_event_dict(wrong_way_event, self._wrong_lane_start_location,
-                                 self._wrong_distance, current_road_id, current_lane_id)
+            self._set_event_message(
+                wrong_way_event,
+                self._wrong_lane_start_location,
+                self._wrong_distance,
+                current_road_id,
+                current_lane_id,
+            )
+            self._set_event_dict(
+                wrong_way_event,
+                self._wrong_lane_start_location,
+                self._wrong_distance,
+                current_road_id,
+                current_lane_id,
+            )
 
             self.list_traffic_events.append(wrong_way_event)
             self._wrong_distance = 0
@@ -1361,16 +1443,25 @@ class WrongLaneTest(Criterion):
         If there is currently an event running, it is registered
         """
         if not self._in_lane:
-
             lane_waypoint = self._map.get_waypoint(self._actor.get_location())
             current_lane_id = lane_waypoint.lane_id
             current_road_id = lane_waypoint.road_id
 
             wrong_way_event = TrafficEvent(event_type=TrafficEventType.WRONG_WAY_INFRACTION)
-            self._set_event_message(wrong_way_event, self._wrong_lane_start_location,
-                                    self._wrong_distance, current_road_id, current_lane_id)
-            self._set_event_dict(wrong_way_event, self._wrong_lane_start_location,
-                                 self._wrong_distance, current_road_id, current_lane_id)
+            self._set_event_message(
+                wrong_way_event,
+                self._wrong_lane_start_location,
+                self._wrong_distance,
+                current_road_id,
+                current_lane_id,
+            )
+            self._set_event_dict(
+                wrong_way_event,
+                self._wrong_lane_start_location,
+                self._wrong_distance,
+                current_road_id,
+                current_lane_id,
+            )
 
             self._wrong_distance = 0
             self._in_lane = True
@@ -1391,19 +1482,24 @@ class WrongLaneTest(Criterion):
                 round(location.y, 3),
                 round(location.z, 3),
                 road_id,
-                lane_id))
+                lane_id,
+            )
+        )
 
     def _set_event_dict(self, event, location, distance, road_id, lane_id):
         """
         Sets the dictionary of the event
         """
-        event.set_dict({
-            'x': location.x,
-            'y': location.y,
-            'z': location.y,
-            'distance': distance,
-            'road_id': road_id,
-            'lane_id': lane_id})
+        event.set_dict(
+            {
+                "x": location.x,
+                "y": location.y,
+                "z": location.y,
+                "distance": distance,
+                "road_id": road_id,
+                "lane_id": lane_id,
+            }
+        )
 
 
 class InRadiusRegionTest(Criterion):
@@ -1417,13 +1513,12 @@ class InRadiusRegionTest(Criterion):
     """
 
     def __init__(self, actor, x, y, radius, name="InRadiusRegionTest"):
-        """
-        """
+        """ """
         super(InRadiusRegionTest, self).__init__(name, actor, 0)
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
         self._actor = actor
-        self._x = x     # pylint: disable=invalid-name
-        self._y = y     # pylint: disable=invalid-name
+        self._x = x  # pylint: disable=invalid-name
+        self._y = y  # pylint: disable=invalid-name
         self._radius = radius
 
     def update(self):
@@ -1437,7 +1532,7 @@ class InRadiusRegionTest(Criterion):
             return new_status
 
         if self.test_status != "SUCCESS":
-            in_radius = math.sqrt(((location.x - self._x)**2) + ((location.y - self._y)**2)) < self._radius
+            in_radius = math.sqrt(((location.x - self._x) ** 2) + ((location.y - self._y) ** 2)) < self._radius
             if in_radius:
                 route_completion_event = TrafficEvent(event_type=TrafficEventType.ROUTE_COMPLETED)
                 route_completion_event.set_message("Destination was successfully reached")
@@ -1467,12 +1562,20 @@ class InRouteTest(Criterion):
     - offroad_min: Maximum safe distance (in meters). Might eventually cause failure
     - terminate_on_failure [optional]: If True, the complete scenario will terminate upon failure of this test
     """
+
     MAX_ROUTE_PERCENTAGE = 30  # %
     WINDOWS_SIZE = 5  # Amount of additional waypoints checked
 
-    def __init__(self, actor, route, offroad_min=-1, offroad_max=30, name="InRouteTest", terminate_on_failure=False):
-        """
-        """
+    def __init__(
+        self,
+        actor,
+        route,
+        offroad_min=-1,
+        offroad_max=30,
+        name="InRouteTest",
+        terminate_on_failure=False,
+    ):
+        """ """
         super(InRouteTest, self).__init__(name, actor, 0, terminate_on_failure=terminate_on_failure)
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
         self._actor = actor
@@ -1521,22 +1624,23 @@ class InRouteTest(Criterion):
             new_status = py_trees.common.Status.FAILURE
 
         elif self.test_status == "RUNNING" or self.test_status == "INIT":
-
             off_route = True
 
-            shortest_distance = float('inf')
+            shortest_distance = float("inf")
             closest_index = -1
 
             # Get the closest distance
-            for index in range(self._current_index,
-                               min(self._current_index + self.WINDOWS_SIZE + 1, self._route_length)):
+            for index in range(
+                self._current_index,
+                min(self._current_index + self.WINDOWS_SIZE + 1, self._route_length),
+            ):
                 ref_waypoint = self._waypoints[index]
                 distance = math.sqrt(((location.x - ref_waypoint.x) ** 2) + ((location.y - ref_waypoint.y) ** 2))
                 if distance <= shortest_distance:
                     closest_index = index
                     shortest_distance = distance
 
-            if closest_index == -1 or shortest_distance == float('inf'):
+            if closest_index == -1 or shortest_distance == float("inf"):
                 return new_status
 
             # Check if the actor is out of route
@@ -1546,7 +1650,6 @@ class InRouteTest(Criterion):
 
             # If actor advanced a step, record the distance
             if self._current_index != closest_index:
-
                 new_dist = self._accum_meters[closest_index] - self._accum_meters[self._current_index]
 
                 # If too far from the route, add it and check if its value
@@ -1566,13 +1669,10 @@ class InRouteTest(Criterion):
                 route_deviation_event = TrafficEvent(event_type=TrafficEventType.ROUTE_DEVIATION)
                 route_deviation_event.set_message(
                     "Agent deviated from the route at (x={}, y={}, z={})".format(
-                        round(location.x, 3),
-                        round(location.y, 3),
-                        round(location.z, 3)))
-                route_deviation_event.set_dict({
-                    'x': location.x,
-                    'y': location.y,
-                    'z': location.z})
+                        round(location.x, 3), round(location.y, 3), round(location.z, 3)
+                    )
+                )
+                route_deviation_event.set_dict({"x": location.x, "y": location.y, "z": location.z})
 
                 self.list_traffic_events.append(route_deviation_event)
 
@@ -1595,12 +1695,12 @@ class RouteCompletionTest(Criterion):
     - route: Route to be checked
     - terminate_on_failure [optional]: If True, the complete scenario will terminate upon failure of this test
     """
+
     DISTANCE_THRESHOLD = 10.0  # meters
     WINDOWS_SIZE = 2
 
     def __init__(self, actor, route, name="RouteCompletionTest", terminate_on_failure=False):
-        """
-        """
+        """ """
         super(RouteCompletionTest, self).__init__(name, actor, 100, terminate_on_failure=terminate_on_failure)
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
         self._actor = actor
@@ -1643,32 +1743,37 @@ class RouteCompletionTest(Criterion):
             new_status = py_trees.common.Status.FAILURE
 
         elif self.test_status == "RUNNING" or self.test_status == "INIT":
-
-            for index in range(self._current_index, min(self._current_index + self._wsize + 1, self._route_length)):
+            for index in range(
+                self._current_index,
+                min(self._current_index + self._wsize + 1, self._route_length),
+            ):
                 # Get the dot product to know if it has passed this location
                 ref_waypoint = self._waypoints[index]
                 wp = self._map.get_waypoint(ref_waypoint)
-                wp_dir = wp.transform.get_forward_vector()          # Waypoint's forward vector
-                wp_veh = location - ref_waypoint                    # vector waypoint - vehicle
+                wp_dir = wp.transform.get_forward_vector()  # Waypoint's forward vector
+                wp_veh = location - ref_waypoint  # vector waypoint - vehicle
                 dot_ve_wp = wp_veh.x * wp_dir.x + wp_veh.y * wp_dir.y + wp_veh.z * wp_dir.z
 
                 if dot_ve_wp > 0:
                     # good! segment completed!
                     self._current_index = index
-                    self._percentage_route_completed = 100.0 * float(self._accum_meters[self._current_index]) \
-                        / float(self._accum_meters[-1])
-                    self._traffic_event.set_dict({
-                        'route_completed': self._percentage_route_completed})
+                    self._percentage_route_completed = (
+                        100.0 * float(self._accum_meters[self._current_index]) / float(self._accum_meters[-1])
+                    )
+                    self._traffic_event.set_dict({"route_completed": self._percentage_route_completed})
                     self._traffic_event.set_message(
-                        "Agent has completed > {:.2f}% of the route".format(
-                            self._percentage_route_completed))
+                        "Agent has completed > {:.2f}% of the route".format(self._percentage_route_completed)
+                    )
 
-            if int(os.environ.get('DATAGEN', 0))==1:
+            if int(os.environ.get("DATAGEN", 0)) == 1:
                 completion_percent = 85.0
             else:
                 completion_percent = 99.0
 
-            if self._percentage_route_completed > completion_percent and location.distance(self.target) < self.DISTANCE_THRESHOLD:
+            if (
+                self._percentage_route_completed > completion_percent
+                and location.distance(self.target) < self.DISTANCE_THRESHOLD
+            ):
                 route_completion_event = TrafficEvent(event_type=TrafficEventType.ROUTE_COMPLETED)
                 route_completion_event.set_message("Destination was successfully reached")
                 self.list_traffic_events.append(route_completion_event)
@@ -1702,6 +1807,7 @@ class RunningRedLightTest(Criterion):
     - actor: CARLA actor to be used for this test
     - terminate_on_failure [optional]: If True, the complete scenario will terminate upon failure of this test
     """
+
     DISTANCE_LIGHT = 15  # m
 
     def __init__(self, actor, name="RunningRedLightTest", terminate_on_failure=False):
@@ -1720,7 +1826,7 @@ class RunningRedLightTest(Criterion):
 
         all_actors = self._world.get_actors()
         for _actor in all_actors:
-            if 'traffic_light' in _actor.type_id:
+            if "traffic_light" in _actor.type_id:
                 center, waypoints = self.get_traffic_light_waypoints(_actor)
                 self._list_traffic_lights.append((_actor, center, waypoints))
 
@@ -1755,7 +1861,6 @@ class RunningRedLightTest(Criterion):
         tail_far_pt = location + carla.Location(tail_far_pt)
 
         for traffic_light, center, waypoints in self._list_traffic_lights:
-
             if self.debug:
                 z = 2.1
                 if traffic_light.state == carla.TrafficLightState.Red:
@@ -1768,9 +1873,17 @@ class RunningRedLightTest(Criterion):
                 for wp in waypoints:
                     text = "{}.{}".format(wp.road_id, wp.lane_id)
                     self._world.debug.draw_string(
-                        wp.transform.location + carla.Location(x=1, z=z), text, color=color, life_time=0.01)
+                        wp.transform.location + carla.Location(x=1, z=z),
+                        text,
+                        color=color,
+                        life_time=0.01,
+                    )
                     self._world.debug.draw_point(
-                        wp.transform.location + carla.Location(z=z), size=0.1, color=color, life_time=0.01)
+                        wp.transform.location + carla.Location(z=z),
+                        size=0.1,
+                        color=color,
+                        life_time=0.01,
+                    )
 
             center_loc = carla.Location(center)
 
@@ -1782,7 +1895,6 @@ class RunningRedLightTest(Criterion):
                 continue
 
             for wp in waypoints:
-
                 tail_wp = self._map.get_waypoint(tail_far_pt)
 
                 # Calculate the dot product (Might be unscaled, as only its sign is important)
@@ -1797,14 +1909,19 @@ class RunningRedLightTest(Criterion):
                     lane_width = wp.lane_width
                     location_wp = wp.transform.location
 
-                    lft_lane_wp = self.rotate_point(carla.Vector3D(0.4 * lane_width, 0.0, location_wp.z), yaw_wp + 90)
+                    lft_lane_wp = self.rotate_point(
+                        carla.Vector3D(0.4 * lane_width, 0.0, location_wp.z),
+                        yaw_wp + 90,
+                    )
                     lft_lane_wp = location_wp + carla.Location(lft_lane_wp)
-                    rgt_lane_wp = self.rotate_point(carla.Vector3D(0.4 * lane_width, 0.0, location_wp.z), yaw_wp - 90)
+                    rgt_lane_wp = self.rotate_point(
+                        carla.Vector3D(0.4 * lane_width, 0.0, location_wp.z),
+                        yaw_wp - 90,
+                    )
                     rgt_lane_wp = location_wp + carla.Location(rgt_lane_wp)
 
                     # Is the vehicle traversing the stop line?
                     if self.is_vehicle_crossing_line((tail_close_pt, tail_far_pt), (lft_lane_wp, rgt_lane_wp)):
-
                         self.test_status = "FAILURE"
                         self.actual_value += 1
                         location = traffic_light.get_transform().location
@@ -1814,12 +1931,17 @@ class RunningRedLightTest(Criterion):
                                 traffic_light.id,
                                 round(location.x, 3),
                                 round(location.y, 3),
-                                round(location.z, 3)))
-                        red_light_event.set_dict({
-                            'id': traffic_light.id,
-                            'x': location.x,
-                            'y': location.y,
-                            'z': location.z})
+                                round(location.z, 3),
+                            )
+                        )
+                        red_light_event.set_dict(
+                            {
+                                "id": traffic_light.id,
+                                "x": location.x,
+                                "y": location.y,
+                                "z": location.z,
+                            }
+                        )
 
                         self.list_traffic_events.append(red_light_event)
                         self._last_red_light_id = traffic_light.id
@@ -1889,13 +2011,13 @@ class RunningStopTest(Criterion):
     - actor: CARLA actor to be used for this test
     - terminate_on_failure [optional]: If True, the complete scenario will terminate upon failure of this test
     """
+
     PROXIMITY_THRESHOLD = 50.0  # meters
     SPEED_THRESHOLD = 0.1
     WAYPOINT_STEP = 1.0  # meters
 
     def __init__(self, actor, name="RunningStopTest", terminate_on_failure=False):
-        """
-        """
+        """ """
         super(RunningStopTest, self).__init__(name, actor, 0, terminate_on_failure=terminate_on_failure)
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
         self._actor = actor
@@ -1909,7 +2031,7 @@ class RunningStopTest(Criterion):
 
         all_actors = self._world.get_actors()
         for _actor in all_actors:
-            if 'traffic.stop' in _actor.type_id:
+            if "traffic.stop" in _actor.type_id:
                 self._list_stop_signs.append(_actor)
 
     @staticmethod
@@ -2032,12 +2154,17 @@ class RunningStopTest(Criterion):
                             self._target_stop_sign.id,
                             round(stop_location.x, 3),
                             round(stop_location.y, 3),
-                            round(stop_location.z, 3)))
-                    running_stop_event.set_dict({
-                        'id': self._target_stop_sign.id,
-                        'x': stop_location.x,
-                        'y': stop_location.y,
-                        'z': stop_location.z})
+                            round(stop_location.z, 3),
+                        )
+                    )
+                    running_stop_event.set_dict(
+                        {
+                            "id": self._target_stop_sign.id,
+                            "x": stop_location.x,
+                            "y": stop_location.y,
+                            "z": stop_location.z,
+                        }
+                    )
 
                     self.list_traffic_events.append(running_stop_event)
 

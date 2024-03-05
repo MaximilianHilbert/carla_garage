@@ -33,7 +33,7 @@ from torch.nn import functional as F
 
 
 class FocalLoss(nn.Module):
-  """ Focal Loss, as described in https://arxiv.org/abs/1708.02002.
+    """Focal Loss, as described in https://arxiv.org/abs/1708.02002.
 
     It is essentially an enhancement to cross entropy loss and is
     useful for classification tasks when there is a large class imbalance.
@@ -45,8 +45,13 @@ class FocalLoss(nn.Module):
         - y: (batch_size,) or (batch_size, d1, d2, ..., dK), K > 0.
     """
 
-  def __init__(self, alpha: Optional[Tensor] = None, gamma: float = 0., reduction: str = 'mean'):
-    """Constructor.
+    def __init__(
+        self,
+        alpha: Optional[Tensor] = None,
+        gamma: float = 0.0,
+        reduction: str = "mean",
+    ):
+        """Constructor.
 
         Args:
             alpha (Tensor, optional): Weights for each class. Defaults to None.
@@ -55,61 +60,63 @@ class FocalLoss(nn.Module):
             reduction (str, optional): 'mean', 'sum' or 'none'.
                 Defaults to 'mean'.
         """
-    if reduction not in ('mean', 'sum', 'none'):
-      raise ValueError('Reduction must be one of: "mean", "sum", "none".')
+        if reduction not in ("mean", "sum", "none"):
+            raise ValueError('Reduction must be one of: "mean", "sum", "none".')
 
-    super().__init__()
-    self.alpha = alpha
-    self.gamma = gamma
-    self.reduction = reduction
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
 
-    self.nll_loss = nn.NLLLoss(weight=alpha, reduction='none')
+        self.nll_loss = nn.NLLLoss(weight=alpha, reduction="none")
 
-  def __repr__(self):
-    arg_keys = ['alpha', 'gamma', 'reduction']
-    arg_vals = [self.__dict__[k] for k in arg_keys]
-    arg_strs = [f'{k}={v}' for k, v in zip(arg_keys, arg_vals)]
-    arg_str = ', '.join(arg_strs)
-    return f'{type(self).__name__}({arg_str})'
+    def __repr__(self):
+        arg_keys = ["alpha", "gamma", "reduction"]
+        arg_vals = [self.__dict__[k] for k in arg_keys]
+        arg_strs = [f"{k}={v}" for k, v in zip(arg_keys, arg_vals)]
+        arg_str = ", ".join(arg_strs)
+        return f"{type(self).__name__}({arg_str})"
 
-  def forward(self, x: Tensor, y: Tensor) -> Tensor:
-    if x.ndim > 2:
-      # (N, C, d1, d2, ..., dK) --> (N * d1 * ... * dK, C)
-      c = x.shape[1]
-      x = x.permute(0, *range(2, x.ndim), 1).reshape(-1, c)
-      # (N, d1, d2, ..., dK) --> (N * d1 * ... * dK,)
-      y = y.view(-1)
+    def forward(self, x: Tensor, y: Tensor) -> Tensor:
+        if x.ndim > 2:
+            # (N, C, d1, d2, ..., dK) --> (N * d1 * ... * dK, C)
+            c = x.shape[1]
+            x = x.permute(0, *range(2, x.ndim), 1).reshape(-1, c)
+            # (N, d1, d2, ..., dK) --> (N * d1 * ... * dK,)
+            y = y.view(-1)
 
-    # compute weighted cross entropy term: -alpha * log(pt)
-    # (alpha is already part of self.nll_loss)
-    log_p = F.log_softmax(x, dim=-1)
-    ce = self.nll_loss(log_p, y)
+        # compute weighted cross entropy term: -alpha * log(pt)
+        # (alpha is already part of self.nll_loss)
+        log_p = F.log_softmax(x, dim=-1)
+        ce = self.nll_loss(log_p, y)
 
-    # get true class column from each row
-    all_rows = torch.arange(len(x), device=y.device)
-    log_pt = log_p[all_rows, y]
+        # get true class column from each row
+        all_rows = torch.arange(len(x), device=y.device)
+        log_pt = log_p[all_rows, y]
 
-    # compute focal term: (1 - pt)^gamma
-    pt = log_pt.exp()
-    focal_term = (1 - pt)**self.gamma
+        # compute focal term: (1 - pt)^gamma
+        pt = log_pt.exp()
+        focal_term = (1 - pt) ** self.gamma
 
-    # the full loss: -alpha * ((1 - pt)^gamma) * log(pt)
-    loss = focal_term * ce
+        # the full loss: -alpha * ((1 - pt)^gamma) * log(pt)
+        loss = focal_term * ce
 
-    if self.reduction == 'mean':
-      loss = loss.mean()
-    elif self.reduction == 'sum':
-      loss = loss.sum()
+        if self.reduction == "mean":
+            loss = loss.mean()
+        elif self.reduction == "sum":
+            loss = loss.sum()
 
-    return loss
+        return loss
 
 
-def focal_loss(alpha: Optional[Sequence] = None,
-               gamma: float = 0.,
-               reduction: str = 'mean',
-               device='cpu',
-               dtype=torch.float32) -> FocalLoss:
-  """Factory function for FocalLoss.
+def focal_loss(
+    alpha: Optional[Sequence] = None,
+    gamma: float = 0.0,
+    reduction: str = "mean",
+    device="cpu",
+    dtype=torch.float32,
+) -> FocalLoss:
+    """Factory function for FocalLoss.
 
     Args:
         alpha (Sequence, optional): Weights for each class. Will be converted
@@ -125,10 +132,10 @@ def focal_loss(alpha: Optional[Sequence] = None,
     Returns:
         A FocalLoss object
     """
-  if alpha is not None:
-    if not isinstance(alpha, Tensor):
-      alpha = torch.tensor(alpha)
-    alpha = alpha.to(device=device, dtype=dtype)
+    if alpha is not None:
+        if not isinstance(alpha, Tensor):
+            alpha = torch.tensor(alpha)
+        alpha = alpha.to(device=device, dtype=dtype)
 
-  fl = FocalLoss(alpha=alpha, gamma=gamma, reduction=reduction)
-  return fl
+    fl = FocalLoss(alpha=alpha, gamma=gamma, reduction=reduction)
+    return fl

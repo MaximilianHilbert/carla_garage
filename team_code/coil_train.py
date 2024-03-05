@@ -22,7 +22,7 @@ from coil_utils.baseline_helpers import (
     is_ready_to_save,
     get_latest_saved_checkpoint,
     get_action_predict_loss_threshold,
-    visualize_model
+    visualize_model,
 )
 
 
@@ -32,7 +32,11 @@ def main(args):
     rank = int(os.environ["LOCAL_RANK"])
     print(f"World-size {world_size}, Rank {rank}")
     dist.init_process_group(
-        backend="nccl", init_method=f"env://127.0.0.1:{find_free_port()}", world_size=world_size, rank=rank,timeout=datetime.timedelta(seconds=3600)
+        backend="nccl",
+        init_method=f"env://127.0.0.1:{find_free_port()}",
+        world_size=world_size,
+        rank=rank,
+        timeout=datetime.timedelta(seconds=3600),
     )
     if rank == 0:
         print("Backend initialized")
@@ -43,18 +47,18 @@ def main(args):
         merged_config_object.baseline_folder_name,
         merged_config_object.experiment,
         args.training_repetition,
-        args.setting
+        args.setting,
     )
     if rank == 0:
         logger.create_tensorboard_logs()
-        print(
-            f"Start of Training {args.baseline_folder_name}, {args.experiment}, {args.training_repetition}"
-        )
+        print(f"Start of Training {args.baseline_folder_name}, {args.experiment}, {args.training_repetition}")
     logger.create_checkpoint_logs()
     try:
         set_seed(args.seed)
         checkpoint_file = get_latest_saved_checkpoint(
-            merged_config_object, repetition=args.training_repetition, setting=args.setting
+            merged_config_object,
+            repetition=args.training_repetition,
+            setting=args.setting,
         )
         if checkpoint_file is not None:
             checkpoint = torch.load(
@@ -67,7 +71,8 @@ def main(args):
                     args.setting,
                     "checkpoints",
                     checkpoint_file,
-                ),map_location=lambda storage, loc: storage
+                ),
+                map_location=lambda storage, loc: storage,
             )
             epoch = checkpoint["epoch"]
             best_loss = checkpoint["best_loss"]
@@ -110,7 +115,7 @@ def main(args):
                 dataset.get_correlation_weights(), merged_config_object.threshold_ratio
             )
         print("Loaded dataset")
-        
+
         sampler = DistributedSampler(dataset)
         data_loader = torch.utils.data.DataLoader(
             dataset,
@@ -122,51 +127,35 @@ def main(args):
             sampler=sampler,
         )
         if "arp" in args.experiment:
-            policy = CoILModel(merged_config_object.model_type,
-                merged_config_object
-            )
+            policy = CoILModel(merged_config_object.model_type, merged_config_object)
             policy.to(device_id)
-            #policy = torch.nn.SyncBatchNorm.convert_sync_batchnorm(policy)
+            # policy = torch.nn.SyncBatchNorm.convert_sync_batchnorm(policy)
             policy = DDP(policy, device_ids=[device_id])
-            mem_extract = CoILModel(merged_config_object.mem_extract_model_type,
-                merged_config_object
-            )
+            mem_extract = CoILModel(merged_config_object.mem_extract_model_type, merged_config_object)
             mem_extract.to(device_id)
-            #mem_extract = torch.nn.SyncBatchNorm.convert_sync_batchnorm(mem_extract)
+            # mem_extract = torch.nn.SyncBatchNorm.convert_sync_batchnorm(mem_extract)
             mem_extract = DDP(mem_extract, device_ids=[device_id])
         else:
-            model = CoILModel(merged_config_object.model_type,
-                merged_config_object
-            )
+            model = CoILModel(merged_config_object.model_type, merged_config_object)
             model.to(device_id)
             model = DDP(model, device_ids=[device_id])
         if merged_config_object.optimizer_baselines == "Adam":
             if "arp" in args.experiment:
-                #policy_optimizer = ZeroRedundancyOptimizer(policy.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
+                # policy_optimizer = ZeroRedundancyOptimizer(policy.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
 
-                policy_optimizer = optim.Adam(
-                    policy.parameters(), lr=merged_config_object.learning_rate
-                )
-                mem_extract_optimizer = optim.Adam(
-                    mem_extract.parameters(), lr=merged_config_object.learning_rate
-                )
-                #mem_extract_optimizer = ZeroRedundancyOptimizer(mem_extract.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
+                policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
+                mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate)
+                # mem_extract_optimizer = ZeroRedundancyOptimizer(mem_extract.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
 
                 mem_extract_scheduler = MultiStepLR(
                     mem_extract_optimizer,
                     milestones=args.adapt_lr_milestones,
                     gamma=0.1,
                 )
-                policy_scheduler = MultiStepLR(
-                    policy_optimizer, milestones=args.adapt_lr_milestones, gamma=0.1
-                )
+                policy_scheduler = MultiStepLR(policy_optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
             else:
-                optimizer = optim.Adam(
-                    model.parameters(), lr=merged_config_object.learning_rate
-                )
-                scheduler = MultiStepLR(
-                    optimizer, milestones=args.adapt_lr_milestones, gamma=0.1
-                )
+                optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate)
+                scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
         elif merged_config_object.optimizer == "SGD":
             if "arp" in args.experiment:
                 policy_optimizer = optim.SGD(
@@ -184,33 +173,25 @@ def main(args):
                     milestones=args.adapt_lr_milestones,
                     gamma=0.1,
                 )
-                policy_scheduler = MultiStepLR(
-                    policy_optimizer, milestones=args.adapt_lr_milestones, gamma=0.1
-                )
+                policy_scheduler = MultiStepLR(policy_optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
             else:
                 optimizer = optim.SGD(
                     model.parameters(),
                     lr=merged_config_object.learning_rate,
                     momentum=0.9,
                 )
-                scheduler = MultiStepLR(
-                    optimizer, milestones=args.adapt_lr_milestones, gamma=0.1
-                )
+                scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
         else:
             raise ValueError
 
-        if (
-            checkpoint_file is not None
-        ):
+        if checkpoint_file is not None:
             accumulated_time = checkpoint["total_time"]
             already_trained_epochs = checkpoint["epoch"]
             if "arp" in args.experiment:
                 policy.load_state_dict(checkpoint["policy_state_dict"])
                 policy_optimizer.load_state_dict(checkpoint["policy_optimizer"])
                 mem_extract.load_state_dict(checkpoint["mem_extract_state_dict"])
-                mem_extract_optimizer.load_state_dict(
-                    checkpoint["mem_extract_optimizer"]
-                )
+                mem_extract_optimizer.load_state_dict(checkpoint["mem_extract_optimizer"])
             else:
                 model.load_state_dict(checkpoint["state_dict"])
                 optimizer.load_state_dict(checkpoint["optimizer"])
@@ -229,9 +210,7 @@ def main(args):
             range(1 + already_trained_epochs, merged_config_object.epochs_baselines + 1),
             disable=rank != 0,
         ):
-            for iteration, data in enumerate(
-                tqdm(data_loader, disable=rank != 0), start=1
-            ):
+            for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
                 # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
                 #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                 #     break
@@ -247,17 +226,13 @@ def main(args):
                     ),
                 )
                 current_speed = data["speed"].to(device_id).reshape(args.batch_size, 1)
-                target_point=data["target_point"].to(device_id)
-                targets=data["ego_waypoints"].to(device_id)
-                previous_targets=data["previous_ego_waypoints"].to(device_id)
+                target_point = data["target_point"].to(device_id)
+                targets = data["ego_waypoints"].to(device_id)
+                previous_targets = data["previous_ego_waypoints"].to(device_id)
 
-                if (
-                    "arp" in args.experiment
-                    or "bcoh" in args.experiment
-                    or "keyframes" in args.experiment
-                ):
+                if "arp" in args.experiment or "bcoh" in args.experiment or "keyframes" in args.experiment:
                     temporal_images = data["temporal_rgb"].to(device_id) / 255.0
-                    
+
                 if "arp" in args.experiment:
                     current_speed_zero_speed = torch.zeros_like(current_speed)
                     mem_extract.zero_grad()
@@ -277,9 +252,7 @@ def main(args):
                     mem_extract_loss.backward()
                     mem_extract_optimizer.step()
                     policy.zero_grad()
-                    policy_branches = policy(
-                        current_image, current_speed_zero_speed, memory, target_point
-                    )
+                    policy_branches = policy(current_image, current_speed_zero_speed, memory, target_point)
                     loss_function_params_policy = {
                         "branches": policy_branches,
                         "targets": targets,
@@ -291,12 +264,7 @@ def main(args):
                     policy_loss, _ = criterion(loss_function_params_policy)
                     policy_loss.backward()
                     policy_optimizer.step()
-                    if (
-                        is_ready_to_save(
-                            epoch, iteration, data_loader, merged_config_object
-                        )
-                        and rank == 0
-                    ):
+                    if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                         state = {
                             "epoch": epoch,
                             "policy_state_dict": policy.state_dict(),
@@ -326,9 +294,7 @@ def main(args):
                             policy_loss.data,
                             (epoch - 1) * len(data_loader) + iteration,
                         )
-                        logger.add_scalar(
-                            "Policy_Loss_Epochs", policy_loss.data, (epoch - 1)
-                        )
+                        logger.add_scalar("Policy_Loss_Epochs", policy_loss.data, (epoch - 1))
                         logger.add_scalar(
                             "Mem_Extract_Loss_Iterations",
                             mem_extract_loss.data,
@@ -344,9 +310,7 @@ def main(args):
                         best_loss_epoch = epoch
                     accumulated_time += time.time() - capture_time
                     if iteration % args.printing_step == 0 and rank == 0:
-                        print(
-                            f"Epoch: {epoch} // Iteration: {iteration} // Policy_Loss: {policy_loss.data}\n"
-                        )
+                        print(f"Epoch: {epoch} // Iteration: {iteration} // Policy_Loss: {policy_loss.data}\n")
                         print(
                             f"Epoch: {epoch} // Iteration: {iteration} // Mem_Extract_Loss: {mem_extract_loss.data}\n"
                         )
@@ -362,15 +326,15 @@ def main(args):
 
                 # TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
                 if "bcoh" in args.experiment or "keyframes" in args.experiment:
-                    temporal_and_current_images = torch.cat(
-                        [temporal_images, current_image], axis=1
-                    )
+                    temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
                     if merged_config_object.train_with_actions_as_input:
-                        branches = model(
-                            temporal_and_current_images, current_speed, previous_action
-                        )
+                        branches = model(temporal_and_current_images, current_speed, previous_action)
                     else:
-                        branches = model(temporal_and_current_images, current_speed, target_point=target_point)
+                        branches = model(
+                            temporal_and_current_images,
+                            current_speed,
+                            target_point=target_point,
+                        )
                 if "bcso" in args.experiment:
                     branches = model(x=current_image, a=current_speed, target_point=target_point)
                 if "keyframes" in args.experiment:
@@ -379,9 +343,7 @@ def main(args):
                         "importance_sampling_threshold": action_predict_threshold,
                         "importance_sampling_method": merged_config_object.importance_sample_method,
                         "importance_sampling_threshold_weight": merged_config_object.threshold_weight,
-                        "action_predict_loss": data["correlation_weight"]
-                        .squeeze()
-                        .to(device_id),
+                        "action_predict_loss": data["correlation_weight"].squeeze().to(device_id),
                     }
                 else:
                     reweight_params = {}
@@ -407,12 +369,7 @@ def main(args):
                     loss.backward()
                     optimizer.step()
                     scheduler.step()
-                    if (
-                        is_ready_to_save(
-                            epoch, iteration, data_loader, merged_config_object
-                        )
-                        and rank == 0
-                    ):
+                    if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                         state = {
                             "epoch": epoch,
                             "state_dict": model.state_dict(),
@@ -442,9 +399,7 @@ def main(args):
                     accumulated_time += time.time() - capture_time
                     if rank == 0:
                         if iteration % args.printing_step == 0:
-                            print(
-                                f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}\n"
-                            )
+                            print(f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}\n")
                         logger.add_scalar(
                             f"{merged_config_object.experiment}_loss",
                             loss.data,
@@ -482,7 +437,10 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument(
-        "--experiment", default=None, required=True, help="filename of experiment without .yaml"
+        "--experiment",
+        default=None,
+        required=True,
+        help="filename of experiment without .yaml",
     )
     parser.add_argument(
         "--number-of-workers",
@@ -490,11 +448,9 @@ if __name__ == "__main__":
         type=int,
         required=True,
     )
-    parser.add_argument("--use-disk-cache",type=int, default=0)
+    parser.add_argument("--use-disk-cache", type=int, default=0)
     parser.add_argument("--batch-size", type=int, default=30)
-    parser.add_argument(
-        "--printing-step", type=int, default=100
-    )
+    parser.add_argument("--printing-step", type=int, default=100)
     parser.add_argument(
         "--adapt-lr-milestones",
         nargs="+",

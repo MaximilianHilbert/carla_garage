@@ -13,10 +13,19 @@ from __future__ import print_function
 
 import py_trees
 
-from srunner.scenariomanager.scenarioatomics.atomic_behaviors import TrafficLightManipulator
+from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (
+    TrafficLightManipulator,
+)
 
-from srunner.scenariomanager.scenarioatomics.atomic_criteria import CollisionTest, DrivenDistanceTest, MaxVelocityTest
-from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import DriveDistance, WaitEndIntersection
+from srunner.scenariomanager.scenarioatomics.atomic_criteria import (
+    CollisionTest,
+    DrivenDistanceTest,
+    MaxVelocityTest,
+)
+from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (
+    DriveDistance,
+    WaitEndIntersection,
+)
 from srunner.scenarios.basic_scenario import BasicScenario
 
 
@@ -29,16 +38,24 @@ class SignalJunctionCrossingRoute(BasicScenario):
     """
 
     # ego vehicle parameters
-    _ego_max_velocity_allowed = 20       # Maximum allowed velocity [m/s]
-    _ego_expected_driven_distance = 50   # Expected driven distance [m]
-    _ego_distance_to_drive = 20          # Allowed distance to drive
+    _ego_max_velocity_allowed = 20  # Maximum allowed velocity [m/s]
+    _ego_expected_driven_distance = 50  # Expected driven distance [m]
+    _ego_distance_to_drive = 20  # Allowed distance to drive
 
     _traffic_light = None
 
     # Depending on the route, decide which traffic lights can be modified
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, criteria_enable=True,
-                 timeout=180):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        timeout=180,
+    ):
         """
         Setup all relevant parameters and create scenario
         and instantiate scenario manager
@@ -47,12 +64,14 @@ class SignalJunctionCrossingRoute(BasicScenario):
         self.timeout = timeout
         self.subtype = config.subtype
 
-        super(SignalJunctionCrossingRoute, self).__init__("SignalJunctionCrossingRoute",
-                                                          ego_vehicles,
-                                                          config,
-                                                          world,
-                                                          debug_mode,
-                                                          criteria_enable=criteria_enable)
+        super(SignalJunctionCrossingRoute, self).__init__(
+            "SignalJunctionCrossingRoute",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            criteria_enable=criteria_enable,
+        )
 
     def _initialize_actors(self, config):
         """
@@ -73,10 +92,7 @@ class SignalJunctionCrossingRoute(BasicScenario):
         traffic_hack = TrafficLightManipulator(self.ego_vehicles[0], self.subtype)
 
         # finally wait that ego vehicle drove a specific distance
-        wait = DriveDistance(
-            self.ego_vehicles[0],
-            self._ego_distance_to_drive,
-            name="DriveDistance")
+        wait = DriveDistance(self.ego_vehicles[0], self._ego_distance_to_drive, name="DriveDistance")
 
         # Build behavior tree
         sequence = py_trees.composites.Sequence("SignalJunctionCrossingRoute")
@@ -92,14 +108,9 @@ class SignalJunctionCrossingRoute(BasicScenario):
         """
         criteria = []
 
-        max_velocity_criterion = MaxVelocityTest(
-            self.ego_vehicles[0],
-            self._ego_max_velocity_allowed,
-            optional=True)
+        max_velocity_criterion = MaxVelocityTest(self.ego_vehicles[0], self._ego_max_velocity_allowed, optional=True)
         collision_criterion = CollisionTest(self.ego_vehicles[0])
-        driven_distance_criterion = DrivenDistanceTest(
-            self.ego_vehicles[0],
-            self._ego_expected_driven_distance)
+        driven_distance_criterion = DrivenDistanceTest(self.ego_vehicles[0], self._ego_expected_driven_distance)
 
         criteria.append(max_velocity_criterion)
         criteria.append(collision_criterion)
@@ -124,12 +135,20 @@ class NoSignalJunctionCrossingRoute(BasicScenario):
     """
 
     # ego vehicle parameters
-    _ego_max_velocity_allowed = 20       # Maximum allowed velocity [m/s]
-    _ego_expected_driven_distance = 50   # Expected driven distance [m]
-    _ego_distance_to_drive = 20          # Allowed distance to drive
+    _ego_max_velocity_allowed = 20  # Maximum allowed velocity [m/s]
+    _ego_expected_driven_distance = 50  # Expected driven distance [m]
+    _ego_distance_to_drive = 20  # Allowed distance to drive
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, criteria_enable=True,
-                 timeout=180):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        timeout=180,
+    ):
         """
         Setup all relevant parameters and create scenario
         and instantiate scenario manager
@@ -137,12 +156,14 @@ class NoSignalJunctionCrossingRoute(BasicScenario):
         # Timeout of scenario in seconds
         self.timeout = timeout
 
-        super(NoSignalJunctionCrossingRoute, self).__init__("NoSignalJunctionCrossingRoute",
-                                                            ego_vehicles,
-                                                            config,
-                                                            world,
-                                                            debug_mode,
-                                                            criteria_enable=criteria_enable)
+        super(NoSignalJunctionCrossingRoute, self).__init__(
+            "NoSignalJunctionCrossingRoute",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            criteria_enable=criteria_enable,
+        )
 
     def _initialize_actors(self, config):
         """
@@ -159,13 +180,8 @@ class NoSignalJunctionCrossingRoute(BasicScenario):
         If this does not happen within 120 seconds, a timeout stops the scenario
         """
         # finally wait that ego vehicle drove a specific distance
-        wait = WaitEndIntersection(
-            self.ego_vehicles[0],
-            name="WaitEndIntersection")
-        end_condition = DriveDistance(
-            self.ego_vehicles[0],
-            self._ego_distance_to_drive,
-            name="DriveDistance")
+        wait = WaitEndIntersection(self.ego_vehicles[0], name="WaitEndIntersection")
+        end_condition = DriveDistance(self.ego_vehicles[0], self._ego_distance_to_drive, name="DriveDistance")
 
         # Build behavior tree
         sequence = py_trees.composites.Sequence("NoSignalJunctionCrossingRoute")
@@ -181,14 +197,9 @@ class NoSignalJunctionCrossingRoute(BasicScenario):
         """
         criteria = []
 
-        max_velocity_criterion = MaxVelocityTest(
-            self.ego_vehicles[0],
-            self._ego_max_velocity_allowed,
-            optional=True)
+        max_velocity_criterion = MaxVelocityTest(self.ego_vehicles[0], self._ego_max_velocity_allowed, optional=True)
         collision_criterion = CollisionTest(self.ego_vehicles[0])
-        driven_distance_criterion = DrivenDistanceTest(
-            self.ego_vehicles[0],
-            self._ego_expected_driven_distance)
+        driven_distance_criterion = DrivenDistanceTest(self.ego_vehicles[0], self._ego_expected_driven_distance)
 
         criteria.append(max_velocity_criterion)
         criteria.append(collision_criterion)

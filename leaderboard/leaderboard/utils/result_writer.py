@@ -31,10 +31,8 @@ class ResultOutputProvider(object):
         self._data = data
         self._global_result = global_result
 
-        self._start_time = time.strftime('%Y-%m-%d %H:%M:%S',
-                                         time.localtime(self._data.start_system_time))
-        self._end_time = time.strftime('%Y-%m-%d %H:%M:%S',
-                                       time.localtime(self._data.end_system_time))
+        self._start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self._data.start_system_time))
+        self._end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(self._data.end_system_time))
 
         print(self.create_output_text())
 
@@ -46,7 +44,10 @@ class ResultOutputProvider(object):
         # Create the title
         output = "\n"
         output += "\033[1m========= Results of {} (repetition {}) ------ {} \033[1m=========\033[0m\n".format(
-            self._data.scenario_tree.name, self._data.repetition_number, self._global_result)
+            self._data.scenario_tree.name,
+            self._data.repetition_number,
+            self._global_result,
+        )
         output += "\n"
 
         # Simulation part
@@ -60,15 +61,14 @@ class ResultOutputProvider(object):
         list_statistics.extend([["Duration (Game Time)", "{}s".format(game_time)]])
         list_statistics.extend([["Ratio (System Time / Game Time)", "{}".format(ratio)]])
 
-        output += tabulate(list_statistics, tablefmt='fancy_grid')
+        output += tabulate(list_statistics, tablefmt="fancy_grid")
         output += "\n\n"
 
         # Criteria part
-        header = ['Criterion', 'Result', 'Value']
+        header = ["Criterion", "Result", "Value"]
         list_statistics = [header]
 
         for criterion in self._data.scenario.get_criteria():
-
             actual_value = criterion.actual_value
             expected_value = criterion.expected_value_success
             name = criterion.name
@@ -76,9 +76,9 @@ class ResultOutputProvider(object):
             result = criterion.test_status
 
             if result == "SUCCESS":
-                result = '\033[92m'+'SUCCESS'+'\033[0m'
+                result = "\033[92m" + "SUCCESS" + "\033[0m"
             elif result == "FAILURE":
-                result = '\033[91m'+'FAILURE'+'\033[0m'
+                result = "\033[91m" + "FAILURE" + "\033[0m"
 
             if name == "RouteCompletionTest":
                 actual_value = str(actual_value) + " %"
@@ -104,13 +104,13 @@ class ResultOutputProvider(object):
         expected_value = self._data.scenario.timeout
 
         if self._data.scenario_duration_game < self._data.scenario.timeout:
-            result = '\033[92m'+'SUCCESS'+'\033[0m'
+            result = "\033[92m" + "SUCCESS" + "\033[0m"
         else:
-            result = '\033[91m'+'FAILURE'+'\033[0m'
+            result = "\033[91m" + "FAILURE" + "\033[0m"
 
-        list_statistics.extend([[name, result, '']])
+        list_statistics.extend([[name, result, ""]])
 
-        output += tabulate(list_statistics, tablefmt='fancy_grid')
+        output += tabulate(list_statistics, tablefmt="fancy_grid")
         output += "\n"
 
         return output

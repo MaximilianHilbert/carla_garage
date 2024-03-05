@@ -12,12 +12,12 @@ import os
 try:
     import numpy as np
 except ImportError:
-    raise RuntimeError('cannot import numpy, make sure numpy package is installed')
+    raise RuntimeError("cannot import numpy, make sure numpy package is installed")
 
 try:
     from PIL import Image
 except ImportError:
-    raise RuntimeError('cannot import PIL, make sure pillow package is installed')
+    raise RuntimeError("cannot import PIL, make sure pillow package is installed")
 
 from .graph import Graph
 from .graph import sldist
@@ -30,14 +30,13 @@ def color_to_angle(color):
 
 
 class CarlaMap(object):
-
     def __init__(self, city, pixel_density=0.1643, node_density=50):
         dir_path = os.path.dirname(__file__)
-        city_file = os.path.join(dir_path, city + '.txt')
+        city_file = os.path.join(dir_path, city + ".txt")
 
-        city_map_file = os.path.join(dir_path, city + '.png')
-        city_map_file_lanes = os.path.join(dir_path, city + 'Lanes.png')
-        city_map_file_center = os.path.join(dir_path, city + 'Central.png')
+        city_map_file = os.path.join(dir_path, city + ".png")
+        city_map_file_lanes = os.path.join(dir_path, city + "Lanes.png")
+        city_map_file_center = os.path.join(dir_path, city + "Central.png")
 
         # The built graph. This is the exact same graph that unreal builds. This
         # is a generic structure used for many cases
@@ -64,12 +63,15 @@ class CarlaMap(object):
         self.map_image_center = np.asarray(self.map_image_center, dtype="int32")
 
     def get_graph_resolution(self):
-
         return self._graph.get_resolution()
-    def check_pixel_on_map(self, pixel):
 
-        if pixel[0] < self.map_image_lanes.shape[1] and pixel[0] > 0 and \
-            pixel[1] < self.map_image_lanes.shape[0] and pixel[1] > 0:
+    def check_pixel_on_map(self, pixel):
+        if (
+            pixel[0] < self.map_image_lanes.shape[1]
+            and pixel[0] > 0
+            and pixel[1] < self.map_image_lanes.shape[0]
+            and pixel[1] > 0
+        ):
             return True
         else:
             return False
@@ -110,7 +112,6 @@ class CarlaMap(object):
 
         return color_to_angle(ori)
 
-
     def convert_to_node(self, input_data):
         """
         Receives a data type (Can Be Pixel or World )
@@ -150,12 +151,10 @@ class CarlaMap(object):
         if both_walls:
             final_walls = self._grid.get_wall_source(node_source, source_ori, node_target)
 
-            final_walls = final_walls.union(self._grid.get_wall_target(
-                node_target, target_ori, node_source))
+            final_walls = final_walls.union(self._grid.get_wall_target(node_target, target_ori, node_source))
 
             return final_walls
         else:
-
             return self._grid.get_wall_source(node_source, source_ori, node_target)
 
     def is_point_on_lane(self, world):
@@ -177,18 +176,15 @@ class CarlaMap(object):
             return False
         ori = self.map_image_lanes[int(pixel[1]), int(pixel[0]), 0]
 
-
         if ori > 0:
             return True
         else:
             return False
 
     def get_walls(self):
-
         return self._grid.get_walls()
 
     def get_distance_closest_node(self, pos):
-
         distance = []
         for node_iter in self._graph.intersection_nodes():
             distance.append(sldist(node_iter, pos))

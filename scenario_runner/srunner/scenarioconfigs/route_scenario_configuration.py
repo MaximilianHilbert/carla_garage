@@ -31,11 +31,11 @@ class RouteConfiguration(object):
         self.data = []
 
         for waypoint in node.iter("waypoint"):
-            x = float(waypoint.attrib.get('x', 0))
-            y = float(waypoint.attrib.get('y', 0))
-            z = float(waypoint.attrib.get('z', 0))
-            c = waypoint.attrib.get('connection', '')
-            connection = RoadOption[c.split('.')[1]]
+            x = float(waypoint.attrib.get("x", 0))
+            y = float(waypoint.attrib.get("y", 0))
+            z = float(waypoint.attrib.get("z", 0))
+            c = waypoint.attrib.get("connection", "")
+            connection = RoadOption[c.split(".")[1]]
 
             self.data.append((carla.Location(x, y, z), connection))
 

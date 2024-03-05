@@ -100,9 +100,11 @@ class SimulationTimeCondition(py_trees.behaviour.Behaviour):
         self._timeout_value = timeout
         self._start_time = 0.0
         self._success_rule = success_rule
-        self._ops = {"greaterThan": (lambda x, y: x > y),
-                     "equalTo": (lambda x, y: x == y),
-                     "lessThan": (lambda x, y: x < y)}
+        self._ops = {
+            "greaterThan": (lambda x, y: x > y),
+            "equalTo": (lambda x, y: x == y),
+            "lessThan": (lambda x, y: x < y),
+        }
 
     def initialise(self):
         """

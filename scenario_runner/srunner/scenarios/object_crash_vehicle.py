@@ -15,16 +15,20 @@ import py_trees
 import carla
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
-from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (ActorTransformSetter,
-                                                                      ActorDestroy,
-                                                                      AccelerateToVelocity,
-                                                                      HandBrakeVehicle,
-                                                                      KeepVelocity,
-                                                                      StopVehicle)
+from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (
+    ActorTransformSetter,
+    ActorDestroy,
+    AccelerateToVelocity,
+    HandBrakeVehicle,
+    KeepVelocity,
+    StopVehicle,
+)
 from srunner.scenariomanager.scenarioatomics.atomic_criteria import CollisionTest
-from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (InTriggerDistanceToLocationAlongRoute,
-                                                                               InTimeToArrivalToVehicle,
-                                                                               DriveDistance)
+from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (
+    InTriggerDistanceToLocationAlongRoute,
+    InTimeToArrivalToVehicle,
+    DriveDistance,
+)
 from srunner.scenariomanager.timer import TimeOut
 from srunner.scenarios.basic_scenario import BasicScenario
 from srunner.tools.scenario_helper import get_location_in_distance_from_wp
@@ -41,8 +45,16 @@ class StationaryObjectCrossing(BasicScenario):
     This is a single ego vehicle scenario
     """
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, criteria_enable=True,
-                 timeout=60):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        timeout=60,
+    ):
         """
         Setup all relevant parameters and create scenario
         """
@@ -56,12 +68,14 @@ class StationaryObjectCrossing(BasicScenario):
         # Timeout of scenario in seconds
         self.timeout = timeout
 
-        super(StationaryObjectCrossing, self).__init__("Stationaryobjectcrossing",
-                                                       ego_vehicles,
-                                                       config,
-                                                       world,
-                                                       debug_mode,
-                                                       criteria_enable=criteria_enable)
+        super(StationaryObjectCrossing, self).__init__(
+            "Stationaryobjectcrossing",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            criteria_enable=criteria_enable,
+        )
 
     def _initialize_actors(self, config):
         """
@@ -72,15 +86,16 @@ class StationaryObjectCrossing(BasicScenario):
         location, _ = get_location_in_distance_from_wp(self._reference_waypoint, _start_distance)
         waypoint = self._wmap.get_waypoint(location)
         offset = {"orientation": 270, "position": 90, "z": 0.4, "k": 0.2}
-        position_yaw = waypoint.transform.rotation.yaw + offset['position']
-        orientation_yaw = waypoint.transform.rotation.yaw + offset['orientation']
+        position_yaw = waypoint.transform.rotation.yaw + offset["position"]
+        orientation_yaw = waypoint.transform.rotation.yaw + offset["orientation"]
         offset_location = carla.Location(
-            offset['k'] * lane_width * math.cos(math.radians(position_yaw)),
-            offset['k'] * lane_width * math.sin(math.radians(position_yaw)))
+            offset["k"] * lane_width * math.cos(math.radians(position_yaw)),
+            offset["k"] * lane_width * math.sin(math.radians(position_yaw)),
+        )
         location += offset_location
-        location.z += offset['z']
+        location.z += offset["z"]
         self.transform = carla.Transform(location, carla.Rotation(yaw=orientation_yaw))
-        static = CarlaDataProvider.request_new_actor('static.prop.container', self.transform)
+        static = CarlaDataProvider.request_new_actor("static.prop.container", self.transform)
         static.set_simulate_physics(True)
         self.other_actors.append(static)
 
@@ -88,8 +103,9 @@ class StationaryObjectCrossing(BasicScenario):
         """
         Only behavior here is to wait
         """
-        lane_width = self.ego_vehicles[0].get_world().get_map().get_waypoint(
-            self.ego_vehicles[0].get_location()).lane_width
+        lane_width = (
+            self.ego_vehicles[0].get_world().get_map().get_waypoint(self.ego_vehicles[0].get_location()).lane_width
+        )
         lane_width = lane_width + (1.25 * lane_width)
 
         # leaf nodes
@@ -98,8 +114,7 @@ class StationaryObjectCrossing(BasicScenario):
         end_condition = DriveDistance(self.ego_vehicles[0], self._ego_vehicle_distance_driven)
 
         # non leaf nodes
-        root = py_trees.composites.Parallel(
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+        root = py_trees.composites.Parallel(policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
         scenario_sequence = py_trees.composites.Sequence()
 
         # building tree
@@ -141,8 +156,17 @@ class DynamicObjectCrossing(BasicScenario):
     This is a single ego vehicle scenario
     """
 
-    def __init__(self, world, ego_vehicles, config, randomize=False,
-                 debug_mode=False, criteria_enable=True, adversary_type=False, timeout=60):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        adversary_type=False,
+        timeout=60,
+    ):
         """
         Setup all relevant parameters and create scenario
         """
@@ -169,15 +193,16 @@ class DynamicObjectCrossing(BasicScenario):
 
         self._ego_route = CarlaDataProvider.get_ego_vehicle_route()
 
-        super(DynamicObjectCrossing, self).__init__("DynamicObjectCrossing",
-                                                    ego_vehicles,
-                                                    config,
-                                                    world,
-                                                    debug_mode,
-                                                    criteria_enable=criteria_enable)
+        super(DynamicObjectCrossing, self).__init__(
+            "DynamicObjectCrossing",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            criteria_enable=criteria_enable,
+        )
 
     def _calculate_base_transform(self, _start_distance, waypoint):
-
         lane_width = waypoint.lane_width
 
         # Patches false junctions
@@ -189,27 +214,30 @@ class DynamicObjectCrossing(BasicScenario):
         location, _ = get_location_in_distance_from_wp(waypoint, _start_distance, stop_at_junction)
         waypoint = self._wmap.get_waypoint(location)
         offset = {"orientation": 270, "position": 90, "z": 0.6, "k": 1.0}
-        position_yaw = waypoint.transform.rotation.yaw + offset['position']
-        orientation_yaw = waypoint.transform.rotation.yaw + offset['orientation']
+        position_yaw = waypoint.transform.rotation.yaw + offset["position"]
+        orientation_yaw = waypoint.transform.rotation.yaw + offset["orientation"]
         offset_location = carla.Location(
-            offset['k'] * lane_width * math.cos(math.radians(position_yaw)),
-            offset['k'] * lane_width * math.sin(math.radians(position_yaw)))
+            offset["k"] * lane_width * math.cos(math.radians(position_yaw)),
+            offset["k"] * lane_width * math.sin(math.radians(position_yaw)),
+        )
         location += offset_location
-        location.z = self._trigger_location.z + offset['z']
-        return carla.Transform(location, carla.Rotation(yaw=orientation_yaw)), orientation_yaw
+        location.z = self._trigger_location.z + offset["z"]
+        return (
+            carla.Transform(location, carla.Rotation(yaw=orientation_yaw)),
+            orientation_yaw,
+        )
 
     def _spawn_adversary(self, transform, orientation_yaw):
-
         self._time_to_reach *= self._num_lane_changes
 
         if self._adversary_type is False:
             self._walker_yaw = orientation_yaw
             self._other_actor_target_velocity = 3 + (0.4 * self._num_lane_changes)
-            walker = CarlaDataProvider.request_new_actor('walker.*', transform)
+            walker = CarlaDataProvider.request_new_actor("walker.*", transform)
             adversary = walker
         else:
             self._other_actor_target_velocity = self._other_actor_target_velocity * self._num_lane_changes
-            first_vehicle = CarlaDataProvider.request_new_actor('vehicle.diamondback.century', transform)
+            first_vehicle = CarlaDataProvider.request_new_actor("vehicle.diamondback.century", transform)
             first_vehicle.set_simulate_physics(enabled=False)
             adversary = first_vehicle
 
@@ -231,11 +259,12 @@ class DynamicObjectCrossing(BasicScenario):
 
         spawn_point_wp = self.ego_vehicles[0].get_world().get_map().get_waypoint(transform.location)
 
-        self.transform2 = carla.Transform(carla.Location(x_static, y_static,
-                                                         spawn_point_wp.transform.location.z + 0.3),
-                                          carla.Rotation(yaw=orientation_yaw + 180))
+        self.transform2 = carla.Transform(
+            carla.Location(x_static, y_static, spawn_point_wp.transform.location.z + 0.3),
+            carla.Rotation(yaw=orientation_yaw + 180),
+        )
 
-        static = CarlaDataProvider.request_new_actor('static.prop.vendingmachine', self.transform2)
+        static = CarlaDataProvider.request_new_actor("static.prop.vendingmachine", self.transform2)
         static.set_simulate_physics(enabled=False)
 
         return static
@@ -264,7 +293,6 @@ class DynamicObjectCrossing(BasicScenario):
                 waypoint = wp_next
 
         while True:  # We keep trying to spawn avoiding props
-
             try:
                 self.transform, orientation_yaw = self._calculate_base_transform(_start_distance, waypoint)
                 first_vehicle = self._spawn_adversary(self.transform, orientation_yaw)
@@ -282,16 +310,22 @@ class DynamicObjectCrossing(BasicScenario):
 
         # Now that we found a possible position we just put the vehicle to the underground
         disp_transform = carla.Transform(
-            carla.Location(self.transform.location.x,
-                           self.transform.location.y,
-                           self.transform.location.z - 500),
-            self.transform.rotation)
+            carla.Location(
+                self.transform.location.x,
+                self.transform.location.y,
+                self.transform.location.z - 500,
+            ),
+            self.transform.rotation,
+        )
 
         prop_disp_transform = carla.Transform(
-            carla.Location(self.transform2.location.x,
-                           self.transform2.location.y,
-                           self.transform2.location.z - 500),
-            self.transform2.rotation)
+            carla.Location(
+                self.transform2.location.x,
+                self.transform2.location.y,
+                self.transform2.location.z - 500,
+            ),
+            self.transform2.rotation,
+        )
 
         first_vehicle.set_transform(disp_transform)
         blocker.set_transform(prop_disp_transform)
@@ -309,64 +343,76 @@ class DynamicObjectCrossing(BasicScenario):
         """
 
         root = py_trees.composites.Parallel(
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE, name="OccludedObjectCrossing")
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+            name="OccludedObjectCrossing",
+        )
         lane_width = self._reference_waypoint.lane_width
         lane_width = lane_width + (1.25 * lane_width * self._num_lane_changes)
 
         dist_to_trigger = 12 + self._num_lane_changes
         # leaf nodes
         if self._ego_route is not None:
-            start_condition = InTriggerDistanceToLocationAlongRoute(self.ego_vehicles[0],
-                                                                    self._ego_route,
-                                                                    self.transform.location,
-                                                                    dist_to_trigger)
+            start_condition = InTriggerDistanceToLocationAlongRoute(
+                self.ego_vehicles[0],
+                self._ego_route,
+                self.transform.location,
+                dist_to_trigger,
+            )
         else:
-            start_condition = InTimeToArrivalToVehicle(self.ego_vehicles[0],
-                                                       self.other_actors[0],
-                                                       self._time_to_reach)
+            start_condition = InTimeToArrivalToVehicle(self.ego_vehicles[0], self.other_actors[0], self._time_to_reach)
 
-        actor_velocity = KeepVelocity(self.other_actors[0],
-                                      self._other_actor_target_velocity,
-                                      name="walker velocity")
-        actor_drive = DriveDistance(self.other_actors[0],
-                                    0.5 * lane_width,
-                                    name="walker drive distance")
-        actor_start_cross_lane = AccelerateToVelocity(self.other_actors[0],
-                                                      1.0,
-                                                      self._other_actor_target_velocity,
-                                                      name="walker crossing lane accelerate velocity")
-        actor_cross_lane = DriveDistance(self.other_actors[0],
-                                         lane_width,
-                                         name="walker drive distance for lane crossing ")
-        actor_stop_crossed_lane = StopVehicle(self.other_actors[0],
-                                              self._other_actor_max_brake,
-                                              name="walker stop")
-        ego_pass_machine = DriveDistance(self.ego_vehicles[0],
-                                         5,
-                                         name="ego vehicle passed prop")
-        actor_remove = ActorDestroy(self.other_actors[0],
-                                    name="Destroying walker")
-        static_remove = ActorDestroy(self.other_actors[1],
-                                     name="Destroying Prop")
-        end_condition = DriveDistance(self.ego_vehicles[0],
-                                      self._ego_vehicle_distance_driven,
-                                      name="End condition ego drive distance")
+        actor_velocity = KeepVelocity(
+            self.other_actors[0],
+            self._other_actor_target_velocity,
+            name="walker velocity",
+        )
+        actor_drive = DriveDistance(self.other_actors[0], 0.5 * lane_width, name="walker drive distance")
+        actor_start_cross_lane = AccelerateToVelocity(
+            self.other_actors[0],
+            1.0,
+            self._other_actor_target_velocity,
+            name="walker crossing lane accelerate velocity",
+        )
+        actor_cross_lane = DriveDistance(
+            self.other_actors[0],
+            lane_width,
+            name="walker drive distance for lane crossing ",
+        )
+        actor_stop_crossed_lane = StopVehicle(self.other_actors[0], self._other_actor_max_brake, name="walker stop")
+        ego_pass_machine = DriveDistance(self.ego_vehicles[0], 5, name="ego vehicle passed prop")
+        actor_remove = ActorDestroy(self.other_actors[0], name="Destroying walker")
+        static_remove = ActorDestroy(self.other_actors[1], name="Destroying Prop")
+        end_condition = DriveDistance(
+            self.ego_vehicles[0],
+            self._ego_vehicle_distance_driven,
+            name="End condition ego drive distance",
+        )
 
         # non leaf nodes
 
         scenario_sequence = py_trees.composites.Sequence()
         keep_velocity_other = py_trees.composites.Parallel(
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE, name="keep velocity other")
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+            name="keep velocity other",
+        )
         keep_velocity = py_trees.composites.Parallel(
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE, name="keep velocity")
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE, name="keep velocity"
+        )
 
         # building tree
 
         root.add_child(scenario_sequence)
-        scenario_sequence.add_child(ActorTransformSetter(self.other_actors[0], self.transform,
-                                                         name='TransformSetterTS3walker'))
-        scenario_sequence.add_child(ActorTransformSetter(self.other_actors[1], self.transform2,
-                                                         name='TransformSetterTS3coca', physics=False))
+        scenario_sequence.add_child(
+            ActorTransformSetter(self.other_actors[0], self.transform, name="TransformSetterTS3walker")
+        )
+        scenario_sequence.add_child(
+            ActorTransformSetter(
+                self.other_actors[1],
+                self.transform2,
+                name="TransformSetterTS3coca",
+                physics=False,
+            )
+        )
         scenario_sequence.add_child(HandBrakeVehicle(self.other_actors[0], True))
         scenario_sequence.add_child(start_condition)
         scenario_sequence.add_child(HandBrakeVehicle(self.other_actors[0], False))

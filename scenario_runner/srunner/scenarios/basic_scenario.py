@@ -20,7 +20,9 @@ import srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions as cond
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from srunner.scenariomanager.timer import TimeOut
 from srunner.scenariomanager.weather_sim import WeatherBehavior
-from srunner.scenariomanager.scenarioatomics.atomic_behaviors import UpdateAllActorControls
+from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (
+    UpdateAllActorControls,
+)
 
 
 class BasicScenario(object):
@@ -29,15 +31,23 @@ class BasicScenario(object):
     Base class for user-defined scenario
     """
 
-    def __init__(self, name, ego_vehicles, config, world,
-                 debug_mode=False, terminate_on_failure=False, criteria_enable=False):
+    def __init__(
+        self,
+        name,
+        ego_vehicles,
+        config,
+        world,
+        debug_mode=False,
+        terminate_on_failure=False,
+        criteria_enable=False,
+    ):
         """
         Setup all relevant parameters and create scenario
         and instantiate scenario manager
         """
         self.other_actors = []
-        if not self.timeout:     # pylint: disable=access-member-before-definition
-            self.timeout = 60    # If no timeout was provided, set it to 60 seconds
+        if not self.timeout:  # pylint: disable=access-member-before-definition
+            self.timeout = 60  # If no timeout was provided, set it to 60 seconds
 
         self.criteria_list = []  # List of evaluation criteria
         self.scenario = None
@@ -93,12 +103,12 @@ class BasicScenario(object):
 
         # Set the appropriate road friction
         if self.config.friction is not None:
-            friction_bp = world.get_blueprint_library().find('static.trigger.friction')
+            friction_bp = world.get_blueprint_library().find("static.trigger.friction")
             extent = carla.Location(1000000.0, 1000000.0, 1000000.0)
-            friction_bp.set_attribute('friction', str(self.config.friction))
-            friction_bp.set_attribute('extent_x', str(extent.x))
-            friction_bp.set_attribute('extent_y', str(extent.y))
-            friction_bp.set_attribute('extent_z', str(extent.z))
+            friction_bp.set_attribute("friction", str(self.config.friction))
+            friction_bp.set_attribute("extent_x", str(extent.x))
+            friction_bp.set_attribute("extent_y", str(extent.y))
+            friction_bp.set_attribute("extent_z", str(extent.z))
 
             # Spawn Trigger Friction
             transform = carla.Transform()
@@ -127,27 +137,26 @@ class BasicScenario(object):
         """
         start_location = None
         if config.trigger_points and config.trigger_points[0]:
-            start_location = config.trigger_points[0].location     # start location of the scenario
+            start_location = config.trigger_points[0].location  # start location of the scenario
 
         ego_vehicle_route = CarlaDataProvider.get_ego_vehicle_route()
 
         if start_location:
             if ego_vehicle_route:
                 if config.route_var_name is None:  # pylint: disable=no-else-return
-                    return conditions.InTriggerDistanceToLocationAlongRoute(self.ego_vehicles[0],
-                                                                            ego_vehicle_route,
-                                                                            start_location,
-                                                                            5)
+                    return conditions.InTriggerDistanceToLocationAlongRoute(
+                        self.ego_vehicles[0], ego_vehicle_route, start_location, 5
+                    )
                 else:
                     check_name = "WaitForBlackboardVariable: {}".format(config.route_var_name)
-                    return conditions.WaitForBlackboardVariable(name=check_name,
-                                                                variable_name=config.route_var_name,
-                                                                variable_value=True,
-                                                                var_init_value=False)
+                    return conditions.WaitForBlackboardVariable(
+                        name=check_name,
+                        variable_name=config.route_var_name,
+                        variable_value=True,
+                        var_init_value=False,
+                    )
 
-            return conditions.InTimeToArrivalToLocation(self.ego_vehicles[0],
-                                                        2.0,
-                                                        start_location)
+            return conditions.InTimeToArrivalToLocation(self.ego_vehicles[0], 2.0, start_location)
 
         return None
 
@@ -163,9 +172,11 @@ class BasicScenario(object):
         if ego_vehicle_route:
             if config.route_var_name is not None:
                 set_name = "Reset Blackboard Variable: {} ".format(config.route_var_name)
-                return py_trees.blackboard.SetBlackboardVariable(name=set_name,
-                                                                 variable_name=config.route_var_name,
-                                                                 variable_value=False)
+                return py_trees.blackboard.SetBlackboardVariable(
+                    name=set_name,
+                    variable_name=config.route_var_name,
+                    variable_value=False,
+                )
         return None
 
     def _create_behavior(self):
@@ -174,7 +185,8 @@ class BasicScenario(object):
         """
         raise NotImplementedError(
             "This function is re-implemented by all scenarios"
-            "If this error becomes visible the class hierarchy is somehow broken")
+            "If this error becomes visible the class hierarchy is somehow broken"
+        )
 
     def _create_test_criteria(self):
         """
@@ -183,7 +195,8 @@ class BasicScenario(object):
         """
         raise NotImplementedError(
             "This function is re-implemented by all scenarios"
-            "If this error becomes visible the class hierarchy is somehow broken")
+            "If this error becomes visible the class hierarchy is somehow broken"
+        )
 
     def change_control(self, control):  # pylint: disable=no-self-use
         """
@@ -236,7 +249,7 @@ class Scenario(object):
             # Create py_tree for test criteria
             self.criteria_tree = py_trees.composites.Parallel(
                 name="Test Criteria",
-                policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE
+                policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
             )
             self.criteria_tree.add_children(self.test_criteria)
             self.criteria_tree.setup(timeout=1)

@@ -17,12 +17,10 @@ NODE = 2
 
 
 class Converter(object):
-
-    def __init__(self, city_file,  pixel_density, node_density):
-
+    def __init__(self, city_file, pixel_density, node_density):
         self._node_density = node_density
         self._pixel_density = pixel_density
-        with open(city_file, 'r') as f:
+        with open(city_file, "r") as f:
             # The offset of the world from the zero coordinates ( The
             # coordinate we consider zero)
             self._worldoffset = string_to_floats(f.readline())
@@ -30,10 +28,21 @@ class Converter(object):
             angles = string_to_floats(f.readline())
 
             # If there is an rotation between the world and map coordinates.
-            self._worldrotation = np.array([
-                [math.cos(math.radians(angles[2])), -math.sin(math.radians(angles[2])), 0.0],
-                [math.sin(math.radians(angles[2])), math.cos(math.radians(angles[2])), 0.0],
-                [0.0, 0.0, 1.0]])
+            self._worldrotation = np.array(
+                [
+                    [
+                        math.cos(math.radians(angles[2])),
+                        -math.sin(math.radians(angles[2])),
+                        0.0,
+                    ],
+                    [
+                        math.sin(math.radians(angles[2])),
+                        math.cos(math.radians(angles[2])),
+                        0.0,
+                    ],
+                    [0.0, 0.0, 1.0],
+                ]
+            )
 
             # Ignore for now, these are offsets for map coordinates and scale
             # (not used).
@@ -55,10 +64,9 @@ class Converter(object):
         elif input_type == WORLD:
             return self._world_to_node(input_data)
         else:
-            raise ValueError('Invalid node to be converted')
+            raise ValueError("Invalid node to be converted")
 
     def convert_to_pixel(self, input_data):
-
         """
         Receives a data type (Can Be Node or World )
         :param input_data: position in some coordinate
@@ -68,17 +76,15 @@ class Converter(object):
         input_type = self._check_input_type(input_data)
 
         if input_type == NODE:
-
             return self._node_to_pixel(input_data)
         elif input_type == WORLD:
             pixel = self._world_to_pixel(input_data)
 
             return [math.floor(pixel[0]), math.floor(pixel[1])]
         else:
-            raise ValueError('Invalid node to be converted')
+            raise ValueError("Invalid node to be converted")
 
     def convert_to_world(self, input_data):
-
         """
         Receives a data type (Can Be Pixel or Node )
         :param input_data: position in some coordinate
@@ -91,7 +97,7 @@ class Converter(object):
         elif input_type == PIXEL:
             return self._pixel_to_world(input_data)
         else:
-            raise ValueError('Invalid node to be converted')
+            raise ValueError("Invalid node to be converted")
 
     def _node_to_pixel(self, node):
         """
@@ -99,8 +105,10 @@ class Converter(object):
         :param node:
         :return: pixel
         """
-        pixel = [((node[0] + 2) * self._node_density)
-            , ((node[1] + 2) * self._node_density)]
+        pixel = [
+            ((node[0] + 2) * self._node_density),
+            ((node[1] + 2) * self._node_density),
+        ]
         return pixel
 
     def _pixel_to_node(self, pixel):
@@ -109,8 +117,10 @@ class Converter(object):
         :param node:
         :return: pixel
         """
-        node = [int(round((pixel[0]) / self._node_density, 0) - 2),
-                int(round((pixel[1]) / self._node_density, 0) - 2)]
+        node = [
+            int(round((pixel[0]) / self._node_density, 0) - 2),
+            int(round((pixel[1]) / self._node_density, 0) - 2),
+        ]
 
         return tuple(node)
 
@@ -121,13 +131,15 @@ class Converter(object):
         :return: world
         """
 
-        relative_location = [pixel[0] * self._pixel_density,
-                             pixel[1] * self._pixel_density]
+        relative_location = [
+            pixel[0] * self._pixel_density,
+            pixel[1] * self._pixel_density,
+        ]
 
         world = [
             relative_location[0] + self._mapoffset[0] - self._worldoffset[0],
             relative_location[1] + self._mapoffset[1] - self._worldoffset[1],
-            22
+            22,
         ]
 
         return world
@@ -142,14 +154,16 @@ class Converter(object):
         rotation = np.array([world[0], world[1], world[2]])
         rotation = rotation.dot(self._worldrotation)
 
-        relative_location = [rotation[0] + self._worldoffset[0] - self._mapoffset[0],
-                             rotation[1] + self._worldoffset[1] - self._mapoffset[1],
-                             rotation[2] + self._worldoffset[2] - self._mapoffset[2]]
+        relative_location = [
+            rotation[0] + self._worldoffset[0] - self._mapoffset[0],
+            rotation[1] + self._worldoffset[1] - self._mapoffset[1],
+            rotation[2] + self._worldoffset[2] - self._mapoffset[2],
+        ]
 
-
-
-        pixel = [(relative_location[0] / float(self._pixel_density)),
-                 (relative_location[1] / float(self._pixel_density))]
+        pixel = [
+            (relative_location[0] / float(self._pixel_density)),
+            (relative_location[1] / float(self._pixel_density)),
+        ]
 
         return pixel
 
@@ -157,7 +171,6 @@ class Converter(object):
         return self._pixel_to_node(self._world_to_pixel(world))
 
     def _node_to_world(self, node):
-
         return self._pixel_to_world(self._node_to_pixel(node))
 
     def _check_input_type(self, input_data):

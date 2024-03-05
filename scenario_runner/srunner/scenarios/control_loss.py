@@ -17,11 +17,16 @@ import py_trees
 import carla
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
-from srunner.scenariomanager.scenarioatomics.atomic_behaviors import ChangeNoiseParameters, ActorTransformSetter
+from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (
+    ChangeNoiseParameters,
+    ActorTransformSetter,
+)
 from srunner.scenariomanager.scenarioatomics.atomic_criteria import CollisionTest
-from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (InTriggerDistanceToLocation,
-                                                                               InTriggerDistanceToNextIntersection,
-                                                                               DriveDistance)
+from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (
+    InTriggerDistanceToLocation,
+    InTriggerDistanceToNextIntersection,
+    DriveDistance,
+)
 from srunner.scenarios.basic_scenario import BasicScenario
 from srunner.tools.scenario_helper import get_location_in_distance_from_wp
 
@@ -34,15 +39,23 @@ class ControlLoss(BasicScenario):
     This is a single ego vehicle scenario
     """
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, criteria_enable=True,
-                 timeout=60):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        timeout=60,
+    ):
         """
         Setup all relevant parameters and create scenario
         """
         # ego vehicle parameters
         self._no_of_jitter = 10
-        self._noise_mean = 0      # Mean value of steering noise
-        self._noise_std = 0.01   # Std. deviation of steering noise
+        self._noise_mean = 0  # Mean value of steering noise
+        self._noise_std = 0.01  # Std. deviation of steering noise
         self._dynamic_mean_for_steer = 0.001
         self._dynamic_mean_for_throttle = 0.045
         self._abort_distance_to_intersection = 10
@@ -62,12 +75,14 @@ class ControlLoss(BasicScenario):
         self.loc_list = []
         self.obj = []
         self._randomize = randomize
-        super(ControlLoss, self).__init__("ControlLoss",
-                                          ego_vehicles,
-                                          config,
-                                          world,
-                                          debug_mode,
-                                          criteria_enable=criteria_enable)
+        super(ControlLoss, self).__init__(
+            "ControlLoss",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            criteria_enable=criteria_enable,
+        )
 
     def _initialize_actors(self, config):
         """
@@ -92,19 +107,19 @@ class ControlLoss(BasicScenario):
         self.first_transform = carla.Transform(self.first_loc_prev)
         self.sec_transform = carla.Transform(self.sec_loc_prev)
         self.third_transform = carla.Transform(self.third_loc_prev)
-        self.first_transform = carla.Transform(carla.Location(self.first_loc_prev.x,
-                                                              self.first_loc_prev.y,
-                                                              self.first_loc_prev.z))
-        self.sec_transform = carla.Transform(carla.Location(self.sec_loc_prev.x,
-                                                            self.sec_loc_prev.y,
-                                                            self.sec_loc_prev.z))
-        self.third_transform = carla.Transform(carla.Location(self.third_loc_prev.x,
-                                                              self.third_loc_prev.y,
-                                                              self.third_loc_prev.z))
+        self.first_transform = carla.Transform(
+            carla.Location(self.first_loc_prev.x, self.first_loc_prev.y, self.first_loc_prev.z)
+        )
+        self.sec_transform = carla.Transform(
+            carla.Location(self.sec_loc_prev.x, self.sec_loc_prev.y, self.sec_loc_prev.z)
+        )
+        self.third_transform = carla.Transform(
+            carla.Location(self.third_loc_prev.x, self.third_loc_prev.y, self.third_loc_prev.z)
+        )
 
-        first_debris = CarlaDataProvider.request_new_actor('static.prop.dirtdebris01', self.first_transform, 'prop')
-        second_debris = CarlaDataProvider.request_new_actor('static.prop.dirtdebris01', self.sec_transform, 'prop')
-        third_debris = CarlaDataProvider.request_new_actor('static.prop.dirtdebris01', self.third_transform, 'prop')
+        first_debris = CarlaDataProvider.request_new_actor("static.prop.dirtdebris01", self.first_transform, "prop")
+        second_debris = CarlaDataProvider.request_new_actor("static.prop.dirtdebris01", self.sec_transform, "prop")
+        third_debris = CarlaDataProvider.request_new_actor("static.prop.dirtdebris01", self.third_transform, "prop")
 
         first_debris.set_transform(self.first_transform)
         second_debris.set_transform(self.sec_transform)
@@ -127,21 +142,24 @@ class ControlLoss(BasicScenario):
         60 seconds, a timeout stops the scenario
         """
         # start condition
-        start_end_parallel = py_trees.composites.Parallel("Jitter",
-                                                          policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+        start_end_parallel = py_trees.composites.Parallel(
+            "Jitter", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE
+        )
         start_condition = InTriggerDistanceToLocation(self.ego_vehicles[0], self.first_loc_prev, self._trigger_dist)
         for _ in range(self._no_of_jitter):
-
             # change the current noise to be applied
-            turn = ChangeNoiseParameters(self._current_steer_noise, self._current_throttle_noise,
-                                         self._noise_mean, self._noise_std, self._dynamic_mean_for_steer,
-                                         self._dynamic_mean_for_throttle)  # Mean value of steering noise
+            turn = ChangeNoiseParameters(
+                self._current_steer_noise,
+                self._current_throttle_noise,
+                self._noise_mean,
+                self._noise_std,
+                self._dynamic_mean_for_steer,
+                self._dynamic_mean_for_throttle,
+            )  # Mean value of steering noise
         # Noise end! put again the added noise to zero.
-        noise_end = ChangeNoiseParameters(self._current_steer_noise, self._current_throttle_noise,
-                                          0, 0, 0, 0)
+        noise_end = ChangeNoiseParameters(self._current_steer_noise, self._current_throttle_noise, 0, 0, 0, 0)
 
-        jitter_action = py_trees.composites.Parallel("Jitter",
-                                                     policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+        jitter_action = py_trees.composites.Parallel("Jitter", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
         # Abort jitter_sequence, if the vehicle is approaching an intersection
         jitter_abort = InTriggerDistanceToNextIntersection(self.ego_vehicles[0], self._abort_distance_to_intersection)
         # endcondition: Check if vehicle reached waypoint _end_distance from here:
