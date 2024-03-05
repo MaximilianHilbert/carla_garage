@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 
 def gaussian2d(radius, sigma=1, dtype=np.float32):
-  """Generate 2D gaussian kernel.
+    """Generate 2D gaussian kernel.
 
     Args:
         radius (int): Radius of gaussian kernel.
@@ -20,18 +20,18 @@ def gaussian2d(radius, sigma=1, dtype=np.float32):
         h (ndarray): Gaussian kernel with a
             ``(2 * radius + 1) * (2 * radius + 1)`` shape.
     """
-  x = np.arange(-radius, radius + 1, dtype=dtype).reshape(1, -1)
-  y = np.arange(-radius, radius + 1, dtype=dtype).reshape(-1, 1)
+    x = np.arange(-radius, radius + 1, dtype=dtype).reshape(1, -1)
+    y = np.arange(-radius, radius + 1, dtype=dtype).reshape(-1, 1)
 
-  h = np.exp(-(x * x + y * y) / (2 * sigma * sigma))
+    h = np.exp(-(x * x + y * y) / (2 * sigma * sigma))
 
-  h[h < np.finfo(h.dtype).eps * h.max()] = 0
+    h[h < np.finfo(h.dtype).eps * h.max()] = 0
 
-  return h
+    return h
 
 
 def gen_gaussian_target(heatmap, center, radius, k=1):
-  """Generate 2D gaussian heatmap.
+    """Generate 2D gaussian heatmap.
 
     Args:
         heatmap (ndarray): Input heatmap, the gaussian kernel will cover on
@@ -43,26 +43,30 @@ def gen_gaussian_target(heatmap, center, radius, k=1):
     Returns:
         out_heatmap (ndarray): Updated heatmap covered by gaussian kernel.
     """
-  diameter = 2 * radius + 1
-  gaussian_kernel = gaussian2d(radius, sigma=diameter / 6, dtype=heatmap.dtype)
+    diameter = 2 * radius + 1
+    gaussian_kernel = gaussian2d(radius, sigma=diameter / 6, dtype=heatmap.dtype)
 
-  x, y = center
+    x, y = center
 
-  height, width = heatmap.shape[:2]
+    height, width = heatmap.shape[:2]
 
-  left, right = min(x, radius), min(width - x, radius + 1)
-  top, bottom = min(y, radius), min(height - y, radius + 1)
+    left, right = min(x, radius), min(width - x, radius + 1)
+    top, bottom = min(y, radius), min(height - y, radius + 1)
 
-  masked_heatmap = heatmap[y - top:y + bottom, x - left:x + right]
-  masked_gaussian = gaussian_kernel[radius - top:radius + bottom, radius - left:radius + right]
-  out_heatmap = heatmap
-  np.maximum(masked_heatmap, masked_gaussian * k, out=out_heatmap[y - top:y + bottom, x - left:x + right])
+    masked_heatmap = heatmap[y - top : y + bottom, x - left : x + right]
+    masked_gaussian = gaussian_kernel[radius - top : radius + bottom, radius - left : radius + right]
+    out_heatmap = heatmap
+    np.maximum(
+        masked_heatmap,
+        masked_gaussian * k,
+        out=out_heatmap[y - top : y + bottom, x - left : x + right],
+    )
 
-  return out_heatmap
+    return out_heatmap
 
 
 def gaussian_radius(det_size, min_overlap):
-  r"""Generate 2D gaussian radius.
+    r"""Generate 2D gaussian radius.
 
     This function is modified from the `official github repo
     <https://github.com/princeton-vl/CornerNet-Lite/blob/master/core/sample/
@@ -161,30 +165,30 @@ def gaussian_radius(det_size, min_overlap):
     Returns:
         radius (int): Radius of gaussian kernel.
     """
-  height, width = det_size
+    height, width = det_size
 
-  a1 = 1
-  b1 = (height + width)
-  c1 = width * height * (1 - min_overlap) / (1 + min_overlap)
-  sq1 = sqrt(b1**2 - 4 * a1 * c1)
-  r1 = (b1 - sq1) / (2 * a1)
+    a1 = 1
+    b1 = height + width
+    c1 = width * height * (1 - min_overlap) / (1 + min_overlap)
+    sq1 = sqrt(b1**2 - 4 * a1 * c1)
+    r1 = (b1 - sq1) / (2 * a1)
 
-  a2 = 4
-  b2 = 2 * (height + width)
-  c2 = (1 - min_overlap) * width * height
-  sq2 = sqrt(b2**2 - 4 * a2 * c2)
-  r2 = (b2 - sq2) / (2 * a2)
+    a2 = 4
+    b2 = 2 * (height + width)
+    c2 = (1 - min_overlap) * width * height
+    sq2 = sqrt(b2**2 - 4 * a2 * c2)
+    r2 = (b2 - sq2) / (2 * a2)
 
-  a3 = 4 * min_overlap
-  b3 = -2 * min_overlap * (height + width)
-  c3 = (min_overlap - 1) * width * height
-  sq3 = sqrt(b3**2 - 4 * a3 * c3)
-  r3 = (b3 + sq3) / (2 * a3)
-  return min(r1, r2, r3)
+    a3 = 4 * min_overlap
+    b3 = -2 * min_overlap * (height + width)
+    c3 = (min_overlap - 1) * width * height
+    sq3 = sqrt(b3**2 - 4 * a3 * c3)
+    r3 = (b3 + sq3) / (2 * a3)
+    return min(r1, r2, r3)
 
 
 def get_local_maximum(heat, kernel=3):
-  """Extract local maximum pixel with given kernel.
+    """Extract local maximum pixel with given kernel.
 
     Args:
         heat (Tensor): Target heatmap.
@@ -194,14 +198,14 @@ def get_local_maximum(heat, kernel=3):
         heat (Tensor): A heatmap where local maximum pixels maintain its
             own value and other positions are 0.
     """
-  pad = (kernel - 1) // 2
-  hmax = F.max_pool2d(heat, kernel, stride=1, padding=pad)
-  keep = (hmax == heat).float()
-  return heat * keep
+    pad = (kernel - 1) // 2
+    hmax = F.max_pool2d(heat, kernel, stride=1, padding=pad)
+    keep = (hmax == heat).float()
+    return heat * keep
 
 
 def get_topk_from_heatmap(scores, k=20):
-  """Get top k positions from heatmap.
+    """Get top k positions from heatmap.
 
     Args:
         scores (Tensor): Target heatmap with shape
@@ -218,17 +222,17 @@ def get_topk_from_heatmap(scores, k=20):
         - topk_ys (Tensor): Y-coord of each topk keypoint.
         - topk_xs (Tensor): X-coord of each topk keypoint.
     """
-  batch, _, height, width = scores.size()
-  topk_scores, topk_inds = torch.topk(scores.reshape(batch, -1), k)
-  topk_clses = torch.div(topk_inds, (height * width), rounding_mode='trunc')
-  topk_inds = topk_inds % (height * width)
-  topk_ys = torch.div(topk_inds, width, rounding_mode='trunc')
-  topk_xs = (topk_inds % width).int().float()
-  return topk_scores, topk_inds, topk_clses, topk_ys, topk_xs
+    batch, _, height, width = scores.size()
+    topk_scores, topk_inds = torch.topk(scores.reshape(batch, -1), k)
+    topk_clses = torch.div(topk_inds, (height * width), rounding_mode="trunc")
+    topk_inds = topk_inds % (height * width)
+    topk_ys = torch.div(topk_inds, width, rounding_mode="trunc")
+    topk_xs = (topk_inds % width).int().float()
+    return topk_scores, topk_inds, topk_clses, topk_ys, topk_xs
 
 
 def gather_feat(feat, ind, mask=None):
-  """Gather feature according to index.
+    """Gather feature according to index.
 
     Args:
         feat (Tensor): Target feature map.
@@ -238,18 +242,18 @@ def gather_feat(feat, ind, mask=None):
     Returns:
         feat (Tensor): Gathered feature.
     """
-  dim = feat.size(2)
-  ind = ind.unsqueeze(2).repeat(1, 1, dim)
-  feat = feat.gather(1, ind)
-  if mask is not None:
-    mask = mask.unsqueeze(2).expand_as(feat)
-    feat = feat[mask]
-    feat = feat.view(-1, dim)
-  return feat
+    dim = feat.size(2)
+    ind = ind.unsqueeze(2).repeat(1, 1, dim)
+    feat = feat.gather(1, ind)
+    if mask is not None:
+        mask = mask.unsqueeze(2).expand_as(feat)
+        feat = feat[mask]
+        feat = feat.view(-1, dim)
+    return feat
 
 
 def transpose_and_gather_feat(feat, ind):
-  """Transpose and gather feature according to index.
+    """Transpose and gather feature according to index.
 
     Args:
         feat (Tensor): Target feature map.
@@ -258,7 +262,7 @@ def transpose_and_gather_feat(feat, ind):
     Returns:
         feat (Tensor): Transposed and gathered feature.
     """
-  feat = feat.permute(0, 2, 3, 1).contiguous()
-  feat = feat.view(feat.size(0), -1, feat.size(3))
-  feat = gather_feat(feat, ind)
-  return feat
+    feat = feat.permute(0, 2, 3, 1).contiguous()
+    feat = feat.view(feat.size(0), -1, feat.size(3))
+    feat = gather_feat(feat, ind)
+    return feat

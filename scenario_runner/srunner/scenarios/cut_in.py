@@ -20,12 +20,17 @@ import py_trees
 import carla
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
-from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (ActorTransformSetter,
-                                                                      LaneChange,
-                                                                      WaypointFollower,
-                                                                      AccelerateToCatchUp)
+from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (
+    ActorTransformSetter,
+    LaneChange,
+    WaypointFollower,
+    AccelerateToCatchUp,
+)
 from srunner.scenariomanager.scenarioatomics.atomic_criteria import CollisionTest
-from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import InTriggerDistanceToVehicle, DriveDistance
+from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (
+    InTriggerDistanceToVehicle,
+    DriveDistance,
+)
 from srunner.scenarios.basic_scenario import BasicScenario
 
 
@@ -38,9 +43,16 @@ class CutIn(BasicScenario):
 
     timeout = 1200
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, criteria_enable=True,
-                 timeout=600):
-
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        timeout=600,
+    ):
         self.timeout = timeout
         self._map = CarlaDataProvider.get_map()
         self._reference_waypoint = self._map.get_waypoint(config.trigger_points[0].location)
@@ -54,25 +66,26 @@ class CutIn(BasicScenario):
         self._direction = None
         self._transform_visible = None
 
-        super(CutIn, self).__init__("CutIn",
-                                    ego_vehicles,
-                                    config,
-                                    world,
-                                    debug_mode,
-                                    criteria_enable=criteria_enable)
+        super(CutIn, self).__init__(
+            "CutIn",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            criteria_enable=criteria_enable,
+        )
 
         if randomize:
             self._velocity = random.randint(20, 60)
             self._trigger_distance = random.randint(10, 40)
 
     def _initialize_actors(self, config):
-
         # direction of lane, on which other_actor is driving before lane change
-        if 'LEFT' in self._config.name.upper():
-            self._direction = 'left'
+        if "LEFT" in self._config.name.upper():
+            self._direction = "left"
 
-        if 'RIGHT' in self._config.name.upper():
-            self._direction = 'right'
+        if "RIGHT" in self._config.name.upper():
+            self._direction = "right"
 
         # add actors from xml file
         for actor in config.other_actors:
@@ -83,10 +96,13 @@ class CutIn(BasicScenario):
         # transform visible
         other_actor_transform = self.other_actors[0].get_transform()
         self._transform_visible = carla.Transform(
-            carla.Location(other_actor_transform.location.x,
-                           other_actor_transform.location.y,
-                           other_actor_transform.location.z + 105),
-            other_actor_transform.rotation)
+            carla.Location(
+                other_actor_transform.location.x,
+                other_actor_transform.location.y,
+                other_actor_transform.location.z + 105,
+            ),
+            other_actor_transform.rotation,
+        )
 
     def _create_behavior(self):
         """
@@ -99,35 +115,53 @@ class CutIn(BasicScenario):
         """
 
         # car_visible
-        behaviour = py_trees.composites.Sequence("CarOn_{}_Lane" .format(self._direction))
+        behaviour = py_trees.composites.Sequence("CarOn_{}_Lane".format(self._direction))
         car_visible = ActorTransformSetter(self.other_actors[0], self._transform_visible)
         behaviour.add_child(car_visible)
 
         # just_drive
         just_drive = py_trees.composites.Parallel(
-            "DrivingStraight", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+            "DrivingStraight", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE
+        )
 
         car_driving = WaypointFollower(self.other_actors[0], self._velocity)
         just_drive.add_child(car_driving)
 
         trigger_distance = InTriggerDistanceToVehicle(
-            self.other_actors[0], self.ego_vehicles[0], self._trigger_distance)
+            self.other_actors[0], self.ego_vehicles[0], self._trigger_distance
+        )
         just_drive.add_child(trigger_distance)
         behaviour.add_child(just_drive)
 
         # accelerate
-        accelerate = AccelerateToCatchUp(self.other_actors[0], self.ego_vehicles[0], throttle_value=1,
-                                         delta_velocity=self._delta_velocity, trigger_distance=5, max_distance=500)
+        accelerate = AccelerateToCatchUp(
+            self.other_actors[0],
+            self.ego_vehicles[0],
+            throttle_value=1,
+            delta_velocity=self._delta_velocity,
+            trigger_distance=5,
+            max_distance=500,
+        )
         behaviour.add_child(accelerate)
 
         # lane_change
-        if self._direction == 'left':
+        if self._direction == "left":
             lane_change = LaneChange(
-                self.other_actors[0], speed=None, direction='right', distance_same_lane=5, distance_other_lane=300)
+                self.other_actors[0],
+                speed=None,
+                direction="right",
+                distance_same_lane=5,
+                distance_other_lane=300,
+            )
             behaviour.add_child(lane_change)
         else:
             lane_change = LaneChange(
-                self.other_actors[0], speed=None, direction='left', distance_same_lane=5, distance_other_lane=300)
+                self.other_actors[0],
+                speed=None,
+                direction="left",
+                distance_same_lane=5,
+                distance_other_lane=300,
+            )
             behaviour.add_child(lane_change)
 
         # endcondition

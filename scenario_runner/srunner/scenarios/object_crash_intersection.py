@@ -17,17 +17,24 @@ import py_trees
 import carla
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
-from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (ActorTransformSetter,
-                                                                      ActorDestroy,
-                                                                      KeepVelocity,
-                                                                      HandBrakeVehicle)
+from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (
+    ActorTransformSetter,
+    ActorDestroy,
+    KeepVelocity,
+    HandBrakeVehicle,
+)
 from srunner.scenariomanager.scenarioatomics.atomic_criteria import CollisionTest
-from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (InTriggerDistanceToLocationAlongRoute,
-                                                                               InTriggerDistanceToVehicle,
-                                                                               DriveDistance)
+from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (
+    InTriggerDistanceToLocationAlongRoute,
+    InTriggerDistanceToVehicle,
+    DriveDistance,
+)
 from srunner.scenariomanager.timer import TimeOut
 from srunner.scenarios.basic_scenario import BasicScenario
-from srunner.tools.scenario_helper import generate_target_waypoint, generate_target_waypoint_in_route
+from srunner.tools.scenario_helper import (
+    generate_target_waypoint,
+    generate_target_waypoint_in_route,
+)
 
 
 def get_opponent_transform(added_dist, waypoint, trigger_location):
@@ -48,8 +55,9 @@ def get_opponent_transform(added_dist, waypoint, trigger_location):
     position_yaw = _wp.transform.rotation.yaw + offset["position"]
 
     offset_location = carla.Location(
-        offset['k'] * lane_width * math.cos(math.radians(position_yaw)),
-        offset['k'] * lane_width * math.sin(math.radians(position_yaw)))
+        offset["k"] * lane_width * math.cos(math.radians(position_yaw)),
+        offset["k"] * lane_width * math.sin(math.radians(position_yaw)),
+    )
     location += offset_location
     location.z = trigger_location.z
     transform = carla.Transform(location, carla.Rotation(yaw=orientation_yaw))
@@ -115,8 +123,16 @@ class VehicleTurningRight(BasicScenario):
     This is a single ego vehicle scenario
     """
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, criteria_enable=True,
-                 timeout=60):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        timeout=60,
+    ):
         """
         Setup all relevant parameters and create scenario
         """
@@ -136,12 +152,14 @@ class VehicleTurningRight(BasicScenario):
 
         self._ego_route = CarlaDataProvider.get_ego_vehicle_route()
 
-        super(VehicleTurningRight, self).__init__("VehicleTurningRight",
-                                                  ego_vehicles,
-                                                  config,
-                                                  world,
-                                                  debug_mode,
-                                                  criteria_enable=criteria_enable)
+        super(VehicleTurningRight, self).__init__(
+            "VehicleTurningRight",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            criteria_enable=criteria_enable,
+        )
 
     def _initialize_actors(self, config):
         """
@@ -161,12 +179,12 @@ class VehicleTurningRight(BasicScenario):
         added_dist = self._num_lane_changes
 
         while True:
-
             # Try to spawn the actor
             try:
                 self._other_actor_transform = get_opponent_transform(added_dist, waypoint, self._trigger_location)
                 first_vehicle = CarlaDataProvider.request_new_actor(
-                    'vehicle.diamondback.century', self._other_actor_transform)
+                    "vehicle.diamondback.century", self._other_actor_transform
+                )
                 first_vehicle.set_simulate_physics(enabled=False)
                 break
 
@@ -181,10 +199,13 @@ class VehicleTurningRight(BasicScenario):
 
         # Set the transform to -500 z after we are able to spawn it
         actor_transform = carla.Transform(
-            carla.Location(self._other_actor_transform.location.x,
-                           self._other_actor_transform.location.y,
-                           self._other_actor_transform.location.z - 500),
-            self._other_actor_transform.rotation)
+            carla.Location(
+                self._other_actor_transform.location.x,
+                self._other_actor_transform.location.y,
+                self._other_actor_transform.location.z - 500,
+            ),
+            self._other_actor_transform.rotation,
+        )
         first_vehicle.set_transform(actor_transform)
         first_vehicle.set_simulate_physics(enabled=False)
         self.other_actors.append(first_vehicle)
@@ -200,7 +221,9 @@ class VehicleTurningRight(BasicScenario):
         """
 
         root = py_trees.composites.Parallel(
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE, name="IntersectionRightTurn")
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+            name="IntersectionRightTurn",
+        )
 
         lane_width = self._reference_waypoint.lane_width
         dist_to_travel = lane_width + (1.10 * lane_width * self._num_lane_changes)
@@ -208,14 +231,16 @@ class VehicleTurningRight(BasicScenario):
         bycicle_start_dist = 13 + dist_to_travel
 
         if self._ego_route is not None:
-            trigger_distance = InTriggerDistanceToLocationAlongRoute(self.ego_vehicles[0],
-                                                                     self._ego_route,
-                                                                     self._other_actor_transform.location,
-                                                                     bycicle_start_dist)
+            trigger_distance = InTriggerDistanceToLocationAlongRoute(
+                self.ego_vehicles[0],
+                self._ego_route,
+                self._other_actor_transform.location,
+                bycicle_start_dist,
+            )
         else:
-            trigger_distance = InTriggerDistanceToVehicle(self.other_actors[0],
-                                                          self.ego_vehicles[0],
-                                                          bycicle_start_dist)
+            trigger_distance = InTriggerDistanceToVehicle(
+                self.other_actors[0], self.ego_vehicles[0], bycicle_start_dist
+            )
 
         actor_velocity = KeepVelocity(self.other_actors[0], self._other_actor_target_velocity)
         actor_traverse = DriveDistance(self.other_actors[0], 0.30 * dist_to_travel)
@@ -228,15 +253,22 @@ class VehicleTurningRight(BasicScenario):
 
         actor_ego_sync = py_trees.composites.Parallel(
             "Synchronization of actor and ego vehicle",
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+        )
         after_timer_actor = py_trees.composites.Parallel(
             "After timeout actor will cross the remaining lane_width",
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+        )
 
         # building the tree
         root.add_child(scenario_sequence)
-        scenario_sequence.add_child(ActorTransformSetter(self.other_actors[0], self._other_actor_transform,
-                                                         name='TransformSetterTS4'))
+        scenario_sequence.add_child(
+            ActorTransformSetter(
+                self.other_actors[0],
+                self._other_actor_transform,
+                name="TransformSetterTS4",
+            )
+        )
         scenario_sequence.add_child(HandBrakeVehicle(self.other_actors[0], True))
         scenario_sequence.add_child(trigger_distance)
         scenario_sequence.add_child(HandBrakeVehicle(self.other_actors[0], False))
@@ -282,8 +314,16 @@ class VehicleTurningLeft(BasicScenario):
     This is a single ego vehicle scenario
     """
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, criteria_enable=True,
-                 timeout=60):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        timeout=60,
+    ):
         """
         Setup all relevant parameters and create scenario
         """
@@ -303,12 +343,14 @@ class VehicleTurningLeft(BasicScenario):
 
         self._ego_route = CarlaDataProvider.get_ego_vehicle_route()
 
-        super(VehicleTurningLeft, self).__init__("VehicleTurningLeft",
-                                                 ego_vehicles,
-                                                 config,
-                                                 world,
-                                                 debug_mode,
-                                                 criteria_enable=criteria_enable)
+        super(VehicleTurningLeft, self).__init__(
+            "VehicleTurningLeft",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            criteria_enable=criteria_enable,
+        )
 
     def _initialize_actors(self, config):
         """
@@ -328,12 +370,12 @@ class VehicleTurningLeft(BasicScenario):
         added_dist = self._num_lane_changes
 
         while True:
-
             # Try to spawn the actor
             try:
                 self._other_actor_transform = get_opponent_transform(added_dist, waypoint, self._trigger_location)
                 first_vehicle = CarlaDataProvider.request_new_actor(
-                    'vehicle.diamondback.century', self._other_actor_transform)
+                    "vehicle.diamondback.century", self._other_actor_transform
+                )
                 first_vehicle.set_simulate_physics(enabled=False)
                 break
 
@@ -348,10 +390,13 @@ class VehicleTurningLeft(BasicScenario):
 
         # Set the transform to -500 z after we are able to spawn it
         actor_transform = carla.Transform(
-            carla.Location(self._other_actor_transform.location.x,
-                           self._other_actor_transform.location.y,
-                           self._other_actor_transform.location.z - 500),
-            self._other_actor_transform.rotation)
+            carla.Location(
+                self._other_actor_transform.location.x,
+                self._other_actor_transform.location.y,
+                self._other_actor_transform.location.z - 500,
+            ),
+            self._other_actor_transform.rotation,
+        )
         first_vehicle.set_transform(actor_transform)
         first_vehicle.set_simulate_physics(enabled=False)
         self.other_actors.append(first_vehicle)
@@ -367,7 +412,9 @@ class VehicleTurningLeft(BasicScenario):
         """
 
         root = py_trees.composites.Parallel(
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE, name="IntersectionLeftTurn")
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+            name="IntersectionLeftTurn",
+        )
 
         lane_width = self._reference_waypoint.lane_width
         dist_to_travel = lane_width + (1.10 * lane_width * self._num_lane_changes)
@@ -375,14 +422,16 @@ class VehicleTurningLeft(BasicScenario):
         bycicle_start_dist = 13 + dist_to_travel
 
         if self._ego_route is not None:
-            trigger_distance = InTriggerDistanceToLocationAlongRoute(self.ego_vehicles[0],
-                                                                     self._ego_route,
-                                                                     self._other_actor_transform.location,
-                                                                     bycicle_start_dist)
+            trigger_distance = InTriggerDistanceToLocationAlongRoute(
+                self.ego_vehicles[0],
+                self._ego_route,
+                self._other_actor_transform.location,
+                bycicle_start_dist,
+            )
         else:
-            trigger_distance = InTriggerDistanceToVehicle(self.other_actors[0],
-                                                          self.ego_vehicles[0],
-                                                          bycicle_start_dist)
+            trigger_distance = InTriggerDistanceToVehicle(
+                self.other_actors[0], self.ego_vehicles[0], bycicle_start_dist
+            )
 
         actor_velocity = KeepVelocity(self.other_actors[0], self._other_actor_target_velocity)
         actor_traverse = DriveDistance(self.other_actors[0], 0.30 * dist_to_travel)
@@ -395,15 +444,22 @@ class VehicleTurningLeft(BasicScenario):
 
         actor_ego_sync = py_trees.composites.Parallel(
             "Synchronization of actor and ego vehicle",
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+        )
         after_timer_actor = py_trees.composites.Parallel(
             "After timeout actor will cross the remaining lane_width",
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+        )
 
         # building the tree
         root.add_child(scenario_sequence)
-        scenario_sequence.add_child(ActorTransformSetter(self.other_actors[0], self._other_actor_transform,
-                                                         name='TransformSetterTS4'))
+        scenario_sequence.add_child(
+            ActorTransformSetter(
+                self.other_actors[0],
+                self._other_actor_transform,
+                name="TransformSetterTS4",
+            )
+        )
         scenario_sequence.add_child(HandBrakeVehicle(self.other_actors[0], True))
         scenario_sequence.add_child(trigger_distance)
         scenario_sequence.add_child(HandBrakeVehicle(self.other_actors[0], False))
@@ -450,8 +506,16 @@ class VehicleTurningRoute(BasicScenario):
     This is a single ego vehicle scenario
     """
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, criteria_enable=True,
-                 timeout=60):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        timeout=60,
+    ):
         """
         Setup all relevant parameters and create scenario
         """
@@ -471,12 +535,14 @@ class VehicleTurningRoute(BasicScenario):
 
         self._ego_route = CarlaDataProvider.get_ego_vehicle_route()
 
-        super(VehicleTurningRoute, self).__init__("VehicleTurningRoute",
-                                                  ego_vehicles,
-                                                  config,
-                                                  world,
-                                                  debug_mode,
-                                                  criteria_enable=criteria_enable)
+        super(VehicleTurningRoute, self).__init__(
+            "VehicleTurningRoute",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            criteria_enable=criteria_enable,
+        )
 
     def _initialize_actors(self, config):
         """
@@ -496,12 +562,12 @@ class VehicleTurningRoute(BasicScenario):
         added_dist = self._num_lane_changes
 
         while True:
-
             # Try to spawn the actor
             try:
                 self._other_actor_transform = get_opponent_transform(added_dist, waypoint, self._trigger_location)
                 first_vehicle = CarlaDataProvider.request_new_actor(
-                    'vehicle.diamondback.century', self._other_actor_transform)
+                    "vehicle.diamondback.century", self._other_actor_transform
+                )
                 first_vehicle.set_simulate_physics(enabled=False)
                 break
 
@@ -516,10 +582,13 @@ class VehicleTurningRoute(BasicScenario):
 
         # Set the transform to -500 z after we are able to spawn it
         actor_transform = carla.Transform(
-            carla.Location(self._other_actor_transform.location.x,
-                           self._other_actor_transform.location.y,
-                           self._other_actor_transform.location.z - 500),
-            self._other_actor_transform.rotation)
+            carla.Location(
+                self._other_actor_transform.location.x,
+                self._other_actor_transform.location.y,
+                self._other_actor_transform.location.z - 500,
+            ),
+            self._other_actor_transform.rotation,
+        )
         first_vehicle.set_transform(actor_transform)
         first_vehicle.set_simulate_physics(enabled=False)
         self.other_actors.append(first_vehicle)
@@ -535,7 +604,9 @@ class VehicleTurningRoute(BasicScenario):
         """
 
         root = py_trees.composites.Parallel(
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE, name="IntersectionRouteTurn")
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+            name="IntersectionRouteTurn",
+        )
 
         lane_width = self._reference_waypoint.lane_width
         dist_to_travel = lane_width + (1.10 * lane_width * self._num_lane_changes)
@@ -543,14 +614,16 @@ class VehicleTurningRoute(BasicScenario):
         bycicle_start_dist = 13 + dist_to_travel
 
         if self._ego_route is not None:
-            trigger_distance = InTriggerDistanceToLocationAlongRoute(self.ego_vehicles[0],
-                                                                     self._ego_route,
-                                                                     self._other_actor_transform.location,
-                                                                     bycicle_start_dist)
+            trigger_distance = InTriggerDistanceToLocationAlongRoute(
+                self.ego_vehicles[0],
+                self._ego_route,
+                self._other_actor_transform.location,
+                bycicle_start_dist,
+            )
         else:
-            trigger_distance = InTriggerDistanceToVehicle(self.other_actors[0],
-                                                          self.ego_vehicles[0],
-                                                          bycicle_start_dist)
+            trigger_distance = InTriggerDistanceToVehicle(
+                self.other_actors[0], self.ego_vehicles[0], bycicle_start_dist
+            )
 
         actor_velocity = KeepVelocity(self.other_actors[0], self._other_actor_target_velocity)
         actor_traverse = DriveDistance(self.other_actors[0], 0.30 * dist_to_travel)
@@ -563,15 +636,22 @@ class VehicleTurningRoute(BasicScenario):
 
         actor_ego_sync = py_trees.composites.Parallel(
             "Synchronization of actor and ego vehicle",
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+        )
         after_timer_actor = py_trees.composites.Parallel(
             "After timeout actor will cross the remaining lane_width",
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+        )
 
         # building the tree
         root.add_child(scenario_sequence)
-        scenario_sequence.add_child(ActorTransformSetter(self.other_actors[0], self._other_actor_transform,
-                                                         name='TransformSetterTS4'))
+        scenario_sequence.add_child(
+            ActorTransformSetter(
+                self.other_actors[0],
+                self._other_actor_transform,
+                name="TransformSetterTS4",
+            )
+        )
         scenario_sequence.add_child(HandBrakeVehicle(self.other_actors[0], True))
         scenario_sequence.add_child(trigger_distance)
         scenario_sequence.add_child(HandBrakeVehicle(self.other_actors[0], False))

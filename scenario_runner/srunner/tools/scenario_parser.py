@@ -13,7 +13,10 @@ import glob
 import os
 import xml.etree.ElementTree as ET
 
-from srunner.scenarioconfigs.scenario_configuration import ScenarioConfiguration, ActorConfigurationData
+from srunner.scenarioconfigs.scenario_configuration import (
+    ScenarioConfiguration,
+    ActorConfigurationData,
+)
 from srunner.scenarioconfigs.route_scenario_configuration import RouteConfiguration
 
 
@@ -34,9 +37,9 @@ class ScenarioConfigurationParser(object):
         scenario that matches the scenario_name is parsed and returned.
         """
 
-        list_of_config_files = glob.glob("{}/srunner/examples/*.xml".format(os.getenv('SCENARIO_RUNNER_ROOT', "./")))
+        list_of_config_files = glob.glob("{}/srunner/examples/*.xml".format(os.getenv("SCENARIO_RUNNER_ROOT", "./")))
 
-        if config_file_name != '':
+        if config_file_name != "":
             list_of_config_files.append(config_file_name)
 
         single_scenario_only = True
@@ -50,9 +53,8 @@ class ScenarioConfigurationParser(object):
             tree = ET.parse(file_name)
 
             for scenario in tree.iter("scenario"):
-
-                scenario_config_name = scenario.attrib.get('name', None)
-                scenario_config_type = scenario.attrib.get('type', None)
+                scenario_config_name = scenario.attrib.get("name", None)
+                scenario_config_type = scenario.attrib.get("type", None)
 
                 if single_scenario_only:
                     # Check the scenario is the correct one
@@ -64,7 +66,7 @@ class ScenarioConfigurationParser(object):
                         continue
 
                 new_config = ScenarioConfiguration()
-                new_config.town = scenario.attrib.get('town', None)
+                new_config.town = scenario.attrib.get("town", None)
                 new_config.name = scenario_config_name
                 new_config.type = scenario_config_type
                 new_config.other_actors = []
@@ -83,8 +85,7 @@ class ScenarioConfigurationParser(object):
                     new_config.weather.wetness = float(weather.attrib.get("wetness", 0.0))
 
                 for ego_vehicle in scenario.iter("ego_vehicle"):
-
-                    new_config.ego_vehicles.append(ActorConfigurationData.parse_from_node(ego_vehicle, 'hero'))
+                    new_config.ego_vehicles.append(ActorConfigurationData.parse_from_node(ego_vehicle, "hero"))
                     new_config.trigger_points.append(new_config.ego_vehicles[-1].transform)
 
                 for route in scenario.iter("route"):
@@ -93,7 +94,7 @@ class ScenarioConfigurationParser(object):
                     new_config.route = route_conf
 
                 for other_actor in scenario.iter("other_actor"):
-                    new_config.other_actors.append(ActorConfigurationData.parse_from_node(other_actor, 'scenario'))
+                    new_config.other_actors.append(ActorConfigurationData.parse_from_node(other_actor, "scenario"))
 
                 scenario_configurations.append(new_config)
 
@@ -105,20 +106,20 @@ class ScenarioConfigurationParser(object):
         Parse *all* config files and provide a list with all scenarios @return
         """
 
-        list_of_config_files = glob.glob("{}/srunner/examples/*.xml".format(os.getenv('SCENARIO_RUNNER_ROOT', "./")))
-        list_of_config_files += glob.glob("{}/srunner/examples/*.xosc".format(os.getenv('SCENARIO_RUNNER_ROOT', "./")))
+        list_of_config_files = glob.glob("{}/srunner/examples/*.xml".format(os.getenv("SCENARIO_RUNNER_ROOT", "./")))
+        list_of_config_files += glob.glob("{}/srunner/examples/*.xosc".format(os.getenv("SCENARIO_RUNNER_ROOT", "./")))
 
-        if config_file_name != '':
+        if config_file_name != "":
             list_of_config_files.append(config_file_name)
 
         scenarios = []
         for file_name in list_of_config_files:
             if ".xosc" in file_name:
                 tree = ET.parse(file_name)
-                scenarios.append("{} (OpenSCENARIO)".format(tree.find("FileHeader").attrib.get('description', None)))
+                scenarios.append("{} (OpenSCENARIO)".format(tree.find("FileHeader").attrib.get("description", None)))
             else:
                 tree = ET.parse(file_name)
                 for scenario in tree.iter("scenario"):
-                    scenarios.append(scenario.attrib.get('name', None))
+                    scenarios.append(scenario.attrib.get("name", None))
 
         return scenarios

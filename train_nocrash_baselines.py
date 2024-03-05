@@ -86,9 +86,7 @@ def main(args):
         for baseline_folder_name, batch_size, walltime in zip(
             args.baseline_folder_names, args.batch_sizes, args.walltimes
         ):
-            for experiment in os.listdir(
-                os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name)
-            ):
+            for experiment in os.listdir(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name)):
                 generate_batch_script(
                     args,
                     seed,
@@ -114,12 +112,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--seeds", nargs="+", type=int, help="List of seed values")
     parser.add_argument("--use-disk-cache", type=int, default=0)
-    parser.add_argument(
-        "--repetitions", type=int, default=1, help="Number of dataset repetitions."
-    )
-    parser.add_argument(
-        "--number-of-cpus", type=int, default=1
-    )
+    parser.add_argument("--repetitions", type=int, default=1, help="Number of dataset repetitions.")
+    parser.add_argument("--number-of-cpus", type=int, default=1)
     parser.add_argument(
         "--batch-sizes",
         nargs="+",

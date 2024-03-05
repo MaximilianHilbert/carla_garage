@@ -19,17 +19,24 @@ import carla
 from agents.navigation.local_planner import RoadOption
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
-from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (ActorTransformSetter,
-                                                                      ActorDestroy,
-                                                                      StopVehicle,
-                                                                      SyncArrival,
-                                                                      WaypointFollower)
+from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (
+    ActorTransformSetter,
+    ActorDestroy,
+    StopVehicle,
+    SyncArrival,
+    WaypointFollower,
+)
 from srunner.scenariomanager.scenarioatomics.atomic_criteria import CollisionTest
-from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import DriveDistance, InTriggerDistanceToLocation
+from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (
+    DriveDistance,
+    InTriggerDistanceToLocation,
+)
 from srunner.scenarios.basic_scenario import BasicScenario
-from srunner.tools.scenario_helper import (get_geometric_linear_intersection,
-                                           get_crossing_point,
-                                           generate_target_waypoint)
+from srunner.tools.scenario_helper import (
+    get_geometric_linear_intersection,
+    get_crossing_point,
+    generate_target_waypoint,
+)
 
 
 class SignalizedJunctionRightTurn(BasicScenario):
@@ -42,8 +49,16 @@ class SignalizedJunctionRightTurn(BasicScenario):
     This is a single ego vehicle scenario
     """
 
-    def __init__(self, world, ego_vehicles, config, randomize=False, debug_mode=False, criteria_enable=True,
-                 timeout=80):
+    def __init__(
+        self,
+        world,
+        ego_vehicles,
+        config,
+        randomize=False,
+        debug_mode=False,
+        criteria_enable=True,
+        timeout=80,
+    ):
         """
         Setup all relevant parameters and create scenario
         """
@@ -54,12 +69,14 @@ class SignalizedJunctionRightTurn(BasicScenario):
         self._other_actor_transform = None
         # Timeout of scenario in seconds
         self.timeout = timeout
-        super(SignalizedJunctionRightTurn, self).__init__("HeroActorTurningRightAtSignalizedJunction",
-                                                          ego_vehicles,
-                                                          config,
-                                                          world,
-                                                          debug_mode,
-                                                          criteria_enable=criteria_enable)
+        super(SignalizedJunctionRightTurn, self).__init__(
+            "HeroActorTurningRightAtSignalizedJunction",
+            ego_vehicles,
+            config,
+            world,
+            debug_mode,
+            criteria_enable=criteria_enable,
+        )
 
         self._traffic_light = CarlaDataProvider.get_next_traffic_light(self.ego_vehicles[0], False)
         if self._traffic_light is None:
@@ -81,10 +98,13 @@ class SignalizedJunctionRightTurn(BasicScenario):
         """
         self._other_actor_transform = config.other_actors[0].transform
         first_vehicle_transform = carla.Transform(
-            carla.Location(config.other_actors[0].transform.location.x,
-                           config.other_actors[0].transform.location.y,
-                           config.other_actors[0].transform.location.z - 500),
-            config.other_actors[0].transform.rotation)
+            carla.Location(
+                config.other_actors[0].transform.location.x,
+                config.other_actors[0].transform.location.y,
+                config.other_actors[0].transform.location.z - 500,
+            ),
+            config.other_actors[0].transform.rotation,
+        )
         first_vehicle = CarlaDataProvider.request_new_actor(config.other_actors[0].model, first_vehicle_transform)
         first_vehicle.set_simulate_physics(enabled=False)
         self.other_actors.append(first_vehicle)
@@ -100,19 +120,21 @@ class SignalizedJunctionRightTurn(BasicScenario):
 
         location_of_collision_dynamic = get_geometric_linear_intersection(self.ego_vehicles[0], self.other_actors[0])
         crossing_point_dynamic = get_crossing_point(self.other_actors[0])
-        sync_arrival = SyncArrival(
-            self.other_actors[0], self.ego_vehicles[0], location_of_collision_dynamic)
+        sync_arrival = SyncArrival(self.other_actors[0], self.ego_vehicles[0], location_of_collision_dynamic)
         sync_arrival_stop = InTriggerDistanceToLocation(self.other_actors[0], crossing_point_dynamic, 5)
 
         sync_arrival_parallel = py_trees.composites.Parallel(
             "Synchronize arrival times",
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE,
+        )
         sync_arrival_parallel.add_child(sync_arrival)
         sync_arrival_parallel.add_child(sync_arrival_stop)
 
         # Selecting straight path at intersection
         target_waypoint = generate_target_waypoint(
-            CarlaDataProvider.get_map().get_waypoint(self.other_actors[0].get_location()), 0)
+            CarlaDataProvider.get_map().get_waypoint(self.other_actors[0].get_location()),
+            0,
+        )
         # Generating waypoint list till next intersection
         plan = []
         wp_choice = target_waypoint.next(1.0)
@@ -122,11 +144,9 @@ class SignalizedJunctionRightTurn(BasicScenario):
             wp_choice = target_waypoint.next(1.0)
 
         move_actor = WaypointFollower(self.other_actors[0], self._target_vel, plan=plan)
-        waypoint_follower_end = InTriggerDistanceToLocation(
-            self.other_actors[0], plan[-1][0].transform.location, 10)
+        waypoint_follower_end = InTriggerDistanceToLocation(self.other_actors[0], plan[-1][0].transform.location, 10)
 
-        move_actor_parallel = py_trees.composites.Parallel(
-            policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+        move_actor_parallel = py_trees.composites.Parallel(policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
         move_actor_parallel.add_child(move_actor)
         move_actor_parallel.add_child(waypoint_follower_end)
         # stop other actor

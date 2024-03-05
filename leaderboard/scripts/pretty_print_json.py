@@ -23,70 +23,94 @@ def prettify_json(args):
         json_dict = json.load(fd)
 
     if not json_dict:
-        print('[Error] The file [{}] could not be parsed.'.format(args.file))
+        print("[Error] The file [{}] could not be parsed.".format(args.file))
         return -1
 
-    progress = dictor(json_dict, '_checkpoint.progress')
-    records_table = dictor(json_dict, '_checkpoint.records')
-    sensors = dictor(json_dict, 'sensors')
-    labels_scores = dictor(json_dict, 'labels')
-    scores = dictor(json_dict, 'values')
+    progress = dictor(json_dict, "_checkpoint.progress")
+    records_table = dictor(json_dict, "_checkpoint.records")
+    sensors = dictor(json_dict, "sensors")
+    labels_scores = dictor(json_dict, "labels")
+    scores = dictor(json_dict, "values")
 
     # compose output
     output = ""
 
     if progress:
-        output += '* {}% ({}/{}) routes completed\n'.format(100.0*progress[0]/float(progress[1]),
-                                                            progress[0],
-                                                            progress[1])
+        output += "* {}% ({}/{}) routes completed\n".format(
+            100.0 * progress[0] / float(progress[1]), progress[0], progress[1]
+        )
     if sensors:
-        output += '* The agent used the following sensors: {}\n\n'.format(', '.join(sensors))
+        output += "* The agent used the following sensors: {}\n\n".format(", ".join(sensors))
 
     if scores and labels_scores:
         metrics = list(zip(*[labels_scores[0:3], scores[0:3]]))
         infractions = list(zip(*[labels_scores[3:], scores[3:]]))
 
-        output += '=== Global average metrics: ===\n'
+        output += "=== Global average metrics: ===\n"
         output += tabulate(metrics, tablefmt=args.format)
-        output += '\n\n'
-        output += '=== Total infractions: ===\n'
+        output += "\n\n"
+        output += "=== Total infractions: ===\n"
         output += tabulate(infractions, tablefmt=args.format)
-        output += '\n\n'
+        output += "\n\n"
 
     if records_table:
-        header = ['metric', 'value', 'additional information']
+        header = ["metric", "value", "additional information"]
         list_statistics = [header]
         total_duration_game = 0
         total_duration_system = 0
         total_route_length = 0
         for route in records_table:
-            route_completed_kms = 0.01 * route['scores']['score_route'] * route['meta']['route_length'] / 1000.0
-            metrics_route = [[key, '{:.3f}'.format(values), ''] for key, values in route['scores'].items()]
-            infractions_route = [[key, '{:.3f} ({} occurrences)'.format(len(values)/route_completed_kms, len(values)),
-                                 '\n'.join(values)] for key, values in route['infractions'].items()]
+            route_completed_kms = 0.01 * route["scores"]["score_route"] * route["meta"]["route_length"] / 1000.0
+            metrics_route = [[key, "{:.3f}".format(values), ""] for key, values in route["scores"].items()]
+            infractions_route = [
+                [
+                    key,
+                    "{:.3f} ({} occurrences)".format(len(values) / route_completed_kms, len(values)),
+                    "\n".join(values),
+                ]
+                for key, values in route["infractions"].items()
+            ]
 
-            times = [['duration game', '{:.3f}'.format(route['meta']['duration_game']), 'seconds'],
-                     ['duration system', '{:.3f}'.format(route['meta']['duration_system']), 'seconds']]
+            times = [
+                [
+                    "duration game",
+                    "{:.3f}".format(route["meta"]["duration_game"]),
+                    "seconds",
+                ],
+                [
+                    "duration system",
+                    "{:.3f}".format(route["meta"]["duration_system"]),
+                    "seconds",
+                ],
+            ]
 
-            route_completed_length = [ ['distance driven', '{:.3f}'.format(route_completed_kms), 'Km']]
+            route_completed_length = [["distance driven", "{:.3f}".format(route_completed_kms), "Km"]]
 
-            total_duration_game += route['meta']['duration_game']
-            total_duration_system += route['meta']['duration_system']
+            total_duration_game += route["meta"]["duration_game"]
+            total_duration_system += route["meta"]["duration_system"]
             total_route_length += route_completed_kms
 
-            list_statistics.extend([['{}'.format(route['route_id']), '', '']])
+            list_statistics.extend([["{}".format(route["route_id"]), "", ""]])
             list_statistics.extend([*metrics_route, *infractions_route, *times, *route_completed_length])
-            list_statistics.extend([['', '', '']])
+            list_statistics.extend([["", "", ""]])
 
-        list_statistics.extend([['total duration_game', '{:.3f}'.format(total_duration_game), 'seconds']])
-        list_statistics.extend([['total duration_system', '{:.3f}'.format(total_duration_system), 'seconds']])
-        list_statistics.extend([['total distance driven', '{:.3f}'.format(total_route_length), 'Km']])
+        list_statistics.extend([["total duration_game", "{:.3f}".format(total_duration_game), "seconds"]])
+        list_statistics.extend(
+            [
+                [
+                    "total duration_system",
+                    "{:.3f}".format(total_duration_system),
+                    "seconds",
+                ]
+            ]
+        )
+        list_statistics.extend([["total distance driven", "{:.3f}".format(total_route_length), "Km"]])
 
-        output += '==== Per-route analysis: ===\n'.format()
+        output += "==== Per-route analysis: ===\n".format()
         output += tabulate(list_statistics, tablefmt=args.format)
 
     if args.output:
-        with open(args.output, 'w') as fd:
+        with open(args.output, "w") as fd:
             fd.write(output)
     else:
         print(output)
@@ -95,17 +119,25 @@ def prettify_json(args):
 
 
 def main():
-    description = 'Create a human readable version of the scores provided by the leaderboard.\n'
+    description = "Create a human readable version of the scores provided by the leaderboard.\n"
     # general parameters
     parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter)
-    parser.add_argument('-f', '--file', help='JSON file containing the results of the leaderboard', required=True)
-    parser.add_argument('--format', default='fancy_grid',
-                        help='Format in which the table will be printed, e.g.: fancy_grid, latex, github, html, jira')
-    parser.add_argument('-o', '--output', help='Output file to print the results into')
+    parser.add_argument(
+        "-f",
+        "--file",
+        help="JSON file containing the results of the leaderboard",
+        required=True,
+    )
+    parser.add_argument(
+        "--format",
+        default="fancy_grid",
+        help="Format in which the table will be printed, e.g.: fancy_grid, latex, github, html, jira",
+    )
+    parser.add_argument("-o", "--output", help="Output file to print the results into")
     arguments = parser.parse_args()
 
     return prettify_json(arguments)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -27,8 +27,8 @@ def parse_actor(info):
         "location": carla.Location(
             float(info[5][1:-1]) / 100,
             float(info[6][:-1]) / 100,
-            float(info[7][:-1]) / 100
-        )
+            float(info[7][:-1]) / 100,
+        ),
     }
 
     return actor
@@ -48,10 +48,10 @@ def parse_transform(info):
             float(info[5][:-1]) / 100,
         ),
         carla.Rotation(
-            float(info[8][:-1]),   # pitch
-            float(info[9][:-1]),   # yaw
-            float(info[7][1:-1])   # roll
-        )
+            float(info[8][:-1]),  # pitch
+            float(info[9][:-1]),  # yaw
+            float(info[7][1:-1]),  # roll
+        ),
     )
 
     return transform
@@ -65,13 +65,13 @@ def parse_control(info):
         info (list): list corresponding to a row of the recorder
     """
     control = carla.VehicleControl(
-        float(info[5]),         # throttle
-        float(info[3]),         # steer
-        float(info[7]),         # brake
-        bool(int(info[9])),     # hand_brake
-        int(info[11]) < 0,      # reverse
-        False,                  # manual_gear_shift
-        int(info[11]),          # gear
+        float(info[5]),  # throttle
+        float(info[3]),  # steer
+        float(info[7]),  # brake
+        bool(int(info[9])),  # hand_brake
+        int(info[11]) < 0,  # reverse
+        False,  # manual_gear_shift
+        int(info[11]),  # gear
     )
 
     return control
@@ -137,11 +137,7 @@ def parse_velocity(info):
     Args:
         info (list): list corresponding to a row of the recorder
     """
-    velocity = carla.Vector3D(
-        float(info[3][1:-1]),
-        float(info[4][:-1]),
-        float(info[5][:-1])
-    )
+    velocity = carla.Vector3D(float(info[3][1:-1]), float(info[4][:-1]), float(info[5][:-1]))
 
     return velocity
 
@@ -153,11 +149,7 @@ def parse_angular_velocity(info):
     Args:
         info (list): list corresponding to a row of the recorder
     """
-    velocity = carla.Vector3D(
-        float(info[7][1:-1]),
-        float(info[8][:-1]),
-        float(info[9][:-1])
-    )
+    velocity = carla.Vector3D(float(info[7][1:-1]), float(info[8][:-1]), float(info[9][:-1]))
 
     return velocity
 
@@ -178,7 +170,7 @@ def parse_scene_lights(info):
         int(float(info[5])),
         carla.Color(red, green, blue),
         carla.LightGroup.NONE,
-        bool(info[3])
+        bool(info[3]),
     )
 
     return scene_light
@@ -192,15 +184,15 @@ def parse_bounding_box(info):
         info (list): list corresponding to a row of the recorder
     """
     location = carla.Location(
-        float(info[3][1:-1])/100,
-        float(info[4][:-1])/100,
-        float(info[5][:-1])/100,
+        float(info[3][1:-1]) / 100,
+        float(info[4][:-1]) / 100,
+        float(info[5][:-1]) / 100,
     )
 
     extent = carla.Vector3D(
-        float(info[7][1:-1])/100,
-        float(info[8][:-1])/100,
-        float(info[9][:-1])/100,
+        float(info[7][1:-1]) / 100,
+        float(info[8][:-1]) / 100,
+        float(info[9][:-1]) / 100,
     )
 
     bbox = carla.BoundingBox(location, extent)
@@ -236,7 +228,7 @@ def parse_vector_list(info):
     for i in range(0, len(info), 2):
         vector = carla.Vector2D(
             float(info[i][1:-1]),
-            float(info[i+1][:-1]),
+            float(info[i + 1][:-1]),
         )
         vector_list.append(vector)
 
@@ -273,7 +265,7 @@ def parse_wheels_control(info):
         float(info[9]),
         float(info[11]),
         float(info[13]),
-        carla.Vector3D()
+        carla.Vector3D(),
     )
 
     return gears_control
@@ -285,7 +277,6 @@ class MetricsParser(object):
     """
 
     def __init__(self, recorder_info):
-
         self.recorder_info = recorder_info
         self.frame_list = None
         self.frame_row = None
@@ -330,14 +321,13 @@ class MetricsParser(object):
             "map": sim_map,
             "date:": sim_date,
             "total_frames": sim_frames,
-            "duration": sim_duration
+            "duration": sim_duration,
         }
 
         actors_info = {}
         frames_info = []
 
         for frame in recorder_list:
-
             # Divide the frame in lines
             self.frame_list = frame.split("\n")
 
@@ -358,24 +348,23 @@ class MetricsParser(object):
                 "frame": {
                     "elapsed_time": frame_time,
                     "delta_time": delta_time,
-                    "platform_time": None
+                    "platform_time": None,
                 },
                 "actors": {},
-                "events":{
+                "events": {
                     "scene_lights": {},
                     "physics_control": {},
                     "traffic_light_state_time": {},
-                    "collisions": {}
-                }
+                    "collisions": {},
+                },
             }
 
             # Loop through all the other rows.
             self.i = 0
             self.next_row()
 
-            while self.frame_row.startswith(' Create') or self.frame_row.startswith('  '):
-
-                if self.frame_row.startswith(' Create'):
+            while self.frame_row.startswith(" Create") or self.frame_row.startswith("  "):
+                if self.frame_row.startswith(" Create"):
                     elements = self.get_row_elements(1, " ")
                     actor_id = int(elements[1][:-1])
 
@@ -388,8 +377,7 @@ class MetricsParser(object):
 
                 self.next_row()
 
-            while self.frame_row.startswith(' Destroy'):
-
+            while self.frame_row.startswith(" Destroy"):
                 elements = self.get_row_elements(1, " ")
 
                 actor_id = int(elements[1])
@@ -397,8 +385,7 @@ class MetricsParser(object):
 
                 self.next_row()
 
-            while self.frame_row.startswith(' Collision'):
-
+            while self.frame_row.startswith(" Collision"):
                 elements = self.get_row_elements(1, " ")
 
                 actor_id = int(elements[4])
@@ -413,8 +400,7 @@ class MetricsParser(object):
 
                 self.next_row()
 
-            while self.frame_row.startswith(' Parenting'):
-
+            while self.frame_row.startswith(" Parenting"):
                 elements = self.get_row_elements(1, " ")
 
                 actor_id = int(elements[1])
@@ -423,11 +409,10 @@ class MetricsParser(object):
 
                 self.next_row()
 
-            if self.frame_row.startswith(' Positions'):
+            if self.frame_row.startswith(" Positions"):
                 self.next_row()
 
-                while self.frame_row.startswith('  '):
-
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
 
@@ -436,11 +421,10 @@ class MetricsParser(object):
 
                     self.next_row()
 
-            if self.frame_row.startswith(' State traffic lights'):
+            if self.frame_row.startswith(" State traffic lights"):
                 self.next_row()
 
-                while self.frame_row.startswith('  '):
-
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
 
@@ -448,11 +432,10 @@ class MetricsParser(object):
                     frame_state["actors"].update({actor_id: traffic_light})
                     self.next_row()
 
-            if self.frame_row.startswith(' Vehicle animations'):
+            if self.frame_row.startswith(" Vehicle animations"):
                 self.next_row()
 
-                while self.frame_row.startswith('  '):
-
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
 
@@ -460,20 +443,20 @@ class MetricsParser(object):
                     frame_state["actors"][actor_id].update({"control": control})
                     self.next_row()
 
-            if self.frame_row.startswith(' Walker animations'):
+            if self.frame_row.startswith(" Walker animations"):
                 self.next_row()
 
-                while self.frame_row.startswith('  '):
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
 
                     frame_state["actors"][actor_id].update({"speed": elements[3]})
                     self.next_row()
 
-            if self.frame_row.startswith(' Vehicle light animations'):
+            if self.frame_row.startswith(" Vehicle light animations"):
                 self.next_row()
 
-                while self.frame_row.startswith('  '):
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
 
@@ -481,10 +464,10 @@ class MetricsParser(object):
                     frame_state["actors"][actor_id].update({"lights": lights})
                     self.next_row()
 
-            if self.frame_row.startswith(' Scene light changes'):
+            if self.frame_row.startswith(" Scene light changes"):
                 self.next_row()
 
-                while self.frame_row.startswith('  '):
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
 
@@ -492,10 +475,10 @@ class MetricsParser(object):
                     frame_state["events"]["scene_lights"].update({actor_id: scene_light})
                     self.next_row()
 
-            if self.frame_row.startswith(' Dynamic actors'):
+            if self.frame_row.startswith(" Dynamic actors"):
                 self.next_row()
 
-                while self.frame_row.startswith('  '):
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
 
@@ -514,10 +497,10 @@ class MetricsParser(object):
                     frame_state["actors"][actor_id].update({"acceleration": acceleration})
                     self.next_row()
 
-            if self.frame_row.startswith(' Actor bounding boxes'):
+            if self.frame_row.startswith(" Actor bounding boxes"):
                 self.next_row()
 
-                while self.frame_row.startswith('  '):
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
 
@@ -525,10 +508,10 @@ class MetricsParser(object):
                     actors_info[actor_id].update({"bounding_box": bbox})
                     self.next_row()
 
-            if self.frame_row.startswith(' Actor trigger volumes'):
+            if self.frame_row.startswith(" Actor trigger volumes"):
                 self.next_row()
 
-                while self.frame_row.startswith('  '):
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
 
@@ -536,20 +519,18 @@ class MetricsParser(object):
                     actors_info[actor_id].update({"trigger_volume": trigvol})
                     self.next_row()
 
-            if self.frame_row.startswith(' Current platform time'):
-
+            if self.frame_row.startswith(" Current platform time"):
                 elements = self.get_row_elements(1, " ")
 
                 platform_time = float(elements[-1])
                 frame_state["frame"]["platform_time"] = platform_time
                 self.next_row()
 
-            if self.frame_row.startswith(' Physics Control'):
+            if self.frame_row.startswith(" Physics Control"):
                 self.next_row()
 
                 actor_id = None
-                while self.frame_row.startswith('  '):
-
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
                     physics_control = carla.VehiclePhysicsControl()
@@ -557,9 +538,8 @@ class MetricsParser(object):
 
                     forward_gears = []
                     wheels = []
-                    while self.frame_row.startswith('   '):
-
-                        if self.frame_row.startswith('    '):
+                    while self.frame_row.startswith("   "):
+                        if self.frame_row.startswith("    "):
                             elements = self.get_row_elements(4, " ")
                             if elements[0] == "gear":
                                 forward_gears.append(parse_gears_control(elements))
@@ -602,10 +582,10 @@ class MetricsParser(object):
                     setattr(physics_control, "wheels", wheels)
                     frame_state["events"]["physics_control"].update({actor_id: physics_control})
 
-            if self.frame_row.startswith(' Traffic Light time events'):
+            if self.frame_row.startswith(" Traffic Light time events"):
                 self.next_row()
 
-                while self.frame_row.startswith('  '):
+                while self.frame_row.startswith("  "):
                     elements = self.get_row_elements(2, " ")
                     actor_id = int(elements[1])
 

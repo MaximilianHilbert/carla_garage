@@ -17,6 +17,7 @@ specific information
 import fnmatch
 from srunner.metrics.tools.metrics_parser import MetricsParser
 
+
 class MetricsLog(object):  # pylint: disable=too-many-public-methods
     """
     Utility class to query the log.
@@ -168,7 +169,6 @@ class MetricsLog(object):  # pylint: disable=too-many-public-methods
         """
 
         if actor_id in self._actors:
-
             actor_info = self._actors[actor_id]
             first_frame = actor_info["created"]
             if "destroyed" in actor_info:
@@ -195,7 +195,6 @@ class MetricsLog(object):  # pylint: disable=too-many-public-methods
 
         # Check if the actor exists
         if actor_id in frame_state:
-
             # Check if the state exists
             if state not in frame_state[actor_id]:
                 return None

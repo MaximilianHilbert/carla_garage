@@ -15,6 +15,19 @@
 
         },
         {
+            "name": "result_parser",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/maximilian/Master/carla_garage/tools/result_parser_baselines.py",
+            "args": ["--eval-root", "/home/maximilian/Master/carla_garage/evaluation/nocrash_2"],
+            
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "purpose": ["debug-in-terminal"],
+            "envFile": "${workspaceFolder}/dev.env"
+
+        },
+        {
             "name": "evaluation_bcso",
             "type": "python",
             "request": "launch",
@@ -30,7 +43,7 @@
             "--agent-yaml","/home/maximilian/Master/carla_garage/coil_configuration/bcso/bcso_vanilla.yaml",
             "--experiment", "bcso",
             "--baseline-folder-name", "bcso",
-            "--coil_checkpoint", "/home/maximilian/Master/carla_garage/30.pth",
+            "--coil_checkpoint", "/home/maximilian/Master/carla_garage/_logs/bcso/bcso/repetition_2/coil/checkpoints/8.pth",
             //"--agent-config","/home/maximilian/Master/carla_garage/pretrained_models/leaderboard/tfpp_wp_all_0",
             //"--debug","0",
             "--resume", "true",
@@ -95,7 +108,7 @@
             "--agent-config","/home/maximilian/Master/carla_garage/coil_configuration/coil_config.py",
             "--experiment", "bcoh",
             "--baseline-folder-name", "bcoh",
-            "--coil_checkpoint", "/home/maximilian/Master/carla_garage/_logs/bcoh/bcoh/repetition_0/checkpoints/6.pth",
+            "--coil_checkpoint", "/home/maximilian/Master/carla_garage/_logs/bcoh/bcoh/repetition_2/coil/checkpoints/8.pth",
             //"--agent-config","/home/maximilian/Master/carla_garage/pretrained_models/leaderboard/tfpp_wp_all_0",
             //"--debug","0",
             "--resume", "true",

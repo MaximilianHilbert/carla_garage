@@ -18,8 +18,18 @@ class ActorConfigurationData(object):
     This is a configuration base class to hold model and transform attributes
     """
 
-    def __init__(self, model, transform, rolename='other', speed=0, autopilot=False,
-                 random=False, color=None, category="car", args=None):
+    def __init__(
+        self,
+        model,
+        transform,
+        rolename="other",
+        speed=0,
+        autopilot=False,
+        random=False,
+        color=None,
+        category="car",
+        args=None,
+    ):
         self.model = model
         self.rolename = rolename
         self.transform = transform
@@ -36,28 +46,28 @@ class ActorConfigurationData(object):
         static method to initialize an ActorConfigurationData from a given ET tree
         """
 
-        model = node.attrib.get('model', 'vehicle.*')
+        model = node.attrib.get("model", "vehicle.*")
 
-        pos_x = float(node.attrib.get('x', 0))
-        pos_y = float(node.attrib.get('y', 0))
-        pos_z = float(node.attrib.get('z', 0))
-        yaw = float(node.attrib.get('yaw', 0))
+        pos_x = float(node.attrib.get("x", 0))
+        pos_y = float(node.attrib.get("y", 0))
+        pos_z = float(node.attrib.get("z", 0))
+        yaw = float(node.attrib.get("yaw", 0))
 
         transform = carla.Transform(carla.Location(x=pos_x, y=pos_y, z=pos_z), carla.Rotation(yaw=yaw))
 
-        rolename = node.attrib.get('rolename', rolename)
+        rolename = node.attrib.get("rolename", rolename)
 
-        speed = node.attrib.get('speed', 0)
+        speed = node.attrib.get("speed", 0)
 
         autopilot = False
-        if 'autopilot' in node.keys():
+        if "autopilot" in node.keys():
             autopilot = True
 
         random_location = False
-        if 'random_location' in node.keys():
+        if "random_location" in node.keys():
             random_location = True
 
-        color = node.attrib.get('color', None)
+        color = node.attrib.get("color", None)
 
         return ActorConfigurationData(model, transform, rolename, speed, autopilot, random_location, color)
 

@@ -23,8 +23,10 @@ class Track(Enum):
     """
     This enum represents the different tracks of the CARLA AD leaderboard.
     """
-    SENSORS = 'SENSORS'
-    MAP = 'MAP'
+
+    SENSORS = "SENSORS"
+    MAP = "MAP"
+
 
 class AutonomousAgent(object):
 

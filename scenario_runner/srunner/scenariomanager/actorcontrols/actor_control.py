@@ -61,7 +61,6 @@ class ActorControl(object):
     _last_waypoint_command = None
 
     def __init__(self, actor, control_py_module, args):
-
         # use importlib to import the control module
         if not control_py_module:
             if isinstance(actor, carla.Walker):
@@ -73,14 +72,14 @@ class ActorControl(object):
                 self.control_instance = ExternalControl(actor)
         else:
             if ".py" in control_py_module:
-                module_name = os.path.basename(control_py_module).split('.')[0]
+                module_name = os.path.basename(control_py_module).split(".")[0]
                 sys.path.append(os.path.dirname(control_py_module))
                 module_control = importlib.import_module(module_name)
-                control_class_name = module_control.__name__.title().replace('_', '')
+                control_class_name = module_control.__name__.title().replace("_", "")
             else:
                 sys.path.append(os.path.dirname(__file__))
                 module_control = importlib.import_module(control_py_module)
-                control_class_name = control_py_module.split('.')[-1].title().replace('_', '')
+                control_class_name = control_py_module.split(".")[-1].title().replace("_", "")
 
             self.control_instance = getattr(module_control, control_class_name)(actor, args)
 

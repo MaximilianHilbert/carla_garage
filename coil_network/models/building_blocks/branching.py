@@ -2,7 +2,6 @@ import torch.nn as nn
 
 
 class Branching(nn.Module):
-
     def __init__(self, branched_modules=None):
         """
 
@@ -18,9 +17,6 @@ class Branching(nn.Module):
 
         self.branched_modules = nn.ModuleList(branched_modules)
 
-
-
-
     def forward(self, x):
         # get only the speeds from measurement labels
 
@@ -29,6 +25,3 @@ class Branching(nn.Module):
             branches_outputs.append(branch(x))
 
         return branches_outputs
-
-
-

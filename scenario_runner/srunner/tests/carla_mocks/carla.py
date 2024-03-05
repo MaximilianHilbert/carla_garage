@@ -43,18 +43,17 @@ class command:
 
 
 class CarlaBluePrint(object):
-
     def __init__(self):
         self.id = 0
-        self.attributes = {'role_name': ''}
+        self.attributes = {"role_name": ""}
 
-    def has_attribute(self, attribute_string=''):
+    def has_attribute(self, attribute_string=""):
         return attribute_string in self.attributes
 
     def set_attribute(self, key, value):
         self.attributes[key] = value
 
-    def has_tag(self, tag_string=''):
+    def has_tag(self, tag_string=""):
         return False
 
 
@@ -85,7 +84,7 @@ class Vector3D:
         self.z = z
 
 
-class Location():
+class Location:
     x = 0
     y = 0
     z = 0
@@ -99,7 +98,7 @@ class Location():
         return 0
 
 
-class Rotation():
+class Rotation:
     pitch = 0
     roll = 0
     yaw = 0
@@ -122,7 +121,7 @@ class Transform:
         self.rotation = rotation
 
 
-class Waypoint():
+class Waypoint:
     transform = Transform(Location(), Rotation())
     road_id = 0
     lane_id = 0
@@ -185,7 +184,6 @@ class WorldSettings:
 
 
 class ActorList:
-
     def __init__(self, actor_list):
         self.actor_list = actor_list
 
@@ -206,9 +204,8 @@ class Control:
 
 
 class Actor:
-
     def __init__(self):
-        self.attributes = {'role_name': ''}
+        self.attributes = {"role_name": ""}
         self.id = 0
         self.type_id = None
         self.location = Location()
@@ -268,7 +265,7 @@ class World:
 
     def try_spawn_actor(self, blueprint, spawn_point):
         new_actor = Vehicle()
-        new_actor.attributes['role_name'] = blueprint.attributes['role_name']
+        new_actor.attributes["role_name"] = blueprint.attributes["role_name"]
         new_actor.id = len(self.actors)
         self.actors.append(new_actor)
         return new_actor
@@ -300,7 +297,7 @@ class Client:
         for batch_cmd in batch:
             if batch_cmd is not None:
                 new_actor = Vehicle()
-                new_actor.attributes['role_name'] = batch_cmd.blueprint.attributes['role_name']
+                new_actor.attributes["role_name"] = batch_cmd.blueprint.attributes["role_name"]
                 new_actor.id = len(self.world.actors)
                 self.world.actors.append(new_actor)
                 reponse_list.append(Response(new_actor.id))

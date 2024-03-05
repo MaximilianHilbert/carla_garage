@@ -41,7 +41,7 @@ class CallBack(object):
         elif isinstance(data, carla.GnssMeasurement):
             self._parse_gnss_cb(data, self._tag)
         else:
-            logging.error('No callback method for this sensor.')
+            logging.error("No callback method for this sensor.")
 
     # Parsing CARLA physical Sensors
     def _parse_image_cb(self, image, tag):
@@ -57,7 +57,7 @@ class CallBack(object):
         """
         parses lidar sensors
         """
-        points = np.frombuffer(lidar_data.raw_data, dtype=np.dtype('f4'))
+        points = np.frombuffer(lidar_data.raw_data, dtype=np.dtype("f4"))
         points = copy.deepcopy(points)
         points = np.reshape(points, (int(points.shape[0] / 3), 3))
         self._data_provider.update_sensor(tag, points, lidar_data.frame)
@@ -66,9 +66,10 @@ class CallBack(object):
         """
         parses gnss sensors
         """
-        array = np.array([gnss_data.latitude,
-                          gnss_data.longitude,
-                          gnss_data.altitude], dtype=np.float64)
+        array = np.array(
+            [gnss_data.latitude, gnss_data.longitude, gnss_data.altitude],
+            dtype=np.float64,
+        )
         self._data_provider.update_sensor(tag, array, gnss_data.frame)
 
 

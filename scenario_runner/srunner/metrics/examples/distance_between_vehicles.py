@@ -46,7 +46,6 @@ class DistanceBetweenVehicles(BasicMetric):
 
         # Get the distance between the two
         for i in range(start, end):
-
             # Get the transforms
             ego_location = log.get_actor_transform(ego_id, i).location
             adv_location = log.get_actor_transform(adv_id, i).location
@@ -63,7 +62,7 @@ class DistanceBetweenVehicles(BasicMetric):
 
         # Use matplotlib to show the results
         plt.plot(frames_list, dist_list)
-        plt.ylabel('Distance [m]')
-        plt.xlabel('Frame number')
-        plt.title('Distance between the ego vehicle and the adversary over time')
+        plt.ylabel("Distance [m]")
+        plt.xlabel("Frame number")
+        plt.title("Distance between the ego vehicle and the adversary over time")
         plt.show()

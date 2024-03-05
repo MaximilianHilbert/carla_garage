@@ -44,7 +44,6 @@ class ScenarioManager(object):
     4. If needed, cleanup with manager.stop_scenario()
     """
 
-
     def __init__(self, timeout, debug_mode=False):
         """
         Setups up the parameters, which will be filled at load_scenario()
@@ -165,8 +164,7 @@ class ScenarioManager(object):
 
             if self._debug_mode:
                 print("\n")
-                py_trees.display.print_ascii_tree(
-                    self.scenario_tree, show_status=True)
+                py_trees.display.print_ascii_tree(self.scenario_tree, show_status=True)
                 sys.stdout.flush()
 
             if self.scenario_tree.status != py_trees.common.Status.RUNNING:
@@ -174,13 +172,15 @@ class ScenarioManager(object):
 
             spectator = CarlaDataProvider.get_world().get_spectator()
             ego_trans = self.ego_vehicles[0].get_transform()
-            
+
             # For third-person view
             # location = ego_trans.transform(carla.Location(x=-4.5, z=2.3))
             # spectator.set_transform(carla.Transform(location, carla.Rotation(pitch=-15.0, yaw=ego_trans.rotation.yaw)))
-            
+
             # For bird's eye view
-            spectator.set_transform(carla.Transform(ego_trans.location + carla.Location(z=50), carla.Rotation(pitch=-90)))
+            spectator.set_transform(
+                carla.Transform(ego_trans.location + carla.Location(z=50), carla.Rotation(pitch=-90))
+            )
 
         if self._running and self.get_running_status():
             CarlaDataProvider.get_world().tick(self._timeout)
@@ -218,13 +218,13 @@ class ScenarioManager(object):
         """
         Analyzes and prints the results of the route
         """
-        global_result = '\033[92m'+'SUCCESS'+'\033[0m'
+        global_result = "\033[92m" + "SUCCESS" + "\033[0m"
 
         for criterion in self.scenario.get_criteria():
             if criterion.test_status != "SUCCESS":
-                global_result = '\033[91m'+'FAILURE'+'\033[0m'
+                global_result = "\033[91m" + "FAILURE" + "\033[0m"
 
         if self.scenario.timeout_node.timeout:
-            global_result = '\033[91m'+'FAILURE'+'\033[0m'
+            global_result = "\033[91m" + "FAILURE" + "\033[0m"
 
         ResultOutputProvider(self, global_result)

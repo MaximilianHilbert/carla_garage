@@ -18,7 +18,11 @@ import xmlschema
 import carla
 
 # pylint: disable=line-too-long
-from srunner.scenarioconfigs.scenario_configuration import ActorConfigurationData, ScenarioConfiguration
+from srunner.scenarioconfigs.scenario_configuration import (
+    ActorConfigurationData,
+    ScenarioConfiguration,
+)
+
 # pylint: enable=line-too-long
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider  # workaround
 from srunner.tools.openscenario_parser import OpenScenarioParser
@@ -32,7 +36,6 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
     """
 
     def __init__(self, filename, client):
-
         self.xml_tree = ET.parse(filename)
         self._filename = filename
 
@@ -64,7 +67,10 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
 
         Note: This will throw if the config is not valid. But this is fine here.
         """
-        xsd_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../openscenario/OpenSCENARIO.xsd")
+        xsd_file = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "../openscenario/OpenSCENARIO.xsd",
+        )
         xsd = xmlschema.XMLSchema(xsd_file)
         xsd.validate(self.xml_tree)
 
@@ -74,7 +80,10 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
 
         Note: This will throw if the catalog config is not valid. But this is fine here.
         """
-        xsd_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../openscenario/OpenSCENARIO.xsd")
+        xsd_file = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "../openscenario/OpenSCENARIO.xsd",
+        )
         xsd = xmlschema.XMLSchema(xsd_file)
         xsd.validate(catalog_xml_tree)
 
@@ -97,7 +106,7 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
         Ensure correct OpenSCENARIO version is used
         """
         header = self.xml_tree.find("FileHeader")
-        if not (header.attrib.get('revMajor') == "1" and header.attrib.get('revMinor') == "0"):
+        if not (header.attrib.get("revMajor") == "1" and header.attrib.get("revMinor") == "0"):
             raise AttributeError("Only OpenSCENARIO 1.0 is supported")
 
     def _load_catalogs(self):
@@ -110,25 +119,31 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
         if list(catalogs) is None:
             return
 
-        catalog_types = ["Vehicle",
-                         "Controller",
-                         "Pedestrian",
-                         "MiscObject",
-                         "Environment",
-                         "Maneuver",
-                         "Trajectory",
-                         "Route"]
+        catalog_types = [
+            "Vehicle",
+            "Controller",
+            "Pedestrian",
+            "MiscObject",
+            "Environment",
+            "Maneuver",
+            "Trajectory",
+            "Route",
+        ]
         for catalog_type in catalog_types:
             catalog = catalogs.find(catalog_type + "Catalog")
             if catalog is None:
                 continue
 
-            catalog_path = catalog.find("Directory").attrib.get('path') + "/" + catalog_type + "Catalog.xosc"
+            catalog_path = catalog.find("Directory").attrib.get("path") + "/" + catalog_type + "Catalog.xosc"
             if not os.path.isabs(catalog_path) and "xosc" in self._filename:
                 catalog_path = os.path.dirname(os.path.abspath(self._filename)) + "/" + catalog_path
 
             if not os.path.isfile(catalog_path):
-                self.logger.warning(" The %s path for the %s Catalog is invalid", catalog_path, catalog_type)
+                self.logger.warning(
+                    " The %s path for the %s Catalog is invalid",
+                    catalog_path,
+                    catalog_type,
+                )
             else:
                 xml_tree = ET.parse(catalog_path)
                 self._validate_openscenario_catalog_configuration(xml_tree)
@@ -143,7 +158,7 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
         Extract the scenario name from the OpenSCENARIO header information
         """
         header = self.xml_tree.find("FileHeader")
-        self.name = header.attrib.get('description', 'Unknown')
+        self.name = header.attrib.get("description", "Unknown")
 
         if self.name.startswith("CARLA:"):
             OpenScenarioParser.set_use_carla_coordinate_system()
@@ -156,7 +171,7 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
               Hence, there can be multiple towns specified. We just use the _last_ one.
         """
         for logic in self.xml_tree.find("RoadNetwork").findall("LogicFile"):
-            self.town = logic.attrib.get('filepath', None)
+            self.town = logic.attrib.get("filepath", None)
 
         if self.town is not None and ".xodr" in self.town:
             if not os.path.isabs(self.town):
@@ -191,7 +206,7 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
         self.xml_tree, self._global_parameters = OpenScenarioParser.set_parameters(self.xml_tree)
 
         for elem in self.xml_tree.iter():
-            if elem.find('ParameterDeclarations') is not None:
+            if elem.find("ParameterDeclarations") is not None:
                 elem, _ = OpenScenarioParser.set_parameters(elem)
 
         OpenScenarioParser.set_global_parameters(self._global_parameters)
@@ -204,11 +219,11 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
         """
         for entity in self.xml_tree.iter("Entities"):
             for obj in entity.iter("ScenarioObject"):
-                rolename = obj.attrib.get('name', 'simulation')
+                rolename = obj.attrib.get("name", "simulation")
                 args = dict()
                 for prop in obj.iter("Property"):
-                    key = prop.get('name')
-                    value = prop.get('value')
+                    key = prop.get("name")
+                    value = prop.get("value")
                     args[key] = value
 
                 for catalog_reference in obj.iter("CatalogReference"):
@@ -221,7 +236,8 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
                         self._extract_misc_information(entry, rolename, entry, args)
                     else:
                         self.logger.error(
-                            " A CatalogReference specifies a reference that is not an Entity. Skipping...")
+                            " A CatalogReference specifies a reference that is not an Entity. Skipping..."
+                        )
 
                 for vehicle in obj.iter("Vehicle"):
                     self._extract_vehicle_information(obj, rolename, vehicle, args)
@@ -243,7 +259,7 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
                         actor.transform = self._get_actor_transform(actor.rolename)
                     except AttributeError as e:
                         if "Object '" in str(e):
-                            ref_actor_rolename = str(e).split('\'')[1]
+                            ref_actor_rolename = str(e).split("'")[1]
                             for ref_actor in self.other_actors + self.ego_vehicles:
                                 if ref_actor.rolename == ref_actor_rolename:
                                     if ref_actor.transform is not None:
@@ -257,18 +273,17 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
         Helper function to _set_actor_information for getting vehicle information from XML tree
         """
         color = None
-        model = vehicle.attrib.get('name', "vehicle.*")
-        category = vehicle.attrib.get('vehicleCategory', "car")
+        model = vehicle.attrib.get("name", "vehicle.*")
+        category = vehicle.attrib.get("vehicleCategory", "car")
         ego_vehicle = False
         for prop in obj.iter("Property"):
-            if prop.get('name', '') == 'type':
-                ego_vehicle = prop.get('value') == 'ego_vehicle'
-            if prop.get('name', '') == 'color':
-                color = prop.get('value')
+            if prop.get("name", "") == "type":
+                ego_vehicle = prop.get("value") == "ego_vehicle"
+            if prop.get("name", "") == "color":
+                color = prop.get("value")
 
         speed = self._get_actor_speed(rolename)
-        new_actor = ActorConfigurationData(
-            model, None, rolename, speed, color=color, category=category, args=args)
+        new_actor = ActorConfigurationData(model, None, rolename, speed, color=color, category=category, args=args)
 
         if ego_vehicle:
             self.ego_vehicles.append(new_actor)
@@ -279,7 +294,7 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
         """
         Helper function to _set_actor_information for getting pedestrian information from XML tree
         """
-        model = pedestrian.attrib.get('model', "walker.*")
+        model = pedestrian.attrib.get("model", "walker.*")
 
         speed = self._get_actor_speed(rolename)
         new_actor = ActorConfigurationData(model, None, rolename, speed, category="pedestrian", args=args)
@@ -290,13 +305,13 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
         """
         Helper function to _set_actor_information for getting vehicle information from XML tree
         """
-        category = misc.attrib.get('miscObjectCategory')
+        category = misc.attrib.get("miscObjectCategory")
         if category == "barrier":
             model = "static.prop.streetbarrier"
         elif category == "guardRail":
             model = "static.prop.chainbarrier"
         else:
-            model = misc.attrib.get('name')
+            model = misc.attrib.get("name")
         new_actor = ActorConfigurationData(model, None, rolename, category="misc", args=args)
 
         self.other_actors.append(new_actor)
@@ -318,23 +333,28 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
         actor_found = False
 
         for private_action in self.init.iter("Private"):
-            if private_action.attrib.get('entityRef', None) == actor_name:
+            if private_action.attrib.get("entityRef", None) == actor_name:
                 if actor_found:
                     # pylint: disable=line-too-long
                     self.logger.warning(
-                        " Warning: The actor '%s' was already assigned an initial position. Overwriting pose!", actor_name)
+                        " Warning: The actor '%s' was already assigned an initial position. Overwriting pose!",
+                        actor_name,
+                    )
                     # pylint: enable=line-too-long
                 actor_found = True
-                for position in private_action.iter('Position'):
+                for position in private_action.iter("Position"):
                     transform = OpenScenarioParser.convert_position_to_transform(
-                        position, actor_list=self.other_actors + self.ego_vehicles)
+                        position, actor_list=self.other_actors + self.ego_vehicles
+                    )
                     if transform:
                         actor_transform = transform
 
         if not actor_found:
             # pylint: disable=line-too-long
             self.logger.warning(
-                " Warning: The actor '%s' was not assigned an initial position. Using (0,0,0)", actor_name)
+                " Warning: The actor '%s' was not assigned an initial position. Using (0,0,0)",
+                actor_name,
+            )
             # pylint: enable=line-too-long
 
         return actor_transform
@@ -347,24 +367,29 @@ class OpenScenarioConfiguration(ScenarioConfiguration):
         actor_found = False
 
         for private_action in self.init.iter("Private"):
-            if private_action.attrib.get('entityRef', None) == actor_name:
+            if private_action.attrib.get("entityRef", None) == actor_name:
                 if actor_found:
                     # pylint: disable=line-too-long
                     self.logger.warning(
-                        " Warning: The actor '%s' was already assigned an initial speed. Overwriting inital speed!", actor_name)
+                        " Warning: The actor '%s' was already assigned an initial speed. Overwriting inital speed!",
+                        actor_name,
+                    )
                     # pylint: enable=line-too-long
                 actor_found = True
 
-                for longitudinal_action in private_action.iter('LongitudinalAction'):
-                    for speed in longitudinal_action.iter('SpeedAction'):
-                        for target in speed.iter('SpeedActionTarget'):
-                            for absolute in target.iter('AbsoluteTargetSpeed'):
-                                speed = float(absolute.attrib.get('value', 0))
+                for longitudinal_action in private_action.iter("LongitudinalAction"):
+                    for speed in longitudinal_action.iter("SpeedAction"):
+                        for target in speed.iter("SpeedActionTarget"):
+                            for absolute in target.iter("AbsoluteTargetSpeed"):
+                                speed = float(absolute.attrib.get("value", 0))
                                 if speed >= 0:
                                     actor_speed = speed
                                 else:
                                     raise AttributeError(
-                                        "Warning: Speed value of actor {} must be positive. Speed set to 0.".format(actor_name))  # pylint: disable=line-too-long
+                                        "Warning: Speed value of actor {} must be positive. Speed set to 0.".format(
+                                            actor_name
+                                        )
+                                    )  # pylint: disable=line-too-long
         return actor_speed
 
     def _validate_result(self):
