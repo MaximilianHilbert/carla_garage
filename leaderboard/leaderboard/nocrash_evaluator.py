@@ -24,6 +24,7 @@ import pkg_resources
 import sys
 import carla
 import signal
+from coil_utils.baseline_helpers import find_free_port
 import torch
 from coil_utils.baseline_helpers import merge_config_files
 from srunner.scenariomanager.carla_data_provider import *
@@ -79,10 +80,10 @@ class NoCrashEvaluator(object):
         """
         import os
         import torch.distributed as dist
-        os.environ['MASTER_ADDR'] = 'localhost'
-        os.environ['MASTER_PORT'] = '12355'
+        os.environ['MASTER_ADDR'] = '127.0.0.1'
+        os.environ['MASTER_PORT'] = find_free_port()
         dist.init_process_group(
-        backend="nccl", init_method="env://", world_size=1, rank=0
+        backend="nccl", init_method=f"env://127.0.0.1:{os.environ.get('MASTER_PORT')}", world_size=1, rank=0
     )
         self.statistics_manager = statistics_manager
         self.sensors = None
