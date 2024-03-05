@@ -94,9 +94,11 @@ class CoILAgent(AutonomousAgent):
         Also writes logging files to disk.
         """
         
-
-        del self._policy
-        del self._mem_extract
+        if self.config.baseline_folder_name=="arp":
+            del self._policy
+            del self._mem_extract
+        else:
+            del self.model
         
 
     def sensors(self):
