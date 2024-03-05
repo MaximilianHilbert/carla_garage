@@ -148,7 +148,7 @@ def main():
   weathers_conditions=["train"]
   partition = 'gpu-2080ti-preemptable,gpu-2080ti,gpu-v100-preemptable,gpu-v100,gpu-2080ti-dev'
   username = 'gwb629'
-  epochs = ['2']
+  epochs = ['28']
   seeds=[234213,252534,290246]
   num_repetitions = 1
   #code_root = '/home/maximilian/Master/carla_garage'
