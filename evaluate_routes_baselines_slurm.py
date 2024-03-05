@@ -101,15 +101,15 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 ''')
 
 
-def make_jobsub_file(commands,job_number, exp_name, exp_root_name, filename,partition):
+def make_jobsub_file(commands, exp_name, exp_root_name, filename,partition):
   os.makedirs(f'evaluation/{exp_root_name}/{exp_name}/run_files/logs', exist_ok=True)
   os.makedirs(f'evaluation/{exp_root_name}/{exp_name}/run_files/job_files', exist_ok=True)
   job_file = f'evaluation/{exp_root_name}/{exp_name}/run_files/job_files/{filename}.sh'
   qsub_template = f"""#!/bin/bash
 #SBATCH --job-name={filename}
 #SBATCH --partition={partition}
-#SBATCH -o evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_out{job_number}.log
-#SBATCH -e evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_err{job_number}.log
+#SBATCH -o evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_out{filename}.log
+#SBATCH -e evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_err{filename}.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
@@ -153,7 +153,7 @@ def main():
   weathers_conditions=["train", "test"]
   partition = 'gpu-2080ti-preemptable,gpu-2080ti,gpu-v100-preemptable,gpu-v100,gpu-2080ti-dev'
   username = 'gwb629'
-  epochs = ['2']
+  epochs = ['28']
   seeds=[234213,252534,290246]
   num_repetitions = 3
   #code_root = '/home/maximilian/Master/carla_garage'
@@ -179,7 +179,7 @@ def main():
                 for town in towns:
                   for evaluation_repetition, seed in zip(range(1,num_repetitions+1), seeds): #evaluation repetition
                     expected_result_length=0
-                    eval_filename=experiment_name_stem+f"_b-{baseline}_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}_s-{setting}"
+                    eval_filename=experiment_name_stem+f"_b-{baseline}_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}_t-{repetition}_s-{setting}"
                     exp_names_tmp = []
                     exp_names_tmp.append(experiment_name_stem + f'_e{evaluation_repetition}')
                     route_path = f'leaderboard/data/{benchmark}_split/{town}'
@@ -281,7 +281,6 @@ def main():
                         carla_tm_port_start += 50
 
                         job_file = make_jobsub_file(commands=commands,
-                                                    job_number=job_nr,
                                                     exp_name=experiment_name_stem,
                                                     exp_root_name=experiment_name_root,
                                                     filename=eval_filename,
