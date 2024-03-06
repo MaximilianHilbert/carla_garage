@@ -74,6 +74,7 @@ def main(args):
                 ),
                 map_location=lambda storage, loc: storage,
             )
+            print(f"loaded checkpoint_{checkpoint_file}")
             epoch = checkpoint["epoch"]
             best_loss = checkpoint["best_loss"]
             best_loss_epoch = checkpoint["best_loss_epoch"]

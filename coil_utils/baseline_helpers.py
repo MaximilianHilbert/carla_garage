@@ -381,8 +381,8 @@ def get_latest_saved_checkpoint(shared_config_object, repetition, setting):
     if checkpoint_files == []:
         return None
     else:
-        sorted(checkpoint_files)
-        return checkpoint_files[0]
+        checkpoint_files=sorted([int(x.strip(".pth")) for x in checkpoint_files])
+        return checkpoint_files[-1]
 
 
 def get_controls_from_data(data, batch_size, device_id):
