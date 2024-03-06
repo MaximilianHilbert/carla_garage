@@ -127,7 +127,7 @@ def make_jobsub_file(commands, exp_name, exp_root_name, filename, partition):
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=10gb
-#SBATCH --time=00-06:00
+#SBATCH --time=00-01:00
 #SBATCH --gres=gpu:1
 """
     for cmd in commands:
