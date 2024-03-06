@@ -117,7 +117,7 @@ class StatisticsManager:
 
             csv_file.flush()
 
-    def is_finished(self, town, route, weather, traffic):
+    def is_finished(self, args, route, weather, traffic):
         start, target = route
-        key = (int(traffic), int(weather), int(start), int(target))
-        return key in self.finished_tasks[town]
+        key = (str(args.baseline_folder_name), str(args.experiment), str(args.setting), int(traffic), int(weather), int(start), int(target))
+        return key in self.finished_tasks[args.town]
