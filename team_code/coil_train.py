@@ -70,7 +70,7 @@ def main(args):
                     f"repetition_{str(args.training_repetition)}",
                     args.setting,
                     "checkpoints",
-                    checkpoint_file,
+                    f"{checkpoint_file}.pth",
                 ),
                 map_location=lambda storage, loc: storage,
             )
