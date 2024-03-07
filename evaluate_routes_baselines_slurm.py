@@ -12,6 +12,7 @@ from pathlib import Path
 import os
 import fnmatch
 import ujson
+from tqdm import tqdm
 import sys
 import numpy as np
 import pandas as pd
@@ -125,9 +126,9 @@ def make_jobsub_file(commands, exp_name, exp_root_name, filename, partition):
 #SBATCH -e evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_err{filename}.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=9
 #SBATCH --mem=10gb
-#SBATCH --time=00-06:00
+#SBATCH --time=00-08:00
 #SBATCH --gres=gpu:1
 """
     for cmd in commands:
@@ -169,7 +170,7 @@ def main():
     weathers = {"train": [1, 3, 6, 8], "test": [10, 14]}
     traffics_len = 3
     weathers_conditions = ["train", "test"]
-    partition = "gpu-2080ti-preemptable,gpu-2080ti,gpu-v100-preemptable,gpu-v100,gpu-2080ti-dev"
+    partition = "gpu-2080ti"
     username = "gwb629"
     epochs = ["30"]
     seeds = [234213, 252534, 290246]
@@ -184,11 +185,11 @@ def main():
     already_placed_files = {}
     meta_jobs = {}
     experiment_name_stem = f"{benchmark}"
-    for baseline in os.listdir(model_dir):
-        for experiment in os.listdir(os.path.join(model_dir, baseline)):
+    for baseline in tqdm(os.listdir(model_dir)):
+        for experiment in tqdm(os.listdir(os.path.join(model_dir, baseline))):
             yaml_path = f'{os.path.join(code_root, "coil_configuration", baseline, experiment+".yaml")}'
             for repetition in (
-                os.listdir(os.path.join(model_dir, baseline, experiment))
+                tqdm(os.listdir(os.path.join(model_dir, baseline, experiment)))
                 if not single_test
                 else training_reps_to_be_tested
             ):  # training repetition
@@ -255,13 +256,12 @@ def main():
                                       for root, _, files in os.walk(route_path):
                                         for name in files:
                                             if fnmatch.fnmatch(name, route_pattern):
-                                                route_files.append(os.path.join(root, name))
                                                 with open(os.path.join(root, name)) as route_split_file:
                                                     expected_result_lengths.append(len(route_split_file.readlines())*len(weathers[weather]) * traffics_len)
                                                     route_files.append(os.path.join(root, name))
 
                                       for exp_name in exp_names:
-                                        for route,expected_result_length in zip(route_files,expected_result_lengths):
+                                        for route in route_files:
                                           bash_save_dir = Path(
                                               os.path.join(
                                                   code_root,
@@ -294,142 +294,151 @@ def main():
                                           logs_save_dir.mkdir(parents=True, exist_ok=True)
 
                                       for exp_name in exp_names:
-                                        for route in route_files:
-                                          route_stem = Path(route).stem
-                                          eval_filename = (
-                                          experiment_name_stem
-                                          + f"_b-{baseline}_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}_t-{repetition}_s-{setting}_o-{route_stem}"
-                                      )
-                                          bash_save_dir = Path(
-                                              os.path.join(
-                                                  code_root,
-                                                  "evaluation",
-                                                  experiment_name_root,
-                                                  exp_name,
-                                                  "run_bashs",
-                                              )
-                                          )
-                                          results_save_dir = Path(
-                                              os.path.join(
-                                                  code_root,
-                                                  "evaluation",
-                                                  experiment_name_root,
-                                                  exp_name,
-                                                  "results",
-                                              )
-                                          )
-                                          logs_save_dir = Path(
-                                              os.path.join(
-                                                  code_root,
-                                                  "evaluation",
-                                                  experiment_name_root,
-                                                  exp_name,
-                                                  "logs",
-                                              )
-                                          )
+                                        for route,expected_result_length in zip(route_files,expected_result_lengths):
+                                            route_stem = Path(route).stem
+                                          
+                                              
+                                            eval_filename = (
+                                            experiment_name_stem
+                                          + f"_b-{baseline}_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}_t-{repetition}_s-{setting}_o-{route_stem}")
+                                          
+                                            bash_save_dir = Path(
+                                                os.path.join(
+                                                    code_root,
+                                                    "evaluation",
+                                                    experiment_name_root,
+                                                    exp_name,
+                                                    "run_bashs",
+                                                )
+                                            )
+                                            results_save_dir = Path(
+                                                os.path.join(
+                                                    code_root,
+                                                    "evaluation",
+                                                    experiment_name_root,
+                                                    exp_name,
+                                                    "results",
+                                                )
+                                            )
+                                            logs_save_dir = Path(
+                                                os.path.join(
+                                                    code_root,
+                                                    "evaluation",
+                                                    experiment_name_root,
+                                                    exp_name,
+                                                    "logs",
+                                                )
+                                            )
+                                          
+                                            result_file = f"{results_save_dir}/{eval_filename}.csv"
+                                            if os.path.exists(result_file):
+                                                with open(result_file) as file:
+                                                    length=len(file.readlines()[1:])
+                                                if length == expected_result_length:
+                                                  print("Found existing finished resultfile, skipping...")
+                                                  continue
+                                            commands = []
 
-                                          commands = []
+                                            # Finds a free port
+                                            commands.append(
+                                                f"FREE_WORLD_PORT=`comm -23 <(seq {carla_world_port_start} {carla_world_port_start + 49} | sort) "
+                                                f"<(ss -Htan | awk '{{print $4}}' | cut -d':' -f2 | sort -u) | shuf | head -n 1`"
+                                            )
+                                            commands.append("echo 'World Port:' $FREE_WORLD_PORT")
+                                            commands.append(
+                                                f"FREE_STREAMING_PORT=`comm -23 <(seq {carla_streaming_port_start} {carla_streaming_port_start + 49} "
+                                                f"| sort) <(ss -Htan | awk '{{print $4}}' | cut -d':' -f2 | sort -u) | shuf | head -n 1`"
+                                            )
+                                            commands.append("echo 'Streaming Port:' $FREE_STREAMING_PORT")
+                                            commands.append(
+                                                f"SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0 {carla_root}/CarlaUE4.sh "
+                                                f"-carla-rpc-port=${{FREE_WORLD_PORT}} -nosound -carla-streaming-port=${{FREE_STREAMING_PORT}} -opengl &"
+                                            )
+                                            commands.append("sleep 180")  # Waits for CARLA to finish starting
+                                            current_model = os.path.join(
+                                                model_dir,
+                                                baseline,
+                                                experiment,
+                                                repetition,
+                                                setting,
+                                                "checkpoints",
+                                                checkpoint_file,
+                                            )
+                                            create_run_eval_bash(
+                                                code_root,
+                                                route,
+                                                yaml_path,
+                                                town,
+                                                weather,
+                                                setting,
+                                                seed,
+                                                eval_filename,
+                                                baseline,
+                                                experiment,
+                                                current_model,
+                                                bash_save_dir,
+                                                results_save_dir,
+                                                carla_tm_port_start,
+                                                carla_root,
+                                            )
+                                            commands.append(f"chmod u+x {bash_save_dir}/eval_{eval_filename}.sh")
+                                            commands.append(
+                                                f"{bash_save_dir}/eval_{eval_filename}.sh $FREE_WORLD_PORT"
+                                            )
+                                            commands.append("sleep 2")
 
-                                          # Finds a free port
-                                          commands.append(
-                                              f"FREE_WORLD_PORT=`comm -23 <(seq {carla_world_port_start} {carla_world_port_start + 49} | sort) "
-                                              f"<(ss -Htan | awk '{{print $4}}' | cut -d':' -f2 | sort -u) | shuf | head -n 1`"
-                                          )
-                                          commands.append("echo 'World Port:' $FREE_WORLD_PORT")
-                                          commands.append(
-                                              f"FREE_STREAMING_PORT=`comm -23 <(seq {carla_streaming_port_start} {carla_streaming_port_start + 49} "
-                                              f"| sort) <(ss -Htan | awk '{{print $4}}' | cut -d':' -f2 | sort -u) | shuf | head -n 1`"
-                                          )
-                                          commands.append("echo 'Streaming Port:' $FREE_STREAMING_PORT")
-                                          commands.append(
-                                              f"SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0 {carla_root}/CarlaUE4.sh "
-                                              f"-carla-rpc-port=${{FREE_WORLD_PORT}} -nosound -carla-streaming-port=${{FREE_STREAMING_PORT}} -opengl &"
-                                          )
-                                          commands.append("sleep 180")  # Waits for CARLA to finish starting
-                                          current_model = os.path.join(
-                                              model_dir,
-                                              baseline,
-                                              experiment,
-                                              repetition,
-                                              setting,
-                                              "checkpoints",
-                                              checkpoint_file,
-                                          )
-                                          create_run_eval_bash(
-                                              code_root,
-                                              route,
-                                              yaml_path,
-                                              town,
-                                              weather,
-                                              setting,
-                                              seed,
-                                              eval_filename,
-                                              baseline,
-                                              experiment,
-                                              current_model,
-                                              bash_save_dir,
-                                              results_save_dir,
-                                              carla_tm_port_start,
-                                              carla_root,
-                                          )
-                                          commands.append(f"chmod u+x {bash_save_dir}/eval_{eval_filename}.sh")
-                                          commands.append(
-                                              f"{bash_save_dir}/eval_{eval_filename}.sh $FREE_WORLD_PORT"
-                                          )
-                                          commands.append("sleep 2")
+                                            carla_world_port_start += 50
+                                            carla_streaming_port_start += 50
+                                            carla_tm_port_start += 50
 
-                                          carla_world_port_start += 50
-                                          carla_streaming_port_start += 50
-                                          carla_tm_port_start += 50
+                                            job_file = make_jobsub_file(
+                                                commands=commands,
+                                                exp_name=experiment_name_stem,
+                                                exp_root_name=experiment_name_root,
+                                                filename=eval_filename,
+                                                partition=partition,
+                                            )
+                                            
 
-                                          job_file = make_jobsub_file(
-                                              commands=commands,
-                                              exp_name=experiment_name_stem,
-                                              exp_root_name=experiment_name_root,
-                                              filename=eval_filename,
-                                              partition=partition,
-                                          )
-                                          result_file = f"{results_save_dir}/{eval_filename}.csv"
+                                            # Wait until submitting new jobs that the #jobs are at below max
+                                            (
+                                                num_running_jobs,
+                                                max_num_parallel_jobs,
+                                            ) = get_num_jobs(
+                                                job_name=experiment_name_stem,
+                                                username=username,
+                                            )
+                                            print(f"{num_running_jobs}/{max_num_parallel_jobs} jobs are running...")
+                                            while num_running_jobs >= max_num_parallel_jobs:
+                                                (
+                                                    num_running_jobs,
+                                                    max_num_parallel_jobs,
+                                                ) = get_num_jobs(
+                                                    job_name=experiment_name_stem,
+                                                    username=username,
+                                                )
+                                            time.sleep(0.05)
+                                            if eval_filename not in already_placed_files.keys():
+                                                print(f"Submitting job {job_nr}: {job_file}")
 
-                                          # Wait until submitting new jobs that the #jobs are at below max
-                                          (
-                                              num_running_jobs,
-                                              max_num_parallel_jobs,
-                                          ) = get_num_jobs(
-                                              job_name=experiment_name_stem,
-                                              username=username,
-                                          )
-                                          print(f"{num_running_jobs}/{max_num_parallel_jobs} jobs are running...")
-                                          while num_running_jobs >= max_num_parallel_jobs:
-                                              (
-                                                  num_running_jobs,
-                                                  max_num_parallel_jobs,
-                                              ) = get_num_jobs(
-                                                  job_name=experiment_name_stem,
-                                                  username=username,
-                                              )
-                                          time.sleep(0.05)
-                                          if eval_filename not in already_placed_files.keys():
-                                              print(f"Submitting job {job_nr}: {job_file}")
-
-                                              jobid = (
-                                                  subprocess.check_output(
-                                                      f"sbatch {job_file}",
-                                                      shell=True,
-                                                  )
-                                                  .decode("utf-8")
-                                                  .strip()
-                                                  .rsplit(" ", maxsplit=1)[-1]
-                                              )
-                                              meta_jobs[jobid] = (
-                                                  False,
-                                                  job_file,
-                                                  expected_result_length,
-                                                  result_file,
-                                                  0,
-                                              )
-                                              already_placed_files[eval_filename] = job_file
-                                              job_nr += 1
+                                                jobid = (
+                                                    subprocess.check_output(
+                                                        f"sbatch {job_file}",
+                                                        shell=True,
+                                                    )
+                                                    .decode("utf-8")
+                                                    .strip()
+                                                    .rsplit(" ", maxsplit=1)[-1]
+                                                )
+                                                meta_jobs[jobid] = (
+                                                    False,
+                                                    job_file,
+                                                    expected_result_length,
+                                                    result_file,
+                                                    0,
+                                                )
+                                                already_placed_files[eval_filename] = job_file
+                                                job_nr += 1
 
     training_finished = False
     while not training_finished:
