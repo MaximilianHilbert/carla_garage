@@ -643,6 +643,8 @@ class GlobalConfig:
                 "Town09",
                 "Town10",
             ]
+        elif setting=="02_withheld":
+            val_towns = ["Town02"]
         elif setting == "02_05_withheld":
             val_towns = ["Town02", "Town05"]
         elif setting == "01_03_withheld":
