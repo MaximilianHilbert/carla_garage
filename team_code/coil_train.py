@@ -11,6 +11,16 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
+from torch.utils.data import Sampler
+class SequentialSampler(Sampler):
+    def __init__(self, data_source):
+        self.data_source = data_source
+
+    def __iter__(self):
+        return iter(range(len(self.data_source)))
+
+    def __len__(self):
+        return len(self.data_source)
 from torch.distributed.optim import ZeroRedundancyOptimizer
 from coil_utils.baseline_logging import Logger
 from coil_utils.baseline_helpers import find_free_port
@@ -118,6 +128,7 @@ def main(args):
         print("Loaded dataset")
 
         sampler = DistributedSampler(dataset)
+        #sampler=SequentialSampler(dataset)
         data_loader = torch.utils.data.DataLoader(
             dataset,
             batch_size=args.batch_size,
@@ -130,11 +141,9 @@ def main(args):
         if "arp" in args.experiment:
             policy = CoILModel(merged_config_object.model_type, merged_config_object)
             policy.to(device_id)
-            # policy = torch.nn.SyncBatchNorm.convert_sync_batchnorm(policy)
             policy = DDP(policy, device_ids=[device_id])
             mem_extract = CoILModel(merged_config_object.mem_extract_model_type, merged_config_object)
             mem_extract.to(device_id)
-            # mem_extract = torch.nn.SyncBatchNorm.convert_sync_batchnorm(mem_extract)
             mem_extract = DDP(mem_extract, device_ids=[device_id])
         else:
             model = CoILModel(merged_config_object.model_type, merged_config_object)
@@ -142,11 +151,8 @@ def main(args):
             model = DDP(model, device_ids=[device_id])
         if merged_config_object.optimizer_baselines == "Adam":
             if "arp" in args.experiment:
-                # policy_optimizer = ZeroRedundancyOptimizer(policy.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
-
                 policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
                 mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate)
-                # mem_extract_optimizer = ZeroRedundancyOptimizer(mem_extract.parameters(), optimizer_class=optim.AdamW,  lr=merged_config_object.learning_rate, amsgrad=True)
 
                 mem_extract_scheduler = MultiStepLR(
                     mem_extract_optimizer,
@@ -227,6 +233,8 @@ def main(args):
                     ),
                 )
                 current_speed = data["speed"].to(device_id).reshape(args.batch_size, 1)
+                if not merged_config_object.speed_input:
+                    current_speed = torch.zeros_like(current_speed)
                 target_point = data["target_point"].to(device_id)
                 targets = data["ego_waypoints"].to(device_id)
                 previous_targets = data["previous_ego_waypoints"].to(device_id)
@@ -235,7 +243,6 @@ def main(args):
                     temporal_images = data["temporal_rgb"].to(device_id) / 255.0
 
                 if "arp" in args.experiment:
-                    current_speed_zero_speed = torch.zeros_like(current_speed)
                     mem_extract.zero_grad()
                     memory_branches, memory = mem_extract(temporal_images, target_point)
 
@@ -253,7 +260,7 @@ def main(args):
                     mem_extract_loss.backward()
                     mem_extract_optimizer.step()
                     policy.zero_grad()
-                    policy_branches = policy(current_image, current_speed_zero_speed, memory, target_point)
+                    policy_branches = policy(current_image, current_speed, memory, target_point)
                     loss_function_params_policy = {
                         "branches": policy_branches,
                         "targets": targets,
@@ -317,14 +324,12 @@ def main(args):
                         )
                     policy_scheduler.step()
                     mem_extract_scheduler.step()
-                    # if epoch>3:
-                    #         visualize_model(merged_config_object.baseline_folder_name,config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
-                    #                         rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
-                    #                         step=policy_loss.cpu().detach().item(), target_point=data["target_point"],pred_wp=policy_branches[0], gt_wp=targets)
+                    # visualize_model(config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
+                    #                 rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
+                    #                 step=f"{iteration}_{policy_loss.cpu().detach().item()}", target_point=data["target_point"],pred_wp=policy_branches[0], gt_wp=targets)
                 else:
                     model.zero_grad()
                     optimizer.zero_grad()
-
                 # TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
                 if "bcoh" in args.experiment or "keyframes" in args.experiment:
                     temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
@@ -363,13 +368,12 @@ def main(args):
                         loss, loss_info, _ = criterion(loss_function_params)
                     else:
                         loss, _ = criterion(loss_function_params)
-                        # if epoch>200:
-                        #     visualize_model(merged_config_object.baseline_folder_name,config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
-                        #                     rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
-                        #                     step=loss.cpu().detach().item(), target_point=data["target_point"],pred_wp=branches[0], gt_wp=targets)
                     loss.backward()
                     optimizer.step()
                     scheduler.step()
+                    # visualize_model(config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
+                    #                 rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
+                    #                 step=f"{iteration}_{loss.cpu().detach().item()}", target_point=data["target_point"],pred_wp=branches[0], gt_wp=targets)
                     if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                         state = {
                             "epoch": epoch,

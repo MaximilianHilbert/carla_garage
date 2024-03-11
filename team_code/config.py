@@ -33,6 +33,7 @@ class GlobalConfig:
         self.number_future_waypoints = 1
         self.keyframes = None
         self.epochs_baselines = 30
+        self.speed_input=False
         self.lidar_seq_len = 1
         self.img_seq_len = 1
         self.targets = ["steer", "throttle", "brake"]
