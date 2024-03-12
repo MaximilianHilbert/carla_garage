@@ -474,8 +474,8 @@ def main():
                         need_to_resubmit = True
 
             if need_to_resubmit:
-                print("Remove file: ", result_file)
-                Path(result_file).unlink()
+                # print("Remove file: ", result_file)
+                # Path(result_file).unlink()
                 print(f"resubmit sbatch {job_file}")
                 jobid = (
                     subprocess.check_output(f"sbatch {job_file}", shell=True)
