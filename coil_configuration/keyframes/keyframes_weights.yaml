@@ -1,10 +1,10 @@
 img_seq_len: 1  # at least 1, because later in the baseline the action prediction error is calculated over the full list of images in the dataset
 lidar_seq_len: 0
 use_color_aug: 0
-number_previous_waypoints: 9 #only past values are counted
-number_future_waypoints: 1 # current is counted
+number_previous_waypoints: 9 #means that 8 previous waypoints get used to predict the future 8 (it is n-1)
+number_future_waypoints: 9 # current is counted
 augment: 0
-epochs: 300
+epochs_baselines: 30 # 3 is minimum due to poor implementation
 ######################################################### unused dummy for generating name; delete later#########################################
 model_type: 'coil-icra' # the type of model. defines which modules the model has.
 model_configuration:  # based on the model_type, we specify the structure
