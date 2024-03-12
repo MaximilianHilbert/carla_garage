@@ -25,8 +25,8 @@ def main(args):
     checkpoint = os.listdir(checkpoint_path)[0]
     number_previous_actions, repetition, neurons = re.findall(r"\d+", checkpoint)
     action_prediction_model = ActionModel(
-        input_dim=int(number_previous_actions) * merged_config_object.pred_len * 2,
-        output_dim=merged_config_object.number_future_waypoints * merged_config_object.pred_len * 2,
+        input_dim=(int(number_previous_actions)-1)  * 2,
+        output_dim=(merged_config_object.number_future_waypoints-1) * 2,
         neurons=[int(neurons)],
     )
     checkpoint = torch.load(os.path.join(checkpoint_path, checkpoint))

@@ -1,21 +1,15 @@
-image_seq_len: 7  # number of frames fused
+img_seq_len: 7  # number of frames fused
 correlation_weights: true
-number_previous_actions: 3 # three past actions
-number_future_actions: 0 # 0 means that just the current action is predicted by the baseline
-
-train_with_actions_as_input: true #exactly like in keyframes paper, suspicious
+number_previous_waypoints: 9 #means that 8 previous waypoints get used to predict the future 8 (it is n-1)
+number_future_waypoints: 9 # current is counted
 
 model_type: 'coil-icra' # the type of model. defines which modules the model has.
 model_configuration:  # based on the model_type, we specify the structure
-#####################################################reconstructed from code, suspicious
-  previous_actions:
-    fc:
-      neurons: [128, 128] # each position add a new layer with the specified number of neurons
-      dropouts: [0.0, 0.0]
   perception:  # the module that process the image input, it ouput the number of classes
     res:
       name: 'resnet34'
       num_classes: 512
+
   measurements:  # the module the process the input float data, in this case speed_input
     fc:  # easy to configure fully connected layer
       neurons: [128, 128] # each position add a new layer with the specified number of neurons
@@ -28,9 +22,12 @@ model_configuration:  # based on the model_type, we specify the structure
     fc:
       neurons: [256, 256]
       dropouts: [0.0, 0.5]
-  branches:  # the output branches for the different possible directions ( straight, left, right, none)
-    number_of_branches: 4
+  branches:  # the output branches for the different possible directions 
+    number_of_branches: 1
     fc:
-      neurons: [256, 256]
+      neurons: [256, 128]
       dropouts: [0.0, 0.5]
 pre_trained: true  # if the weights are started with imagenet.
+use_wp_gru: true
+branch_loss_weight: [1,0]
+importance_sample_method: "softmax"

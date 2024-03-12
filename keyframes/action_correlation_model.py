@@ -43,8 +43,7 @@ def train(args, model, optimizer, train_loader, loss_func, epoch, all_epochs, lo
     model.train()
     optimizer.zero_grad()
     accumulate_loss = []
-    all_iterations = len(train_loader) - 1
-    for idx, data in enumerate(tqdm(train_loader)):
+    for data in train_loader:
         previous_wp = data["previous_ego_waypoints"].cuda().reshape(args.batch_size, -1)
         current_wp = data["ego_waypoints"].cuda().reshape(args.batch_size, -1)
 
@@ -101,21 +100,9 @@ def adjustlr(optimizer, decay_rate):
 
 def train_ape_model(args, seed, repetition, merged_config_object, checkpoint_full_path, if_save):
     identifier = str(int(datetime.utcnow().timestamp())) + "".join([str(np.random.randint(10)) for _ in range(8)])
-    if bool(args.use_disk_cache):
-        # NOTE: This is specific to our cluster setup where the data is stored on slow storage.
-        # During training, we cache the dataset on the fast storage of the local compute nodes.
-        # Adapt to your cluster setup as needed. Important initialize the parallel threads from torch run to the
-        # same folder (so they can share the cache).
-        tmp_folder = str(os.environ.get("SCRATCH", "/tmp"))
-        print("Tmp folder for dataset cache: ", tmp_folder)
-        tmp_folder = tmp_folder + "/dataset_cache"
-        shared_dict = Cache(directory=tmp_folder, size_limit=int(768 * 1024**3))
-    else:
-        shared_dict = None
     dataset = CARLA_Data(
         root=merged_config_object.train_data,
         config=merged_config_object,
-        shared_dict=shared_dict,
     )
 
     torch.manual_seed(seed)
@@ -139,8 +126,8 @@ def train_ape_model(args, seed, repetition, merged_config_object, checkpoint_ful
     )
 
     model = ActionModel(
-        input_dim=merged_config_object.number_previous_waypoints * merged_config_object.pred_len * 2,
-        output_dim=merged_config_object.number_future_waypoints * merged_config_object.pred_len * 2,
+        input_dim=(merged_config_object.number_previous_waypoints-1) * 2,
+        output_dim=(merged_config_object.number_future_waypoints-1)* 2,
         neurons=args.neurons,
     )
     model.cuda()
