@@ -43,7 +43,7 @@ def train(args, model, optimizer, train_loader, loss_func, epoch, all_epochs, lo
     model.train()
     optimizer.zero_grad()
     accumulate_loss = []
-    for data in train_loader:
+    for data in tqdm(train_loader):
         previous_wp = data["previous_ego_waypoints"].cuda().reshape(args.batch_size, -1)
         current_wp = data["ego_waypoints"].cuda().reshape(args.batch_size, -1)
 
