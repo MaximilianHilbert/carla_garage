@@ -126,9 +126,10 @@ def main(args):
                 dataset.get_correlation_weights(), merged_config_object.threshold_ratio
             )
         print("Loaded dataset")
-
-        sampler = DistributedSampler(dataset)
-        #sampler=SequentialSampler(dataset)
+        if args.debug:
+            sampler=SequentialSampler(dataset)
+        else:
+            sampler = DistributedSampler(dataset)
         data_loader = torch.utils.data.DataLoader(
             dataset,
             batch_size=args.batch_size,
@@ -324,23 +325,21 @@ def main(args):
                         )
                     policy_scheduler.step()
                     mem_extract_scheduler.step()
-                    # visualize_model(config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
-                    #                 rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
-                    #                 step=f"{iteration}_{policy_loss.cpu().detach().item()}", target_point=data["target_point"],pred_wp=policy_branches[0], gt_wp=targets)
+                    if args.debug:
+                        visualize_model(config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
+                                        rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
+                                        step=f"{iteration}_{policy_loss.cpu().detach().item()}", target_point=data["target_point"],pred_wp=policy_branches[0], gt_wp=targets)
                 else:
                     model.zero_grad()
                     optimizer.zero_grad()
                 # TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
                 if "bcoh" in args.experiment or "keyframes" in args.experiment:
                     temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
-                    if merged_config_object.train_with_actions_as_input:
-                        branches = model(temporal_and_current_images, current_speed, previous_action)
-                    else:
-                        branches = model(
-                            temporal_and_current_images,
-                            current_speed,
-                            target_point=target_point,
-                        )
+                    branches = model(
+                        temporal_and_current_images,
+                        current_speed,
+                        target_point=target_point,
+                    )
                 if "bcso" in args.experiment:
                     branches = model(x=current_image, a=current_speed, target_point=target_point)
                 if "keyframes" in args.experiment:
@@ -371,9 +370,10 @@ def main(args):
                     loss.backward()
                     optimizer.step()
                     scheduler.step()
-                    # visualize_model(config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
-                    #                 rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
-                    #                 step=f"{iteration}_{loss.cpu().detach().item()}", target_point=data["target_point"],pred_wp=branches[0], gt_wp=targets)
+                    if args.debug:
+                        visualize_model(config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
+                                        rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
+                                        step=f"{iteration}_{loss.cpu().detach().item()}", target_point=data["target_point"],pred_wp=branches[0], gt_wp=targets)
                     if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                         state = {
                             "epoch": epoch,
