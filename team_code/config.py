@@ -31,7 +31,7 @@ class GlobalConfig:
         # Dataloader
         self.number_previous_waypoints = 0
         self.number_future_waypoints = 1
-        self.keyframes = None
+        self.keyframes = False
         self.epochs_baselines = 30
         self.speed_input=False
         self.lidar_seq_len = 1

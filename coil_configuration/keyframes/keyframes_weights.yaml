@@ -1,4 +1,4 @@
-img_seq_len: 1  # at least 1, because later in the baseline the action prediction error is calculated over the full list of images in the dataset
+img_seq_len: 0  # at least 1, because later in the baseline the action prediction error is calculated over the full list of images in the dataset
 lidar_seq_len: 0
 use_color_aug: 0
 number_previous_waypoints: 9 #means that 8 previous waypoints get used to predict the future 8 (it is n-1)
@@ -31,3 +31,4 @@ model_configuration:  # based on the model_type, we specify the structure
       dropouts: [0.0, 0.5]
 pre_trained: true  # if the weights are started with imagenet.
 use_wp_gru: true
+keyframes: true

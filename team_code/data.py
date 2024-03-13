@@ -121,28 +121,29 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
                     # Loads the current (and past) frames (if seq_len > 1)
                     for idx in range(self.config.seq_len):
-                        if not self.config.use_plant:
-                            image.append(route_dir + "/rgb" + (f"/{(seq + idx):04}.jpg"))
-                            image_augmented.append(route_dir + "/rgb_augmented" + (f"/{(seq + idx):04}.jpg"))
-                            semantic.append(route_dir + "/semantics" + (f"/{(seq + idx):04}.png"))
-                            semantic_augmented.append(route_dir + "/semantics_augmented" + (f"/{(seq + idx):04}.png"))
-                            bev_semantic.append(route_dir + "/bev_semantics" + (f"/{(seq + idx):04}.png"))
-                            bev_semantic_augmented.append(
-                                route_dir + "/bev_semantics_augmented" + (f"/{(seq + idx):04}.png")
-                            )
-                            depth.append(route_dir + "/depth" + (f"/{(seq + idx):04}.png"))
-                            depth_augmented.append(route_dir + "/depth_augmented" + (f"/{(seq + idx):04}.png"))
-                            lidar.append(route_dir + "/lidar" + (f"/{(seq + idx):04}.laz"))
+                        if self.config.img_seq_len>0:
+                            if not self.config.use_plant:
+                                image.append(route_dir + "/rgb" + (f"/{(seq + idx):04}.jpg"))
+                                image_augmented.append(route_dir + "/rgb_augmented" + (f"/{(seq + idx):04}.jpg"))
+                                semantic.append(route_dir + "/semantics" + (f"/{(seq + idx):04}.png"))
+                                semantic_augmented.append(route_dir + "/semantics_augmented" + (f"/{(seq + idx):04}.png"))
+                                bev_semantic.append(route_dir + "/bev_semantics" + (f"/{(seq + idx):04}.png"))
+                                bev_semantic_augmented.append(
+                                    route_dir + "/bev_semantics_augmented" + (f"/{(seq + idx):04}.png")
+                                )
+                                depth.append(route_dir + "/depth" + (f"/{(seq + idx):04}.png"))
+                                depth_augmented.append(route_dir + "/depth_augmented" + (f"/{(seq + idx):04}.png"))
+                                lidar.append(route_dir + "/lidar" + (f"/{(seq + idx):04}.laz"))
 
-                            if estimate_sem_distribution:
-                                semantics_i = self.converter[
-                                    cv2.imread(semantic[-1], cv2.IMREAD_UNCHANGED)
-                                ]  # pylint: disable=locally-disabled, unsubscriptable-object
-                                self.semantic_distribution.extend(semantics_i.flatten().tolist())
+                                if estimate_sem_distribution:
+                                    semantics_i = self.converter[
+                                        cv2.imread(semantic[-1], cv2.IMREAD_UNCHANGED)
+                                    ]  # pylint: disable=locally-disabled, unsubscriptable-object
+                                    self.semantic_distribution.extend(semantics_i.flatten().tolist())
 
-                        box.append(route_dir + "/boxes" + (f"/{(seq + idx):04}.json.gz"))
-                        forcast_step = int(config.forcast_time / (config.data_save_freq / config.carla_fps) + 0.5)
-                        future_box.append(route_dir + "/boxes" + (f"/{(seq + idx + forcast_step):04}.json.gz"))
+                            box.append(route_dir + "/boxes" + (f"/{(seq + idx):04}.json.gz"))
+                            forcast_step = int(config.forcast_time / (config.data_save_freq / config.carla_fps) + 0.5)
+                            future_box.append(route_dir + "/boxes" + (f"/{(seq + idx + forcast_step):04}.json.gz"))
 
                     # we only store the root and compute the file name when loading,
                     # because storing 40 * long string per sample can go out of memory.
@@ -305,7 +306,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         # Disable threading because the data loader will already split in threads.
         cv2.setNumThreads(0)
         data = {}
-        if self.config.keyframes is None:
+        if not self.config.keyframes:
             images = self.images[index]
         if self.config.augment:
             images_augmented = self.images_augmented[index]
@@ -424,7 +425,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     self.data_cache[measurement_file] = measurements_i
 
             loaded_measurements.append(measurements_i)
-        if self.config.keyframes is None:
+        if not self.config.keyframes:
             for i in range(self.config.seq_len):
                 if self.config.use_plant:
                     cache_key = str(boxes[i], encoding="utf-8")
@@ -507,7 +508,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             ) as f2:
                                 future_boxes_i = ujson.load(f2)
 
-                    if not self.config.use_plant or self.config.keyframes is None:
+                    if not self.config.use_plant or not self.config.keyframes:
                         las_object = laspy.read(str(lidars[i], encoding="utf-8"))
                         lidars_i = las_object.xyz
                         images_i = cv2.imread(str(images[i], encoding="utf-8"), cv2.IMREAD_COLOR)
@@ -669,78 +670,79 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             augment_sample = False
             aug_rotation = 0.0
             aug_translation = 0.0
-
+                # The transpose change the image into pytorch (C,H,W) format
+        def transpose_image(image):
+            return np.transpose(image, (2, 0, 1))
         try:
             if not self.config.use_plant:
-                if self.config.augment and augment_sample:
-                    processed_images = self.augment_images(loaded_images)
-                    processed_temporal_images = self.augment_images(loaded_temporal_images)
+                if not self.config.keyframes:
+                    if self.config.augment and augment_sample:
+                        processed_images = self.augment_images(loaded_images)
+                        processed_temporal_images = self.augment_images(loaded_temporal_images)
+                        if self.config.use_semantic:
+                            semantics_i = self.converter[
+                                loaded_semantics_augmented[self.config.seq_len - 1]
+                            ]  # pylint: disable=locally-disabled, unsubscriptable-object
+                        if self.config.use_bev_semantic:
+                            bev_semantics_i = self.bev_converter[
+                                loaded_bev_semantics_augmented[self.config.seq_len - 1]
+                            ]  # pylint: disable=locally-disabled, unsubscriptable-object
+                        if self.config.use_depth:
+                            # We saved the data in 8 bit and now convert back to float.
+                            depth_i = (
+                                loaded_depth_augmented[self.config.seq_len - 1].astype(np.float32) / 255.0
+                            )  # pylint: disable=locally-disabled, unsubscriptable-object
+
+                    else:
+                        processed_images = loaded_images
+                        processed_temporal_images = loaded_temporal_images
+
+                        if self.config.use_semantic:
+                            semantics_i = self.converter[
+                                loaded_semantics[self.config.seq_len - 1]
+                            ]  # pylint: disable=locally-disabled, unsubscriptable-object
+                        if self.config.use_bev_semantic:
+                            bev_semantics_i = self.bev_converter[
+                                loaded_bev_semantics[self.config.seq_len - 1]
+                            ]  # pylint: disable=locally-disabled, unsubscriptable-object
+                        if self.config.use_depth:
+                            depth_i = (
+                                loaded_depth[self.config.seq_len - 1].astype(np.float32) / 255.0
+                            )  # pylint: disable=locally-disabled, unsubscriptable-object
+
+                    # The indexing is an elegant way to down-sample the semantic images without interpolation or changing the dtype
                     if self.config.use_semantic:
-                        semantics_i = self.converter[
-                            loaded_semantics_augmented[self.config.seq_len - 1]
-                        ]  # pylint: disable=locally-disabled, unsubscriptable-object
+                        data["semantic"] = semantics_i[
+                            :: self.config.perspective_downsample_factor,
+                            :: self.config.perspective_downsample_factor,
+                        ]
                     if self.config.use_bev_semantic:
-                        bev_semantics_i = self.bev_converter[
-                            loaded_bev_semantics_augmented[self.config.seq_len - 1]
-                        ]  # pylint: disable=locally-disabled, unsubscriptable-object
+                        data["bev_semantic"] = bev_semantics_i
                     if self.config.use_depth:
-                        # We saved the data in 8 bit and now convert back to float.
-                        depth_i = (
-                            loaded_depth_augmented[self.config.seq_len - 1].astype(np.float32) / 255.0
-                        )  # pylint: disable=locally-disabled, unsubscriptable-object
-
-                else:
-                    processed_images = loaded_images
-                    processed_temporal_images = loaded_temporal_images
-
-                    if self.config.use_semantic:
-                        semantics_i = self.converter[
-                            loaded_semantics[self.config.seq_len - 1]
-                        ]  # pylint: disable=locally-disabled, unsubscriptable-object
-                    if self.config.use_bev_semantic:
-                        bev_semantics_i = self.bev_converter[
-                            loaded_bev_semantics[self.config.seq_len - 1]
-                        ]  # pylint: disable=locally-disabled, unsubscriptable-object
-                    if self.config.use_depth:
-                        depth_i = (
-                            loaded_depth[self.config.seq_len - 1].astype(np.float32) / 255.0
-                        )  # pylint: disable=locally-disabled, unsubscriptable-object
-
-                # The indexing is an elegant way to down-sample the semantic images without interpolation or changing the dtype
-                if self.config.use_semantic:
-                    data["semantic"] = semantics_i[
-                        :: self.config.perspective_downsample_factor,
-                        :: self.config.perspective_downsample_factor,
-                    ]
-                if self.config.use_bev_semantic:
-                    data["bev_semantic"] = bev_semantics_i
-                if self.config.use_depth:
-                    # OpenCV uses Col, Row format
-                    data["depth"] = cv2.resize(
-                        depth_i,
-                        dsize=(
-                            depth_i.shape[1] // self.config.perspective_downsample_factor,
-                            depth_i.shape[0] // self.config.perspective_downsample_factor,
-                        ),
-                        interpolation=cv2.INTER_LINEAR,
-                    )
+                        # OpenCV uses Col, Row format
+                        data["depth"] = cv2.resize(
+                            depth_i,
+                            dsize=(
+                                depth_i.shape[1] // self.config.perspective_downsample_factor,
+                                depth_i.shape[0] // self.config.perspective_downsample_factor,
+                            ),
+                            interpolation=cv2.INTER_LINEAR,
+                        )
+                    data["rgb"] = np.array([transpose_image(image) for image in processed_images])
+                    transposed_temporal_images = [transpose_image(image) for image in processed_temporal_images]
+                    if transposed_temporal_images:
+                        data["temporal_rgb"] = np.vstack([transpose_image(image) for image in processed_temporal_images])
+                    else:
+                        data["temporal_rgb"] = []
         except TypeError:
             print("Tried to work on None Type images")
 
-        # The transpose change the image into pytorch (C,H,W) format
-        def transpose_image(image):
-            return np.transpose(image, (2, 0, 1))
 
-        data["rgb"] = np.array([transpose_image(image) for image in processed_images])
-        transposed_temporal_images = [transpose_image(image) for image in processed_temporal_images]
-        if transposed_temporal_images:
-            data["temporal_rgb"] = np.vstack([transpose_image(image) for image in processed_temporal_images])
-        else:
-            data["temporal_rgb"] = []
+        
         # data["rgb"] is now of shape (N_seq, C, H, W)
         # need to concatenate seq data here and align to the same coordinate
         lidars = []
-        if self.config.keyframes is None:
+        if not self.config.keyframes:
             if not self.config.use_plant:
                 for i in range(self.config.seq_len):
                     lidar = loaded_lidars[i]
@@ -883,7 +885,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             target_speed_index = F.softmax(torch.tensor(logits), dim=0).numpy()
 
         data["target_speed"] = target_speed_index
-        if self.config.keyframes is None:
+        if not self.config.keyframes:
             if not self.config.use_plant:
                 lidar_bev = self.lidar_augmenter_func(image=np.transpose(lidar_bev, (1, 2, 0)))
                 data["lidar"] = np.transpose(lidar_bev, (2, 0, 1))
@@ -905,7 +907,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             data["theta"] = current_measurement["theta"]
             data["command"] = t_u.command_to_one_hot(current_measurement["command"])
             data["next_command"] = t_u.command_to_one_hot(current_measurement["next_command"])
-        if self.config.keyframes is None:
+        if not self.config.keyframes:
             if self.config.use_plant_labels:
                 if augment_sample:
                     data["route"] = np.array(current_measurement["plant_route_aug"])
@@ -926,7 +928,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     data["route"] = self.smooth_path(route)
                 else:
                     data["route"] = route
-        if self.config.keyframes is None:
+        if not self.config.keyframes:
             target_point = np.array(current_measurement["target_point"])
             target_point = self.augment_target_point(
                 target_point,
