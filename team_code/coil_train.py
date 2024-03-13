@@ -453,6 +453,7 @@ if __name__ == "__main__":
         type=int,
         required=True,
     )
+    parser.add_argument("--debug", type=int, default=0)
     parser.add_argument("--use-disk-cache", type=int, default=0)
     parser.add_argument("--batch-size", type=int, default=30)
     parser.add_argument("--printing-step", type=int, default=100)
