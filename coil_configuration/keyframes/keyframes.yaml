@@ -1,7 +1,5 @@
 img_seq_len: 7  # number of frames fused
 correlation_weights: true
-number_previous_waypoints: 9 #means that 8 previous waypoints get used to predict the future 8 (it is n-1)
-number_future_waypoints: 9 # current is counted
 
 model_type: 'coil-icra' # the type of model. defines which modules the model has.
 model_configuration:  # based on the model_type, we specify the structure

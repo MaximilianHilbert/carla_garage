@@ -109,7 +109,20 @@ def main(args):
             config=merged_config_object,
             shared_dict=shared_dict,
             rank=rank,
+            baseline=args.baseline_folder_name
         )
+        val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name)
+        sampler_val=SequentialSampler(val_set)
+        data_loader_val = torch.utils.data.DataLoader(
+            val_set,
+            batch_size=args.batch_size,
+            num_workers=args.number_of_workers,
+            pin_memory=True,
+            shuffle=False,  # because of DDP
+            drop_last=True,
+            sampler=sampler_val,
+        )
+
         if "keyframes" in args.experiment:
             # load the correlation weights and reshape them, that the last 3 elements that do not fit into the batch size dimension get dropped, because the dataloader of Carla_Dataset does the same, it should fit
             list_of_files_path = os.path.join(
@@ -224,24 +237,7 @@ def main(args):
                 #     break
                 capture_time = time.time()
                 controls = get_controls_from_data(data, args.batch_size, device_id)
-                current_image = torch.reshape(
-                    data["rgb"].to(device_id).to(torch.float32) / 255.0,
-                    (
-                        args.batch_size,
-                        -1,
-                        merged_config_object.camera_height,
-                        merged_config_object.camera_width,
-                    ),
-                )
-                current_speed = data["speed"].to(device_id).reshape(args.batch_size, 1)
-                if not merged_config_object.speed_input:
-                    current_speed = torch.zeros_like(current_speed)
-                target_point = data["target_point"].to(device_id)
-                targets = data["ego_waypoints"].to(device_id)
-                previous_targets = data["previous_ego_waypoints"].to(device_id)
-
-                if "arp" in args.experiment or "bcoh" in args.experiment or "keyframes" in args.experiment:
-                    temporal_images = data["temporal_rgb"].to(device_id) / 255.0
+                current_image, current_speed, target_point, targets, previous_targets, temporal_images = extract_and_normalize_data(args, device_id, merged_config_object, data)
 
                 if "arp" in args.experiment:
                     mem_extract.zero_grad()
@@ -417,12 +413,57 @@ def main(args):
                         )
             torch.cuda.empty_cache()
         dist.destroy_process_group()
+        # if args.metric:
+        #     for data in data_loader_val:
+        #         targets=data["ego_waypoints"]
+        #         if "arp" in args.experiment:
+        #             current_image,current_speed,target_point,targets,previous_targets,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
+        #             policy.eval()
+        #             mem_extract.eval()
+        #             _,mem=mem_extract(temporal_images,target_point)
+        #             predictions = policy(current_image, current_speed, mem, target_point)
+        #             loss_function_params_policy = {
+        #                 "branches": predictions,
+        #                 "targets": targets,
+        #                 "inputs": current_speed,
+        #                 "branch_weights": merged_config_object.branch_loss_weight,
+        #                 "variable_weights": merged_config_object.variable_weight,
+        #             }
+        #             policy_loss, _ = criterion(loss_function_params_policy)
+        #             print(policy_loss.cpu().detach().item())
+        #             print("")
+
+            
 
     except RuntimeError as e:
         traceback.print_exc()
 
     except:
         traceback.print_exc()
+
+def extract_and_normalize_data(args, device_id, merged_config_object, data):
+    temporal_images=[]
+    current_speed=[]
+
+    current_image = torch.reshape(
+                    data["rgb"].to(device_id).to(torch.float32) / 255.0,
+                    (
+                        args.batch_size,
+                        -1,
+                        merged_config_object.camera_height,
+                        merged_config_object.camera_width,
+                    ),
+                )
+    current_speed = data["speed"].to(device_id).reshape(args.batch_size, 1)
+    if not merged_config_object.speed_input:
+        current_speed = torch.zeros_like(current_speed)
+    target_point = data["target_point"].to(device_id)
+    targets = data["ego_waypoints"].to(device_id)
+    previous_targets = data["previous_ego_waypoints"].to(device_id)
+
+    if "arp" in args.experiment or "bcoh" in args.experiment or "keyframes" in args.experiment:
+        temporal_images = data["temporal_rgb"].to(device_id) / 255.0
+    return current_image,current_speed,target_point,targets,previous_targets,temporal_images
 
 
 if __name__ == "__main__":
@@ -468,6 +509,12 @@ if __name__ == "__main__":
         type=str,
         default="all",
         help="coil requires to be trained on Town01 only, so Town01 are train conditions and Town02 is Test Condition",
+    )
+    parser.add_argument(
+        "--metric",
+        type=int,
+        default=0,
+        help="make eval over eval dataset and save errors to disk",
     )
     parser.add_argument("--dataset-repetition", type=int, default=1)
 

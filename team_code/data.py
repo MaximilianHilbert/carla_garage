@@ -34,10 +34,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         self,
         root,
         config,
+        baseline="",
         estimate_class_distributions=False,
         estimate_sem_distribution=False,
         shared_dict=None,
         rank=0,
+        
     ):
         self.config = config
         self.data_cache = shared_dict
@@ -174,15 +176,17 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             self.config.lidar_seq_len,
                             self.config.number_previous_waypoints,
                         )
+                        #if we have arp as baseline we want to go one timestep into the past
                         for idx in reversed(range(1, number_of_required_measurements + 1)):
                             if seq - idx >= 0:
                                 if not self.config.use_plant:
                                     temporal_measurements.append(
                                         route_dir + "/measurements" + (f"/{(seq - idx):04}.json.gz")
                                     )
-
-                        # for idx in range(self.config.pred_len):
-                        #     temporal_measurements.append(route_dir + "/measurements" + (f"/{(seq + idx):04}.json.gz"))
+                        #if we have arp as baseline we want to go one timestep into the past and then extrapolate the waypoints 8 into the future
+                        if "arp" in baseline:
+                            for idx in range(self.config.pred_len):
+                                temporal_measurements.append(route_dir + "/measurements" + (f"/{(seq + idx):04}.json.gz"))
 
                         for idx in range(1, self.config.lidar_seq_len):
                             if seq - idx >= 0:
