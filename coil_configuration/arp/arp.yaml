@@ -1,8 +1,7 @@
 img_seq_len: 7  #watch out, this is equivalent to placing n+1 in the old baseline implementation. image_seq_len=1 meaning no historic information
 use_color_aug: 0
 augment: 0
-number_previous_waypoints: 9 # number of previous actions to prediction current action
-
+number_previous_waypoints: 1 # number of previous actions to prediction current action
 model_type: 'coil-policy' # the type of model. defines which modules the model has.
 model_configuration:  # based on the model_type, we specify the structure
   memory_dim: 512
