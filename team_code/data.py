@@ -840,6 +840,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         if self.config.use_wp_gru:
             indices = []
+            waypoints_per_step=[]
             if self.config.use_plant_labels:
                 for i in range(0, self.config.pred_len, self.config.wp_dilation):
                     indices.append(i)
@@ -854,12 +855,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     yaw_augmentation=aug_rotation,
                 )
                 data["ego_waypoints"] = np.array(current_waypoints, dtype=np.float32)
-                
-                waypoints_per_step = self.get_waypoints(
-                    loaded_temporal_measurements[self.config.seq_len - 1 :],
-                    y_augmentation=aug_translation,
-                    yaw_augmentation=aug_rotation,
-                )
+                if self.config.number_previous_waypoints>0:
+                    waypoints_per_step = self.get_waypoints(
+                        loaded_temporal_measurements[self.config.seq_len - 1 :],
+                        y_augmentation=aug_translation,
+                        yaw_augmentation=aug_rotation,
+                    )
                 
 
                 data["previous_ego_waypoints"] = np.array(waypoints_per_step, dtype=np.float32)
