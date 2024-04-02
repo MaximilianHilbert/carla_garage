@@ -43,7 +43,7 @@ def main(args):
         success_mean=("success_percentage", "mean"),
         success_std=("success_percentage", "std"),
     )
-    groups.to_csv(os.path.join(args.eval_root, "combined.csv"))
+    groups.to_csv(os.path.join(args.eval_root, os.path.join(args.eval_root,"combined.csv")))
 
 
 if __name__ == "__main__":
