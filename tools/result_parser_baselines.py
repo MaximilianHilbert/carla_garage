@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-
+import regex as re
 weathers = {"train": [1, 3, 6, 8], "test": [10, 14]}
 
 
@@ -15,12 +15,13 @@ def main(args):
     for root, dirs, files in os.walk(args.eval_root):
         for dir in dirs:
             eval_reps = os.path.join(root, dir)
-            for rep_root, rep_dirs, rep_files in os.walk(eval_reps):
-                for rep_dir in rep_dirs:
-                    rep_path = os.path.join(eval_reps, rep_dir)
-                    if rep_dir == "results":
-                        for filename in os.listdir(rep_path):
-                            result_files[dir] = os.path.join(rep_path, filename)
+            if re.findall(".*_.*"):
+                for rep_root, rep_dirs, rep_files in os.walk(eval_reps):
+                    for rep_dir in rep_dirs:
+                        rep_path = os.path.join(eval_reps, rep_dir)
+                        if rep_dir == "results":
+                            for filename in os.listdir(rep_path):
+                                result_files[dir] = os.path.join(rep_path, filename)
     df_lst = []
     for eval_rep, path in result_files.items():
         eval_results = pd.read_csv(path)
