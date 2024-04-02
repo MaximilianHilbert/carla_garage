@@ -6,7 +6,9 @@ from tqdm import tqdm
 import torch.optim as optim
 from diskcache import Cache
 from coil_network.coil_model import CoILModel
+import numpy as np
 from team_code.data import CARLA_Data
+import csv
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -23,6 +25,7 @@ class SequentialSampler(Sampler):
         return len(self.data_source)
 from torch.distributed.optim import ZeroRedundancyOptimizer
 from coil_utils.baseline_logging import Logger
+import pickle
 from coil_utils.baseline_helpers import find_free_port
 import datetime
 from coil_utils.baseline_helpers import (
@@ -413,27 +416,66 @@ def main(args):
                         )
             torch.cuda.empty_cache()
         dist.destroy_process_group()
-        # if args.metric:
-        #     for data in data_loader_val:
-        #         targets=data["ego_waypoints"]
-        #         if "arp" in args.experiment:
-        #             current_image,current_speed,target_point,targets,previous_targets,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
-        #             policy.eval()
-        #             mem_extract.eval()
-        #             _,mem=mem_extract(temporal_images,target_point)
-        #             predictions = policy(current_image, current_speed, mem, target_point)
-        #             loss_function_params_policy = {
-        #                 "branches": predictions,
-        #                 "targets": targets,
-        #                 "inputs": current_speed,
-        #                 "branch_weights": merged_config_object.branch_loss_weight,
-        #                 "variable_weights": merged_config_object.variable_weight,
-        #             }
-        #             policy_loss, _ = criterion(loss_function_params_policy)
-        #             print(policy_loss.cpu().detach().item())
-        #             print("")
-
+        if args.metric:
+            print("Start of Evaluation")
+            wp_dict={}
+            for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
+                image=str(image, encoding="utf-8")
+                current_image,current_speed,target_point,targets,previous_targets,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
+                if "arp" in args.experiment:
+                    policy.eval()
+                    mem_extract.eval()
+                    _,mem=mem_extract(temporal_images,target_point)
+                    predictions = policy(current_image, current_speed, mem, target_point)
+                    loss_function_params = {
+                        "branches": predictions,
+                        "targets": targets,
+                        "inputs": current_speed,
+                        "branch_weights": merged_config_object.branch_loss_weight,
+                        "variable_weights": merged_config_object.variable_weight,
+                    }
+    
+                    
+                if "bcoh" in args.experiment:
+                    model.eval()
+                    temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
+                    predictions = model(x=temporal_and_current_images, a=current_speed, target_point=target_point)
+                    loss_function_params = {
+                        "branches": predictions,
+                        "targets": targets,
+                        "inputs": current_speed,
+                        "branch_weights": merged_config_object.branch_loss_weight,
+                        "variable_weights": merged_config_object.variable_weight,
+                        "config": merged_config_object,
+                    }
+                    
+                    
+                if "bcso" in args.experiment:
+                    model.eval()
+                    predictions = model(x=current_image, a=current_speed, target_point=target_point)
+                    loss_function_params = {
+                        "branches": predictions,
+                        "targets": targets,
+                        "inputs": current_speed,
+                        "branch_weights": merged_config_object.branch_loss_weight,
+                        "variable_weights": merged_config_object.variable_weight,
+                        "config": merged_config_object,
+                    }
+                loss, _ = criterion(loss_function_params)
+                
+                wp_dict.update({image:{"pred":predictions[0].cpu().detach().numpy(), "gt":targets.cpu().detach().numpy(), "loss":loss.cpu().detach().numpy()}})
             
+            # with open(os.path.join(os.environ.get("WORK_DIR"),
+            #             "_logs",
+            #             merged_config_object.baseline_folder_name,merged_config_object.experiment,
+            #             f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_wp_pred_errors.pkl"), "wb") as file:
+            #     pickle.dump(error_dict, file)
+            with open(os.path.join(os.environ.get("WORK_DIR"),
+                        "_logs",
+                        merged_config_object.baseline_folder_name,merged_config_object.experiment,
+                        f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_wp.pkl"), "wb") as file:
+                pickle.dump(wp_dict, file)
+
 
     except RuntimeError as e:
         traceback.print_exc()
