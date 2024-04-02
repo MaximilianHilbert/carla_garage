@@ -12,7 +12,7 @@ def weather_mapping(value):
 
 def main(args):
     result_files = {}
-    for root, dirs, files in os.walk(args.eval_root):
+    for root, dirs, files in os.walk(os.environ.get("RESULT_ROOT")):
         for dir in dirs:
             eval_reps = os.path.join(root, dir)
             if re.findall(".*_.*"):
@@ -44,14 +44,9 @@ def main(args):
         success_mean=("success_percentage", "mean"),
         success_std=("success_percentage", "std"),
     )
-    groups.to_csv(os.path.join(args.eval_root, os.path.join(args.eval_root,"combined.csv")))
+    groups.to_csv(os.path.join(os.environ.get("RESULT_ROOT"), os.path.join(os.environ.get("RESULT_ROOT"),"combined.csv")))
 
 
 if __name__ == "__main__":
-    import argparse
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--eval-root")
-
-    args = parser.parse_args()
-    main(args)
+    main()
