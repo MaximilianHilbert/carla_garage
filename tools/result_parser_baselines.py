@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import regex as re
+from tqdm import tqdm
 weathers = {"train": [1, 3, 6, 8], "test": [10, 14]}
 
 
@@ -11,19 +12,21 @@ def weather_mapping(value):
 
 
 def main(args):
+    print("Started scanning...")
     result_files = {}
     for root, dirs, files in os.walk(os.environ.get("RESULT_ROOT")):
         for dir in dirs:
             eval_reps = os.path.join(root, dir)
-            if re.findall(".*_.*"):
+            if re.findall(".*_.*", dir):
                 for rep_root, rep_dirs, rep_files in os.walk(eval_reps):
                     for rep_dir in rep_dirs:
                         rep_path = os.path.join(eval_reps, rep_dir)
                         if rep_dir == "results":
-                            for filename in os.listdir(rep_path):
+                            for filename in tqdm(os.listdir(rep_path)):
                                 result_files[dir] = os.path.join(rep_path, filename)
     df_lst = []
-    for eval_rep, path in result_files.items():
+    print("Started merging...")
+    for eval_rep, path in tqdm(result_files.items()):
         eval_results = pd.read_csv(path)
         eval_results["eval_rep"] = eval_rep
         df_lst.append(eval_results)
