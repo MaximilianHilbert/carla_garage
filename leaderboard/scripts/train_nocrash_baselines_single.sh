@@ -59,6 +59,6 @@ conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 # source /home/hilbert/.bashrc
 # eval "$(conda shell.bash hook)"
 # conda activate garage
-export OMP_NUM_THREADS=32  # Limits pytorch to spawn at most num cpus cores threads
+export OMP_NUM_THREADS=20  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline-folder-name arp --experiment arp_coil --number-of-workers 8 --training-repetition 0 --use-disk-cache 0 --batch-size 15 --setting coil --dataset-repetition 3
+torchrun --nnodes=1 --nproc_per_node=1 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --metric 1 --baseline-folder-name arp --single-process arp_nospeed_data_rep_1 --number-of-workers 20 --training-repetition 0 --use-disk-cache 0 --batch-size 20 --setting 02_withheld --dataset-repetition 1
