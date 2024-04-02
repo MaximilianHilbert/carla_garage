@@ -11,7 +11,7 @@ def weather_mapping(value):
             return key
 
 
-def main(args):
+def main():
     print("Started scanning...")
     result_files = {}
     for root, dirs, files in os.walk(os.environ.get("RESULT_ROOT")):
