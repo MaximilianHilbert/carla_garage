@@ -86,8 +86,9 @@ def main(args):
         for baseline_folder_name, batch_size, walltime in zip(
             args.baseline_folder_names, args.batch_sizes, args.walltimes
         ):
-            for experiment in os.listdir(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name)):
-                generate_batch_script(
+            if args.single_process:
+                for experiment in args.single_process:
+                    generate_batch_script(
                     args,
                     seed,
                     training_repetition,
@@ -96,6 +97,17 @@ def main(args):
                     batch_size,
                     walltime,
                 )
+            else:
+                for experiment in os.listdir(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name)):
+                    generate_batch_script(
+                        args,
+                        seed,
+                        training_repetition,
+                        baseline_folder_name,
+                        experiment.replace(".yaml", ""),
+                        batch_size,
+                        walltime,
+                    )
     if not args.train_local:
         place_batch_scripts()
 
@@ -110,6 +122,13 @@ if __name__ == "__main__":
         type=str,
         help="",
     )
+    parser.add_argument(
+        "--single-process",
+        nargs="+",
+        type=str,
+        help="",
+    )
+    
     parser.add_argument("--seeds", nargs="+", type=int, help="List of seed values")
     parser.add_argument("--use-disk-cache", type=int, default=0)
     parser.add_argument("--repetitions", type=int, default=1, help="Number of dataset repetitions.")
