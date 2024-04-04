@@ -419,6 +419,7 @@ def main(args):
         if args.metric:
             print("Start of Evaluation")
             wp_dict={}
+            vis_dict={}
             for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
                 image=str(image, encoding="utf-8")
                 current_image,current_speed,target_point,targets,previous_targets,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
@@ -464,19 +465,23 @@ def main(args):
                 loss, _ = criterion(loss_function_params)
                 
                 wp_dict.update({image:{"pred":predictions[0].cpu().detach().numpy(), "gt":targets.cpu().detach().numpy(), "loss":loss.cpu().detach().numpy()}})
+                vis_dict.update({image:{"bev_semantic": data["bev_semantic"].cpu().detach().numpy(), "lidar_bev": data["lidar"].cpu().detach().numpy(), "target_point": data["target_point"].cpu().detach().numpy()}})
             
-            # with open(os.path.join(os.environ.get("WORK_DIR"),
-            #             "_logs",
-            #             merged_config_object.baseline_folder_name,merged_config_object.experiment,
-            #             f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_wp_pred_errors.pkl"), "wb") as file:
-            #     pickle.dump(error_dict, file)
             with open(os.path.join(os.environ.get("WORK_DIR"),
                         "_logs",
                         merged_config_object.baseline_folder_name,merged_config_object.experiment,
                         f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_wp.pkl"), "wb") as file:
                 pickle.dump(wp_dict, file)
-
-
+            with open(os.path.join(os.environ.get("WORK_DIR"),
+                        "_logs",
+                        merged_config_object.baseline_folder_name,merged_config_object.experiment,
+                        f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_vis.pkl"), "wb") as file:
+                pickle.dump(vis_dict, file)
+        with open(os.path.join(os.environ.get("WORK_DIR"),
+                        "_logs",
+                        merged_config_object.baseline_folder_name,merged_config_object.experiment,
+                        f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_config.pkl"), "wb") as file:
+                pickle.dump(merged_config_object, file)
     except RuntimeError as e:
         traceback.print_exc()
 
