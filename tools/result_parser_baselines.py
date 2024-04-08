@@ -20,26 +20,29 @@ def main():
             if re.findall(".*_.*", dir):
                 for rep_root, rep_dirs, rep_files in os.walk(eval_reps):
                     for rep_dir in rep_dirs:
+                        file_lst=[]
                         rep_path = os.path.join(eval_reps, rep_dir)
                         if rep_dir == "results":
                             for filename in tqdm(os.listdir(rep_path)):
-                                result_files[dir] = os.path.join(rep_path, filename)
+                                file_lst.append(os.path.join(rep_path, filename))
+                            result_files[dir] = file_lst
     df_lst = []
     print("Started merging...")
-    for eval_rep, path in tqdm(result_files.items()):
-        eval_results = pd.read_csv(path)
-        eval_results["eval_rep"] = eval_rep
-        df_lst.append(eval_results)
+    for eval_rep, path_lst in tqdm(result_files.items()):
+        for path in path_lst:
+            eval_results = pd.read_csv(path)
+            eval_results["eval_rep"] = eval_rep
+            df_lst.append(eval_results)
     df = pd.concat(df_lst, ignore_index=True)
     df["success"] = (df["timeout"] == 0) & (df["collision"] == 0)
     df["success"] = df["success"].astype("int")
     df["weather"] = df["weather"].map(lambda x: weather_mapping(x))
-    groups = df.groupby(["town", "baseline", "experiment", "traffic", "weather", "eval_rep", "setting"]).agg(
+    groups = df.groupby(["baseline", "experiment", "town","traffic", "weather", "eval_rep", "setting"]).agg(
         timeouts_percentage=("timeout", "mean"),
         collisions_percentage=("collision", "mean"),
         success_percentage=("success", "mean"),
     )
-    groups = groups.groupby(["town", "baseline", "experiment", "traffic", "weather", "setting"]).agg(
+    groups = groups.groupby(["baseline", "experiment", "town","traffic", "weather", "eval_rep", "setting"]).agg(
         timeout_mean=("timeouts_percentage", "mean"),
         timeout_std=("timeouts_percentage", "std"),
         collisions_mean=("collisions_percentage", "mean"),
