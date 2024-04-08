@@ -4,9 +4,9 @@ from nocrash_runner import NoCrashEvalRunner
 def main(args):
     town = args.town
     weather = args.weather
-
+    debug=args.debug
     port = args.port
-    runner = NoCrashEvalRunner(args, town, weather, port=port, tm_port=args.tm_port)
+    runner = NoCrashEvalRunner(args, town, weather, port=port, tm_port=args.tm_port, debug=debug)
     runner.run()
 
 
@@ -69,6 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("--experiment", help="either arp bcoh bcso keyframes")
     parser.add_argument("--baseline-folder-name", help="either arp bcoh bcso keyframes")
     parser.add_argument("--setting", help="coil or all")
+    parser.add_argument("--debug", type=int, help="Run with debug output", default=0)
 
     args = parser.parse_args()
 

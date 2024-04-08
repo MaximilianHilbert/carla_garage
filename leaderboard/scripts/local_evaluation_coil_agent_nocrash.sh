@@ -25,15 +25,14 @@ export DATAGEN=0
 export SAVE_PATH=${WORK_DIR}/results
 export DIRECT=0
 export BENCHMARK=longest6
-export COIL_MODEL_CHECKPOINT=/home/maximilian/Master/carla_garage/pretrained_models/arp/checkpoints/100000.pth
+export COIL_MODEL_CHECKPOINT=/home/maximilian/Master/carla_garage/_logs/arp/arp/repetition_0/all/checkpoints/30.pth
 
 python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
---repetitions=${REPETITIONS} \
 --coil_checkpoint=${COIL_MODEL_CHECKPOINT} \
 --track=${CHALLENGE_TRACK_CODENAME} \
---checkpoint=${CHECKPOINT_ENDPOINT} \
 --agent=${TEAM_AGENT} \
 --agent-config=${TEAM_CONFIG} \
+--route=/home/maximilian/Master/carla_garage/leaderboard/data/nocrash_split/Town01/nocrash_Town01_split_1.txt \
 --resume=${RESUME} \
 --timeout=600 \
 --resume=true \
