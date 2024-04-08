@@ -7,6 +7,7 @@ import torch.optim as optim
 from diskcache import Cache
 from coil_network.coil_model import CoILModel
 import numpy as np
+from tools.visualize_copycat import generate_metric
 from team_code.data import CARLA_Data
 import csv
 from torch.optim.lr_scheduler import MultiStepLR
@@ -324,10 +325,7 @@ def main(args):
                         )
                     policy_scheduler.step()
                     mem_extract_scheduler.step()
-                    if args.debug:
-                        visualize_model(config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
-                                        rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
-                                        step=f"{iteration}_{policy_loss.cpu().detach().item()}", target_point=data["target_point"],pred_wp=policy_branches[0], gt_wp=targets)
+
                 else:
                     model.zero_grad()
                     optimizer.zero_grad()
@@ -369,10 +367,6 @@ def main(args):
                     loss.backward()
                     optimizer.step()
                     scheduler.step()
-                    if args.debug:
-                        visualize_model(config=merged_config_object,save_path="/home/maximilian/Master/carla_garage/vis",
-                                        rgb=torch.squeeze(data["rgb"]),lidar_bev=data["lidar"],gt_bev_semantic=data["bev_semantic"],
-                                        step=f"{iteration}_{loss.cpu().detach().item()}", target_point=data["target_point"],pred_wp=branches[0], gt_wp=targets)
                     if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                         state = {
                             "epoch": epoch,
@@ -420,9 +414,10 @@ def main(args):
             print("Start of Evaluation")
             wp_dict={}
             vis_dict={}
-            for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
+            for iteration, (data,image) in enumerate(zip(tqdm(data_loader_val), data_loader_val.dataset.images)):
                 image=str(image, encoding="utf-8")
                 current_image,current_speed,target_point,targets,previous_targets,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
+                
                 if "arp" in args.experiment:
                     policy.eval()
                     mem_extract.eval()
@@ -436,10 +431,11 @@ def main(args):
                         "variable_weights": merged_config_object.variable_weight,
                     }
     
+                
                     
                 if "bcoh" in args.experiment:
                     model.eval()
-                    temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
+                    temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)    
                     predictions = model(x=temporal_and_current_images, a=current_speed, target_point=target_point)
                     loss_function_params = {
                         "branches": predictions,
@@ -462,21 +458,13 @@ def main(args):
                         "variable_weights": merged_config_object.variable_weight,
                         "config": merged_config_object,
                     }
+                
+                    
                 loss, _ = criterion(loss_function_params)
                 
                 wp_dict.update({image:{"pred":predictions[0].cpu().detach().numpy(), "gt":targets.cpu().detach().numpy(), "loss":loss.cpu().detach().numpy()}})
                 vis_dict.update({image:{"bev_semantic": data["bev_semantic"].cpu().detach().numpy(), "lidar_bev": data["lidar"].cpu().detach().numpy(), "target_point": data["target_point"].cpu().detach().numpy()}})
-            
-            with open(os.path.join(os.environ.get("WORK_DIR"),
-                        "_logs",
-                        merged_config_object.baseline_folder_name,merged_config_object.experiment,
-                        f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_wp.pkl"), "wb") as file:
-                pickle.dump(wp_dict, file)
-            with open(os.path.join(os.environ.get("WORK_DIR"),
-                        "_logs",
-                        merged_config_object.baseline_folder_name,merged_config_object.experiment,
-                        f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_vis.pkl"), "wb") as file:
-                pickle.dump(vis_dict, file)
+            generate_metric(merged_config_object,wp_dict, vis_dict, args.baseline_folder_name,args.visualize_non_copycat, args.visualize_copycat)
         with open(os.path.join(os.environ.get("WORK_DIR"),
                         "_logs",
                         merged_config_object.baseline_folder_name,merged_config_object.experiment,
@@ -528,6 +516,14 @@ if __name__ == "__main__":
         "--baseline-folder-name",
         default=None,
         required=True,
+    )
+    parser.add_argument(
+        "--visualize-non-copycat",
+        default=False,
+    )
+    parser.add_argument(
+        "--visualize-copycat",
+        default=False,
     )
     parser.add_argument(
         "--experiment",
