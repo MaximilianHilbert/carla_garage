@@ -1,6 +1,7 @@
 import yaml
 import torch
 from team_code.config import GlobalConfig
+from PIL import Image, ImageDraw, ImageFont
 import os
 import heapq
 from coil_network.loss_functional import compute_branches_masks
@@ -66,62 +67,16 @@ def get_predictions(controls, branches):
     return loss_branches_vec, branches[-1]
 
 
-def visualize_model(iteration, current_image, current_speed, action_labels, controls, branches, loss):
-    actions, speed = get_predictions(controls, branches)
-    actions = [action_tuple.detach().cpu().numpy() for action_tuple in actions]
-    speed = speed[0].detach().cpu().numpy()
-
-    from PIL import Image, ImageDraw, ImageFont
-
-    current_image = torch.squeeze(current_image)
-    current_image = current_image.cpu().numpy()
-    current_image = current_image * 255
-    # Load the image
-    image = np.transpose(current_image, axes=(1, 2, 0)).astype(np.uint8)
-    image = Image.fromarray(image)
-
-    # Create a drawing object
-    draw = ImageDraw.Draw(image)
-
-    # Define the text and its position
-    speed_text = f"current_speed_label: {current_speed}"
-    speed_text_pos = (10, 10)
-    loss_text = f"current_loss: {loss}"
-    loss_test_pos = (500, 20)
-
-    controls_text = f"current_control: {controls}"
-    controls_test_pos = (500, 10)
-    speed_pred_text = f"speed_prediction: {speed}"
-    speed_pred_pos = (10, 20)
-
-    actions_labels_text = f"action_labels: {action_labels}"
-    actions_labels_pos = (10, 40)
-
-    # Choose a font and size
-    actions_pred_text = f"action_predictions: {np.array2string(np.array(actions))}"
-    actions_pred_pos = (10, 50)
-    # Render the text onto the image
-    draw.text(controls_test_pos, controls_text, fill="white")
-    draw.text(loss_test_pos, loss_text, fill="white")
-    draw.text(speed_text_pos, speed_text, fill="white")
-    draw.text(speed_pred_pos, speed_pred_text, fill="white")
-
-    draw.text(actions_labels_pos, actions_labels_text, fill="white")
-    draw.text(actions_pred_pos, actions_pred_text, fill="white")
-
-    # Save the image with the text
-    image.save(f"/home/maximilian/Master/carla_garage/vis/{iteration}.jpg")
-
 
 def visualize_model(  # pylint: disable=locally-disabled, unused-argument
-    baseline,
     config,
     save_path,
     step,
-    rgb,
-    lidar_bev,
+    rgb, #tensor of one or multiple images shape img,h,w,c
     target_point,
+    lidar_bev=None,
     pred_wp=None,
+    pred_wp_prev=None,
     pred_semantic=None,
     pred_bev_semantic=None,
     pred_depth=None,
@@ -133,6 +88,11 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     gt_speed=None,
     gt_bev_semantic=None,
     wp_selected=None,
+    imprint=False,
+    pred_residual=None,
+    gt_residual=None,
+    copycat_count=None,
+    detect=False,
 ):
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
@@ -223,14 +183,14 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     # Draw wps
     # Red ground truth
     if gt_wp is not None:
-        gt_wp_color = (255, 255, 0)
+        gt_wp_color = (0, 0, 0)
         for wp in gt_wp.detach().cpu().numpy()[0]:
             wp_x = wp[0] * loc_pixels_per_meter + origin[0]
             wp_y = wp[1] * loc_pixels_per_meter + origin[1]
             cv2.circle(
                 images_lidar,
                 (int(wp_x), int(wp_y)),
-                radius=10,
+                radius=8,
                 color=gt_wp_color,
                 thickness=-1,
             )
@@ -260,12 +220,26 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             cv2.circle(
                 images_lidar,
                 (int(wp_x), int(wp_y)),
-                radius=8,
+                radius=6,
                 lineType=cv2.LINE_AA,
-                color=(0, 0, int(color_weight * 255)),
+                color=(178, 34, 34),
                 thickness=-1,
             )
-
+    if pred_wp_prev is not None:
+        pred_wp_prev = pred_wp_prev.detach().cpu().numpy()[0]
+        num_wp = len(pred_wp_prev)
+        for idx, wp in enumerate(pred_wp_prev):
+            color_weight = 0.5 + 0.5 * float(idx) / num_wp
+            wp_x = wp[0] * loc_pixels_per_meter + origin[0]
+            wp_y = wp[1] * loc_pixels_per_meter + origin[1]
+            cv2.circle(
+                images_lidar,
+                (int(wp_x), int(wp_y)),
+                radius=4,
+                lineType=cv2.LINE_AA,
+                color=(0, 0, 255),
+                thickness=-1,
+            )
     # Draw target points
     if config.use_tp:
         x_tp = target_point[0][0] * loc_pixels_per_meter + origin[0]
@@ -291,7 +265,6 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         ]
     )
     images_lidar = t_u.draw_box(images_lidar, sample_box, color=(0, 200, 0), pixel_per_meter=16, thickness=4)
-
     if pred_bb is not None:
         for box in pred_bb:
             inv_brake = 1.0 - box[6]
@@ -315,7 +288,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 
     images_lidar = np.rot90(images_lidar, k=1)
 
-    rgb_image = rgb.permute(1, 2, 0).detach().cpu().numpy()
+    
     if wp_selected is not None:
         colors_name = ["blue", "yellow"]
         colors_idx = [(0, 0, 255), (255, 255, 0)]
@@ -345,11 +318,30 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         pred_speed = pred_speed.detach().cpu().numpy()[0]
         images_lidar = np.ascontiguousarray(images_lidar, dtype=np.uint8)
         t_u.draw_probability_boxes(images_lidar, pred_speed, config.target_speeds)
-
-    all_images = np.concatenate((rgb_image, images_lidar), axis=0)
+   
+    
+    all_images = np.concatenate([rgb, images_lidar],axis=0)
+    image=Image.fromarray(all_images.astype(np.uint8))
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.truetype("Ubuntu-B.ttf", 40)
+    font_baseline = ImageFont.truetype("Ubuntu-B.ttf", 100)
+    font_copycat=ImageFont.truetype("Ubuntu-B.ttf", 100)
+    start=1800
+    distance_from_left=600
+    draw.text((distance_from_left,start+40*5), f"ground truth", fill=(0,0,0), font=font)
+    draw.text((distance_from_left,start+40*6), f"previous predictions", fill=(0,0,255), font=font)
+    draw.text((distance_from_left,start+40*7), f"current predictions", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start+40), f"pred_residual (L2): {pred_residual:.2f}", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start+40*2), f"gt_residual (L2): {gt_residual:.2f}", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start), f"copycat counter {copycat_count}", fill=(178, 34, 34), font=font)
+    draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255), font=font_baseline)
+    if detect:
+        font.set_variation_by_name("Bold")
+        draw.text((distance_from_left-50,start+40*10), f"copycat!", fill=(178, 34, 34), font=font_copycat)
+    all_images=np.array(image)
     all_images = Image.fromarray(all_images.astype(np.uint8))
 
-    store_path = str(str(save_path) + (f"/{step:04}.png"))
+    store_path = str(str(save_path) + (f"/{step}.png"))
     Path(store_path).parent.mkdir(parents=True, exist_ok=True)
     all_images.save(store_path)
 
