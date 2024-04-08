@@ -137,11 +137,11 @@
             "--seed", "123",
             "--training-repetition", "0",
             "--baseline-folder-name", "arp",
-            "--experiment", "arp",
+            "--experiment", "arp_nospeed_data_rep_1",
             "--number-of-workers", "0","--batch-size", "1", "--printing-step","1",
-        "--setting", "02_withheld",
+        "--setting", "all",
         "--metric", "1",
-    "--debug", "0"],
+    "--debug", "1"],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
@@ -155,11 +155,12 @@
             "request": "launch",
             "module": "torch.distributed.run",
             "args": ["/home/maximilian/Master/carla_garage/team_code/coil_train.py","--seed", "123",
-            "--setting", "02_withheld",
+            "--setting", "all",
             "--training-repetition", "0",
             "--baseline-folder-name", "bcso",
-            "--experiment", "bcso",
+            "--experiment", "bcso_nospeed_data_rep_1",
             "--number-of-workers", "0","--batch-size", "1", "--printing-step","1",
+            "--debug", "1",
         "--metric", "1"],
             
             "console": "integratedTerminal",
@@ -177,12 +178,14 @@
             "--seed", "123",
             "--training-repetition", "0",
             "--baseline-folder-name", "bcoh",
-            "--experiment", "bcoh",
-            "--number-of-workers", "0",
+            "--experiment", "bcoh_nospeed_data_rep_1",
+            "--number-of-workers", "10",
             "--use-disk-cache", "0",
         "--batch-size", "1", "--printing-step","1",
-    "--setting", "02_withheld",
-"--metric", "1"],
+    "--setting", "all",
+    "--debug", "1",
+"--metric", "1",
+"--visualize-copycat", "true"],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
@@ -218,7 +221,7 @@
             "type": "python",
             "request": "launch",
             "program": "/home/maximilian/Master/carla_garage/train_nocrash_baselines.py",
-            "args": ["--gpu", "0" ,"--seeds" ,"1", "2", "3", "--baseline_folder_name", "ARP", "--experiment", "arp","--number_of_workers", "1"],
+            "args": ["--seeds" ,"1", "2", "3", "--single-process", "arp_nospeed_data_rep_1","--batch-sizes", "1", "--walltimes", "10", "--baseline-folder-names","arp", "--setting", "town02_withheld"],
             
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
@@ -269,7 +272,21 @@
             "purpose": ["debug-in-terminal"],
             "envFile": "${workspaceFolder}/dev.env"
 
-        }
+        },
+        {
+            "name": "visualize_copycat",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/maximilian/Master/carla_garage/tools/visualize_copycat.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "purpose": ["debug-in-terminal"],
+            "envFile": "${workspaceFolder}/dev.env",
+            "args": ["--training-repetition", "0",
+            "--baseline-folder-name", "bcoh",
+            "--experiment", "bcoh_nospeed_data_rep_1",
+            "--setting", "all",],
+        },
 
     ]
 }
