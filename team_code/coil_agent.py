@@ -13,6 +13,7 @@ import cv2
 from collections import deque
 from coil_utils.baseline_helpers import merge_config_files
 from torch.nn.parallel import DistributedDataParallel as DDP
+from coil_utils.baseline_helpers import visualize_model
 import matplotlib.pyplot as plt
 from leaderboard.envs.sensor_interface import SensorInterface
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
@@ -103,7 +104,28 @@ class CoILAgent(AutonomousAgent):
             del self._mem_extract
         else:
             del self.model
+    def init_visualization(self):
+        # Privileged map access for visualization
+        if self.config.debug:
+            from birds_eye_view.chauffeurnet import (
+                ObsManager,
+            )  # pylint: disable=locally-disabled, import-outside-toplevel
+            from srunner.scenariomanager.carla_data_provider import (
+                CarlaDataProvider,
+            )  # pylint: disable=locally-disabled, import-outside-toplevel
 
+            obs_config = {
+                "width_in_pixels": self.config.lidar_resolution_width * 4,
+                "pixels_ev_to_bottom": self.config.lidar_resolution_height / 2.0 * 4,
+                "pixels_per_meter": self.config.pixels_per_meter * 4,
+                "history_idx": [-1],
+                "scale_bbox": True,
+                "scale_mask_col": 1.0,
+                "map_folder": "maps_high_res",
+            }
+            self._vehicle = CarlaDataProvider.get_hero_actor()
+            self.ss_bev_manager = ObsManager(obs_config, self.config)
+            self.ss_bev_manager.attach_ego_vehicle(self._vehicle, criteria_stop=None)
     def sensors(self):
         return [
             {
@@ -222,6 +244,9 @@ class CoILAgent(AutonomousAgent):
         # retrieve location data from sensors and normalize/transform to ego vehicle system
         if not self.initialized:
             self._init()
+            if self.config.debug:
+                print("DEBUG MODE")
+                self.init_visualization()
         measurements = sensor_data.get("imu")
         current_location = self.vehicle.get_location()
         current_location = np.array([current_location.x, current_location.y])
@@ -345,6 +370,9 @@ class CoILAgent(AutonomousAgent):
         print(target_point_location)
         print("current location")
         print(current_location)
+        # visualize_model(config=self.config, save_path="/home/maximilian/Master/inference.mp4", step=timestamp, lidar_bev=torch.Tensor(np.full((1,1,256,256), 0, dtype=np.uint8)).to("cuda:0"),
+        #                 rgb=single_image, target_point=end_point_location_ego_system, gt_bev_semantic=torch.Tensor(self.ss_bev_manager.get_road().copy()).to("cuda:0"),
+        #                 )
         return control, current_image
 
     def control_pid(self, waypoints, velocity):
