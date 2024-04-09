@@ -63,13 +63,13 @@ def generate_metric(config,data, vis_dict, baseline, visualize_non_copycat, visu
     #oder 0.1
     count=0
     for i in tqdm(range(7,len(data_df["pred"]))):
-        image_path=data_df.iloc[i]["index"].replace("\x00", "")
-        prev_image_path=data_df.iloc[i-1]["index"].replace("\x00", "")
+        image_path=data_df.iloc[i]["index"]
+        prev_image_path=data_df.iloc[i-1]["index"]
         if config.img_seq_len<7:
-            temporal_images=np.concatenate([np.zeros_like(Image.open(data_df.iloc[0]["index"].replace("\x00", "")))]*(7-config.img_seq_len))
-            temporal_images=np.concatenate([temporal_images,np.concatenate([np.array(Image.open(data_df.iloc[i-q]["index"].replace("\x00", ""))) for q in reversed(range(config.img_seq_len))], axis=0)])
+            temporal_images=np.concatenate([np.zeros_like(Image.open(data_df.iloc[0]["index"]))]*(7-config.img_seq_len))
+            temporal_images=np.concatenate([temporal_images,np.concatenate([np.array(Image.open(data_df.iloc[i-q]["index"])) for q in reversed(range(config.img_seq_len))], axis=0)])
         else:
-            temporal_images=np.concatenate([np.array(Image.open(data_df.iloc[i-q]["index"].replace("\x00", ""))) for q in reversed(range(config.img_seq_len))], axis=0)
+            temporal_images=np.concatenate([np.array(Image.open(data_df.iloc[i-q]["index"])) for q in reversed(range(config.img_seq_len))], axis=0)
         pred_residual=norm(data_df["pred"][i]-data_df["pred"][i-1], ord=which_norm)
         gt_residual=norm(data_df["gt"][i]-data_df["gt"][i-1], ord=which_norm)
         if visualize_non_copycat:
@@ -79,24 +79,23 @@ def generate_metric(config,data, vis_dict, baseline, visualize_non_copycat, visu
         if pred_residual<std_value_data and gt_residual>std_value_gt:
             #0.15 and 1 for the one curve only
             count+=1
-            for j in reversed(range(1,last_and_future+1)):
-                image_path=data_df.iloc[i-j]["index"].replace("\x00", "")
+            # for j in reversed(range(1,last_and_future+1)):
+            #     image_path=data_df.iloc[i-j]["index"].replace("\x00", "")
                 
-                image=Image.open(image_path)
+            #     image=Image.open(image_path)
 
-                visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=torch.Tensor(np.array(image)).permute(2,0,1), lidar_bev=torch.Tensor(vis_dict[image_path]["lidar_bev"]),
-                                gt_bev_semantic=torch.ByteTensor(vis_dict[image_path]["bev_semantic"]), step=i-j, target_point=torch.Tensor(vis_dict[image_path]["target_point"]), pred_wp=torch.Tensor(data_df[data_df["index"]==image_path]["pred"].to_numpy()[0]),
-                                gt_wp=torch.Tensor(data_df[data_df["index"]==image_path]["gt"].to_numpy()[0]), copycat_count=count)
-            for k in range(last_and_future+1):
-                image_path=data_df.iloc[i+k]["index"].replace("\x00", "")
-                prev_image_path=data_df.iloc[i+k-1]["index"].replace("\x00", "")
-                temporal_images=np.concatenate([np.array(Image.open(data_df.iloc[i+k-q]["index"].replace("\x00", ""))) for q in reversed(range(config.img_seq_len))], axis=0)
-                if visualize_non_copycat or visualize_copycat:
-                    visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=temporal_images, lidar_bev=torch.Tensor(vis_dict[image_path]["lidar_bev"]),
-                                    gt_bev_semantic=torch.ByteTensor(vis_dict[image_path]["bev_semantic"]), step=i+k, imprint=True,target_point=torch.Tensor(vis_dict[image_path]["target_point"]),
-                                    pred_wp=torch.Tensor(data_df[data_df["index"]==image_path]["pred"].to_numpy()[0]),
-                                    pred_wp_prev=torch.Tensor(data_df[data_df["index"]==prev_image_path]["pred"].to_numpy()[0]),
-                                    gt_wp=torch.Tensor(data_df[data_df["index"]==image_path]["gt"].to_numpy()[0]), pred_residual=pred_residual, gt_residual=gt_residual,copycat_count=count, detect=True)
+            #     visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=torch.Tensor(np.array(image)).permute(2,0,1), lidar_bev=torch.Tensor(vis_dict[image_path]["lidar_bev"]),
+            #                     gt_bev_semantic=torch.ByteTensor(vis_dict[image_path]["bev_semantic"]), step=i-j, target_point=torch.Tensor(vis_dict[image_path]["target_point"]), pred_wp=torch.Tensor(data_df[data_df["index"]==image_path]["pred"].to_numpy()[0]),
+            #                     gt_wp=torch.Tensor(data_df[data_df["index"]==image_path]["gt"].to_numpy()[0]), copycat_count=count)
+            
+            prev_image_path=data_df.iloc[i-1]["index"]
+            temporal_images=np.concatenate([np.array(Image.open(data_df.iloc[i-q]["index"])) for q in reversed(range(config.img_seq_len))], axis=0)
+            if visualize_non_copycat or visualize_copycat:
+                visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=temporal_images, lidar_bev=torch.Tensor(vis_dict[image_path]["lidar_bev"]),
+                                gt_bev_semantic=torch.ByteTensor(vis_dict[image_path]["bev_semantic"]), step=i, imprint=True,target_point=torch.Tensor(vis_dict[image_path]["target_point"]),
+                                pred_wp=torch.Tensor(data_df[data_df["index"]==image_path]["pred"].to_numpy()[0]),
+                                pred_wp_prev=torch.Tensor(data_df[data_df["index"]==prev_image_path]["pred"].to_numpy()[0]),
+                                gt_wp=torch.Tensor(data_df[data_df["index"]==image_path]["gt"].to_numpy()[0]), pred_residual=pred_residual, gt_residual=gt_residual,copycat_count=count, detect=True)
     print(f"count for real copycat for baseline {baseline}: {count}")
 # if __name__=="__main__":
 #     import argparse
