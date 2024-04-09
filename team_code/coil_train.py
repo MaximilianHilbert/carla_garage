@@ -361,7 +361,7 @@ def main(args):
                         "config": merged_config_object,
                     }
                     if "keyframes" in args.experiment:
-                        loss, loss_info, _ = criterion(loss_function_params)
+                        loss, _ = criterion(loss_function_params)
                     else:
                         loss, _ = criterion(loss_function_params)
                     loss.backward()
