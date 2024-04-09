@@ -415,7 +415,7 @@ def main(args):
             wp_dict={}
             vis_dict={}
             for iteration, (data,image) in enumerate(zip(tqdm(data_loader_val), data_loader_val.dataset.images)):
-                image=str(image, encoding="utf-8")
+                image=str(image, encoding="utf-8").replace("\x00", "")
                 current_image,current_speed,target_point,targets,previous_targets,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
                 
                 if "arp" in args.experiment:
