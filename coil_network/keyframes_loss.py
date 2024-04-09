@@ -38,7 +38,7 @@ def branched_loss(loss_function, params):
     loss_function=torch.mean(loss_branches_vec[0])
     if importance_sampling_method == "mean":
         weighted_loss = loss_function + torch.sum(speed_loss) / params["branches"][0].shape[0]
-        loss_info = {"unweighted_loss": loss_function}
+        #loss_info = {"unweighted_loss": loss_function}
     else:
         weight_importance_sampling = params["action_predict_loss"]
 
@@ -56,14 +56,14 @@ def branched_loss(loss_function, params):
             raise ValueError
         weighted_loss = torch.sum(weighted_loss_function) + torch.sum(speed_loss) / (params["branches"][0].shape[0])
 
-        hard_samples_loss = loss_function[weight_importance_sampling > params["importance_sampling_threshold"]]
-        easy_samples_loss = loss_function[weight_importance_sampling <= params["importance_sampling_threshold"]]
-        loss_info = {
-            "unweighted_loss": loss_function,
-            "hard_samples_loss": hard_samples_loss,
-            "easy_samples_loss": easy_samples_loss,
-        }
-    return weighted_loss, loss_info, plotable_params
+        # hard_samples_loss = loss_function[weight_importance_sampling > params["importance_sampling_threshold"]]
+        # easy_samples_loss = loss_function[weight_importance_sampling <= params["importance_sampling_threshold"]]
+        # loss_info = {
+        #     "unweighted_loss": loss_function,
+        #     "hard_samples_loss": hard_samples_loss,
+        #     "easy_samples_loss": easy_samples_loss,
+        # }
+    return weighted_loss, plotable_params
 
 
 def Loss(loss_name):
