@@ -48,7 +48,7 @@ def main(args):
     data_loader_val = torch.utils.data.DataLoader(
         val_set,
         batch_size=1,
-        num_workers=1,
+        num_workers=args.number_of_workers,
         pin_memory=True,
         shuffle=False,  # because of DDP
         drop_last=True,
@@ -141,6 +141,12 @@ if __name__=="__main__":
         "--norm",
         type=int,
         default=2,
+
+    )
+    parser.add_argument(
+        "--number-of-workers",
+        type=int,
+        default=12,
 
     )
     arguments = parser.parse_args()
