@@ -7,7 +7,7 @@ import torch.optim as optim
 from diskcache import Cache
 from coil_network.coil_model import CoILModel
 import numpy as np
-from tools.visualize_copycat import generate_metric
+
 from team_code.data import CARLA_Data
 import csv
 from torch.optim.lr_scheduler import MultiStepLR
@@ -36,7 +36,7 @@ from coil_utils.baseline_helpers import (
     is_ready_to_save,
     get_latest_saved_checkpoint,
     get_action_predict_loss_threshold,
-    visualize_model,
+    
 )
 
 
@@ -414,7 +414,7 @@ def main(args):
             print("Start of Evaluation")
             wp_dict={}
             vis_dict={}
-            for iteration, (data,image) in enumerate(zip(tqdm(data_loader_val), data_loader_val.dataset.images)):
+            for iteration, (data,image) in enumerate(zip(tqdm(data_loader_val), data_loader_val.dataset.images), start=7):
                 image=str(image, encoding="utf-8").replace("\x00", "")
                 current_image,current_speed,target_point,targets,previous_targets,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
                 
@@ -461,10 +461,14 @@ def main(args):
                 
                     
                 loss, _ = criterion(loss_function_params)
-                
-                wp_dict.update({image:{"pred":predictions[0].cpu().detach().numpy(), "gt":targets.cpu().detach().numpy(), "loss":loss.cpu().detach().numpy()}})
-                vis_dict.update({image:{"bev_semantic": data["bev_semantic"].cpu().detach().numpy(), "lidar_bev": data["lidar"].cpu().detach().numpy(), "target_point": data["target_point"].cpu().detach().numpy()}})
-            generate_metric(merged_config_object,wp_dict, vis_dict, args.baseline_folder_name,args.visualize_non_copycat, args.visualize_copycat)
+                #this is only a viable comparison, if the batch_size is set to 1, because it will be marginalized over the batch dimension before the loss is returned!
+                wp_dict.update({iteration:{"image": image,"pred":predictions[0].cpu().detach().numpy(), "gt":targets.cpu().detach().numpy(), "loss":loss.cpu().detach().numpy()}})
+            with open(os.path.join(os.environ.get("WORK_DIR"),
+                        "_logs",
+                        merged_config_object.baseline_folder_name,merged_config_object.experiment,
+                        f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_wp.pkl"), "wb") as file:
+                pickle.dump(wp_dict, file)
+
         with open(os.path.join(os.environ.get("WORK_DIR"),
                         "_logs",
                         merged_config_object.baseline_folder_name,merged_config_object.experiment,
@@ -516,14 +520,6 @@ if __name__ == "__main__":
         "--baseline-folder-name",
         default=None,
         required=True,
-    )
-    parser.add_argument(
-        "--visualize-non-copycat",
-        default=False,
-    )
-    parser.add_argument(
-        "--visualize-copycat",
-        default=False,
     )
     parser.add_argument(
         "--experiment",
