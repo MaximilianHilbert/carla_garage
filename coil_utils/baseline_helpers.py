@@ -93,6 +93,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     gt_residual=None,
     copycat_count=None,
     detect=False,
+    frame=None,
 ):
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
@@ -184,7 +185,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     # Red ground truth
     if gt_wp is not None:
         gt_wp_color = (0, 0, 0)
-        for wp in gt_wp.detach().cpu().numpy()[0]:
+        for wp in gt_wp.detach().cpu().numpy():
             wp_x = wp[0] * loc_pixels_per_meter + origin[0]
             wp_y = wp[1] * loc_pixels_per_meter + origin[1]
             cv2.circle(
@@ -197,7 +198,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 
     # Green predicted checkpoint
     if pred_checkpoint is not None:
-        for wp in pred_checkpoint.detach().cpu().numpy()[0]:
+        for wp in pred_checkpoint.detach().cpu().numpy():
             wp_x = wp[0] * loc_pixels_per_meter + origin[0]
             wp_y = wp[1] * loc_pixels_per_meter + origin[1]
             cv2.circle(
@@ -211,7 +212,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 
     # Blue predicted wp
     if pred_wp is not None:
-        pred_wps = pred_wp.detach().cpu().numpy()[0]
+        pred_wps = pred_wp.detach().cpu().numpy()
         num_wp = len(pred_wps)
         for idx, wp in enumerate(pred_wps):
             color_weight = 0.5 + 0.5 * float(idx) / num_wp
@@ -226,7 +227,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
                 thickness=-1,
             )
     if pred_wp_prev is not None:
-        pred_wp_prev = pred_wp_prev.detach().cpu().numpy()[0]
+        pred_wp_prev = pred_wp_prev.detach().cpu().numpy()
         num_wp = len(pred_wp_prev)
         for idx, wp in enumerate(pred_wp_prev):
             color_weight = 0.5 + 0.5 * float(idx) / num_wp
@@ -320,7 +321,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         t_u.draw_probability_boxes(images_lidar, pred_speed, config.target_speeds)
    
     
-    all_images = np.concatenate([rgb, images_lidar],axis=0)
+    all_images = np.concatenate([rgb,images_lidar],axis=0)
     image=Image.fromarray(all_images.astype(np.uint8))
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype("Ubuntu-B.ttf", 40)
@@ -328,12 +329,18 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     font_copycat=ImageFont.truetype("Ubuntu-B.ttf", 100)
     start=1800
     distance_from_left=600
-    draw.text((distance_from_left,start+40*5), f"ground truth", fill=(0,0,0), font=font)
-    draw.text((distance_from_left,start+40*6), f"previous predictions", fill=(0,0,255), font=font)
-    draw.text((distance_from_left,start+40*7), f"current predictions", fill=(178, 34, 34), font=font)
-    draw.text((distance_from_left,start+40), f"pred_residual (L2): {pred_residual:.2f}", fill=(178, 34, 34), font=font)
-    draw.text((distance_from_left,start+40*2), f"gt_residual (L2): {gt_residual:.2f}", fill=(178, 34, 34), font=font)
-    draw.text((distance_from_left,start), f"copycat counter {copycat_count}", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
+
+    draw.text((distance_from_left,start+40), f"copycat counter {copycat_count}", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start+40*2), f"res. pred. (L2): {pred_residual:.2f}", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start+40*3), f"res. gt. (L2): {gt_residual:.2f}", fill=(178, 34, 34), font=font)
+
+    draw.text((distance_from_left,start+40*6), f"ground truth", fill=(0,0,0), font=font)
+    draw.text((distance_from_left,start+40*7), f"previous predictions", fill=(0,0,255), font=font)
+    draw.text((distance_from_left,start+40*8), f"current predictions", fill=(178, 34, 34), font=font)
+    
+
+    
     draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255), font=font_baseline)
     if detect:
         font.set_variation_by_name("Bold")
