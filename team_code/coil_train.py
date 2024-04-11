@@ -7,7 +7,8 @@ import torch.optim as optim
 from diskcache import Cache
 from coil_network.coil_model import CoILModel
 import numpy as np
-
+import pandas as pd
+from coil_utils.baseline_helpers import get_copycat_criteria
 from team_code.data import CARLA_Data
 import csv
 from torch.optim.lr_scheduler import MultiStepLR
@@ -29,6 +30,7 @@ from coil_utils.baseline_logging import Logger
 import pickle
 from coil_utils.baseline_helpers import find_free_port
 import datetime
+from tools.visualize_copycat import norm
 from coil_utils.baseline_helpers import (
     set_seed,
     get_controls_from_data,
@@ -463,16 +465,22 @@ def main(args):
                 loss, _ = criterion(loss_function_params)
                 #this is only a viable comparison, if the batch_size is set to 1, because it will be marginalized over the batch dimension before the loss is returned!
                 wp_dict.update({iteration:{"image": image,"pred":predictions[0].cpu().detach().numpy(), "gt":targets.cpu().detach().numpy(), "loss":loss.cpu().detach().numpy()}})
+            data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
+            pred_crit, gt_crit=get_copycat_criteria(data_df, args.norm)
             with open(os.path.join(os.environ.get("WORK_DIR"),
                         "_logs",
-                        merged_config_object.baseline_folder_name,merged_config_object.experiment,
-                        f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_wp.pkl"), "wb") as file:
+                        merged_config_object.baseline_folder_name,#currently without experiment, setting, repetition subfolder
+                        f"{args.baseline_folder_name}_wp.pkl"), "wb") as file:
                 pickle.dump(wp_dict, file)
-
+            with open(os.path.join(os.environ.get("WORK_DIR"),
+                        "_logs",
+                        merged_config_object.baseline_folder_name,
+                        f"{args.baseline_folder_name}_std.pkl"), "wb") as file:
+                pickle.dump({"pred_crit": pred_crit, "gt_crit": gt_crit}, file)
         with open(os.path.join(os.environ.get("WORK_DIR"),
                         "_logs",
-                        merged_config_object.baseline_folder_name,merged_config_object.experiment,
-                        f"repetition_{str(args.training_repetition)}", f"{args.setting}",f"{args.baseline_folder_name}_{args.experiment}_config.pkl"), "wb") as file:
+                        merged_config_object.baseline_folder_name,
+                        f"{args.baseline_folder_name}_config.pkl"), "wb") as file:
                 pickle.dump(merged_config_object, file)
     except RuntimeError as e:
         traceback.print_exc()
@@ -521,6 +529,12 @@ if __name__ == "__main__":
         default=None,
         required=True,
     )
+    parser.add_argument(
+        "--norm",
+        default=2,
+        type=int
+    )
+    
     parser.add_argument(
         "--experiment",
         default=None,
