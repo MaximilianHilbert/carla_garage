@@ -25,7 +25,10 @@ def get_copycat_criteria(data_df, which_norm):
 
     std_value_gt=np.std(data_df["running_diff_gt"])
     std_value_data=np.std(data_df["running_diff"])
-    return std_value_data, std_value_gt
+
+    mean_value_gt=np.mean(data_df["running_diff_gt"])
+    mean_value_data=np.mean(data_df["running_diff"])
+    return {"mean_pred": mean_value_data,"mean_gt": mean_value_gt, "std_pred":std_value_data, "std_gt":std_value_gt}
 
 def set_seed(seed):
     torch.manual_seed(seed)

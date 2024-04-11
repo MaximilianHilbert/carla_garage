@@ -23,15 +23,17 @@ class SequentialSampler(Sampler):
     
 def preprocess(args):
     std_lst=[]
+    mean_lst=[]
     for baseline in args.baselines:
         basename=os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
                             baseline,
                             f"{baseline}")
         with open(f"{basename}_std.pkl", 'rb') as f:
-            std = pickle.load(f)
-            std_lst.append(std["pred_crit"])
-    return np.mean(np.array(std_lst)), std["gt_crit"]
+            criterion_dict = pickle.load(f)
+            std_lst.append(criterion_dict["std_pred"])
+            mean_lst.append(criterion_dict["mean_pred"])
+    return np.mean(np.array(std_lst)),np.mean(np.array(mean_lst)), criterion_dict["std_gt"], criterion_dict["mean_gt"]
 def load_image_sequence(config,df_data,current_iteration):
     root=os.path.dirname(df_data.iloc[current_iteration]["image"])
     index_in_dataset=int(os.path.basename(df_data.iloc[current_iteration]["image"]).replace(".jpg",""))
@@ -39,7 +41,7 @@ def load_image_sequence(config,df_data,current_iteration):
 
 
 def main(args):
-    avg_baseline_predictions, gt_residuals_std=preprocess(args)
+    avg_of_std_baseline_predictions, avg_of_avg_baseline_predictions, std_gt, avg_gt=preprocess(args)
 
     for baseline in args.baselines:
         basename=os.path.join(os.environ.get("WORK_DIR"),
@@ -95,7 +97,7 @@ def main(args):
                                         target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
                                         gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
                                         gt_residual=gt_residual,copycat_count=count, frame=data_loader_position, loss=data_df.iloc[current_index]["loss"])
-            if pred_residual<avg_baseline_predictions*args.pred_tuning_parameter and gt_residual>gt_residuals_std*args.gt_tuning_parameter:
+            if pred_residual<avg_of_avg_baseline_predictions-avg_of_std_baseline_predictions*args.pred_tuning_parameter and gt_residual>avg_gt-std_gt*args.gt_tuning_parameter:
                 #0.15 and 1 for the one curve only
                 count+=1
                 if args.visualize_non_copycat or args.visualize_copycat:
@@ -123,12 +125,12 @@ if __name__=="__main__":
     )
     parser.add_argument(
         "--pred-tuning-parameter",
-        type=int,
+        type=float,
         default=1,
     )
     parser.add_argument(
         "--gt-tuning-parameter",
-        type=int,
+        type=float,
         default=1,
     )
     parser.add_argument(
