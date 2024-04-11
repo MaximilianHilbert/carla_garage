@@ -53,8 +53,8 @@ export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
 #mlcloud
-source ~/.bashrc
-conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+# source ~/.bashrc
+# conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 #tcml
 # source /home/hilbert/.bashrc
 # eval "$(conda shell.bash hook)"
