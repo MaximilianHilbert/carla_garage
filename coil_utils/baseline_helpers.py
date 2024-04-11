@@ -11,6 +11,21 @@ import cv2
 from team_code import transfuser_utils as t_u
 from pathlib import Path
 
+def norm(differences, ord):
+    if ord==1:
+        return np.sum(np.absolute(differences))
+    if ord==2:
+        return np.sqrt(np.sum(np.absolute(differences)**2))
+    
+def get_copycat_criteria(data_df, which_norm):
+    data_df['running_diff'] = data_df['pred'].diff()
+    data_df['running_diff']=data_df['running_diff'].apply(lambda x: norm(x,ord=which_norm))
+    data_df['running_diff_gt'] = data_df['gt'].diff()
+    data_df['running_diff_gt']=data_df['running_diff_gt'].apply(lambda x: norm(x,ord=which_norm))
+
+    std_value_gt=np.std(data_df["running_diff_gt"])
+    std_value_data=np.std(data_df["running_diff"])
+    return std_value_data, std_value_gt
 
 def set_seed(seed):
     torch.manual_seed(seed)
