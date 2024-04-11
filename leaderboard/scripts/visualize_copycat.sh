@@ -58,4 +58,4 @@ export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
 export OMP_NUM_THREADS=20  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-python $WORK_DIR/tools/visualize_copycat.py --visualize-copycat 1 --number-of-workers 12
+python $WORK_DIR/tools/visualize_copycat.py --visualize-copycat 1 --number-of-workers 12 --pred-tuning-parameter 0.15 --gt-tuning-parameter 1

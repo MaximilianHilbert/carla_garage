@@ -95,7 +95,7 @@ def main(args):
                                         target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
                                         gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
                                         gt_residual=gt_residual,copycat_count=count, frame=data_loader_position, loss=data_df.iloc[current_index]["loss"])
-            if pred_residual<avg_baseline_predictions*0.15 and gt_residual>gt_residuals_std:
+            if pred_residual<avg_baseline_predictions*args.pred_tuning_parameter and gt_residual>gt_residuals_std*args.gt_tuning_parameter:
                 #0.15 and 1 for the one curve only
                 count+=1
                 if args.visualize_non_copycat or args.visualize_copycat:
@@ -120,6 +120,16 @@ if __name__=="__main__":
         "--visualize-copycat",
         type=int,
         default=0,
+    )
+    parser.add_argument(
+        "--pred-tuning-parameter",
+        type=int,
+        default=1,
+    )
+    parser.add_argument(
+        "--gt-tuning-parameter",
+        type=int,
+        default=1,
     )
     parser.add_argument(
         "--norm",
