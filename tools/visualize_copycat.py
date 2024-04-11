@@ -91,14 +91,14 @@ def main(args):
         if args.visualize_non_copycat:
             visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",args.baseline_folder_name), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
                                     pred_wp_prev=torch.Tensor(data_df.iloc[previous_index]["pred"][0]),gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index, target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
-                                    gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual, gt_residual=gt_residual,copycat_count=count, frame=data_loader_position)
+                                    gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual, gt_residual=gt_residual,copycat_count=count, frame=data_loader_position, loss=data_df.iloc[current_index]["loss"])
         if pred_residual<std_value_data*0.3 and gt_residual>std_value_gt:
             #0.15 and 1 for the one curve only
             count+=1
             if args.visualize_non_copycat or args.visualize_copycat:
                 visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",args.baseline_folder_name), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
                         pred_wp_prev=torch.Tensor(data_df.iloc[previous_index]["pred"][0]),gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index, target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
-                        gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual, gt_residual=gt_residual,copycat_count=count, detect=True, frame=data_loader_position)
+                        gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual, gt_residual=gt_residual,copycat_count=count, detect=True, frame=data_loader_position, loss=data_df.iloc[current_index]["loss"])
     print(f"count for real copycat for baseline {args.baseline_folder_name}: {count}")
 if __name__=="__main__":
     import argparse

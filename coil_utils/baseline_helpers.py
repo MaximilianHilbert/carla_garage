@@ -94,6 +94,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     copycat_count=None,
     detect=False,
     frame=None,
+    loss=None,
 ):
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
@@ -334,10 +335,11 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     draw.text((distance_from_left,start+40), f"copycat counter {copycat_count}", fill=(178, 34, 34), font=font)
     draw.text((distance_from_left,start+40*2), f"res. pred. (L2): {pred_residual:.2f}", fill=(178, 34, 34), font=font)
     draw.text((distance_from_left,start+40*3), f"res. gt. (L2): {gt_residual:.2f}", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start+40*4), f"loss (L2): {loss:.2f}", fill=(178, 34, 34), font=font)
 
-    draw.text((distance_from_left,start+40*6), f"ground truth", fill=(0,0,0), font=font)
-    draw.text((distance_from_left,start+40*7), f"previous predictions", fill=(0,0,255), font=font)
-    draw.text((distance_from_left,start+40*8), f"current predictions", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start+40*7), f"ground truth", fill=(0,0,0), font=font)
+    draw.text((distance_from_left,start+40*8), f"previous predictions", fill=(0,0,255), font=font)
+    draw.text((distance_from_left,start+40*9), f"current predictions", fill=(178, 34, 34), font=font)
     
 
     
