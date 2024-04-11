@@ -466,7 +466,7 @@ def main(args):
                 #this is only a viable comparison, if the batch_size is set to 1, because it will be marginalized over the batch dimension before the loss is returned!
                 wp_dict.update({iteration:{"image": image,"pred":predictions[0].cpu().detach().numpy(), "gt":targets.cpu().detach().numpy(), "loss":loss.cpu().detach().numpy()}})
             data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
-            pred_crit, gt_crit=get_copycat_criteria(data_df, args.norm)
+            criterion_dict=get_copycat_criteria(data_df, args.norm)
             with open(os.path.join(os.environ.get("WORK_DIR"),
                         "_logs",
                         merged_config_object.baseline_folder_name,#currently without experiment, setting, repetition subfolder
@@ -476,7 +476,7 @@ def main(args):
                         "_logs",
                         merged_config_object.baseline_folder_name,
                         f"{args.baseline_folder_name}_std.pkl"), "wb") as file:
-                pickle.dump({"pred_crit": pred_crit, "gt_crit": gt_crit}, file)
+                pickle.dump(criterion_dict, file)
         with open(os.path.join(os.environ.get("WORK_DIR"),
                         "_logs",
                         merged_config_object.baseline_folder_name,
