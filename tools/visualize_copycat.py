@@ -123,7 +123,7 @@ def main(args):
                             gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
                             target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
                             gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
-                            gt_residual=gt_residual,copycat_count=count, detect=True, frame=data_loader_position, prev_gt=torch.Tensor(data_df.iloc[previous_index]["gt"][0]),loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition, condition_value_1=condition_value_1, condition_value_2=condition_value_2)
+                            gt_residual=gt_residual,copycat_count=count, detect=True, frame=data_loader_position, prev_gt=torch.Tensor(data_df.iloc[previous_index]["gt"][0]),loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition, condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
         print(f"count for real copycat for baseline {baseline}: {count}")
 if __name__=="__main__":
     import argparse
