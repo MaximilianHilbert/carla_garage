@@ -24,6 +24,9 @@ class SequentialSampler(Sampler):
 def preprocess(args):
     std_lst=[]
     mean_lst=[]
+
+    loss_std_lst=[]
+    loss_mean_lst=[]
     for baseline in args.baselines:
         basename=os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
@@ -33,7 +36,13 @@ def preprocess(args):
             criterion_dict = pickle.load(f)
             std_lst.append(criterion_dict["std_pred"])
             mean_lst.append(criterion_dict["mean_pred"])
-    return np.mean(np.array(std_lst)),np.mean(np.array(mean_lst)), criterion_dict["std_gt"], criterion_dict["mean_gt"]
+        with open(f"{basename}_std.pkl", 'rb') as f:
+            wp_dict = pickle.load(f)
+            loss_std_lst.append(wp_dict["loss_std"])
+            loss_mean_lst.append(wp_dict["loss_mean"])
+            
+    return np.mean(np.array(std_lst)),np.mean(np.array(mean_lst)), criterion_dict["std_gt"], criterion_dict["mean_gt"], np.mean(np.array(loss_std_lst)), np.mean(np.array(loss_mean_lst))
+
 def load_image_sequence(config,df_data,current_iteration):
     root=os.path.dirname(df_data.iloc[current_iteration]["image"])
     index_in_dataset=int(os.path.basename(df_data.iloc[current_iteration]["image"]).replace(".jpg",""))
@@ -41,7 +50,7 @@ def load_image_sequence(config,df_data,current_iteration):
 
 
 def main(args):
-    avg_of_std_baseline_predictions, avg_of_avg_baseline_predictions, std_gt, avg_gt=preprocess(args)
+    avg_of_std_baseline_predictions, avg_of_avg_baseline_predictions, std_gt, avg_gt, loss_avg_of_std,loss_avg_of_avg=preprocess(args)
 
     for baseline in args.baselines:
         basename=os.path.join(os.environ.get("WORK_DIR"),
@@ -97,7 +106,7 @@ def main(args):
                                         target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
                                         gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
                                         gt_residual=gt_residual,copycat_count=count, frame=data_loader_position, loss=data_df.iloc[current_index]["loss"])
-            if pred_residual<avg_of_avg_baseline_predictions-avg_of_std_baseline_predictions*args.pred_tuning_parameter and gt_residual>avg_gt-std_gt*args.gt_tuning_parameter:
+            if pred_residual<avg_of_avg_baseline_predictions-avg_of_std_baseline_predictions*args.pred_tuning_parameter and data_df.iloc[current_index]["loss"]>loss_avg_of_avg+loss_avg_of_std*args.loss_tuning_parameter:#gt_residual>avg_gt-std_gt*args.gt_tuning_parameter:
                 #0.15 and 1 for the one curve only
                 count+=1
                 if args.visualize_non_copycat or args.visualize_copycat:
@@ -129,7 +138,7 @@ if __name__=="__main__":
         default=1,
     )
     parser.add_argument(
-        "--gt-tuning-parameter",
+        "--loss-tuning-parameter",
         type=float,
         default=1,
     )
