@@ -117,6 +117,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     detect=False,
     frame=None,
     loss=None,
+    condition=None,
+    condition_value_1=None,
+    condition_value_2=None
 ):
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
@@ -363,7 +366,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     draw.text((distance_from_left,start+40*8), f"previous predictions", fill=(0,0,255), font=font)
     draw.text((distance_from_left,start+40*9), f"current predictions", fill=(178, 34, 34), font=font)
     
-
+    draw.text((distance_from_left,start+40*13), f"condition: {condition}", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start+40*14), f"condition value 1< {condition_value_1:.2f}", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start+40*15), f"condition value 2> {condition_value_2:.2f}", fill=(178, 34, 34), font=font)
     
     draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255), font=font_baseline)
     if detect:
