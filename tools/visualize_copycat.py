@@ -146,7 +146,7 @@ if __name__=="__main__":
         default=1,
     )
     parser.add_argument(
-        "--second_cc_condition",
+        "--second-cc-condition",
         type=str,
         default="gt",
     )
