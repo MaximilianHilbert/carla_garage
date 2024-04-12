@@ -119,7 +119,8 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     loss=None,
     condition=None,
     condition_value_1=None,
-    condition_value_2=None
+    condition_value_2=None,
+    prev_gt=None,
 ):
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
@@ -207,20 +208,41 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 
         images_lidar = np.ascontiguousarray(images_lidar, dtype=np.uint8)
 
+    #point colors
+    gt_wp_color =  (0, 128, 128)
+    prev_gt_wp_color =  (255, 127, 80)
+
+    pred_wp_color=(230, 230, 250)
+    pred_wp_prev_color= (218, 165, 32)
     # Draw wps
     # Red ground truth
     if gt_wp is not None:
-        gt_wp_color = (0, 0, 0)
+        
         for wp in gt_wp.detach().cpu().numpy():
             wp_x = wp[0] * loc_pixels_per_meter + origin[0]
             wp_y = wp[1] * loc_pixels_per_meter + origin[1]
             cv2.circle(
                 images_lidar,
                 (int(wp_x), int(wp_y)),
-                radius=8,
+                radius=10,
                 color=gt_wp_color,
                 thickness=-1,
             )
+    # Draw wps previous
+
+    if prev_gt is not None:
+        
+        for wp in prev_gt.detach().cpu().numpy():
+            wp_x = wp[0] * loc_pixels_per_meter + origin[0]
+            wp_y = wp[1] * loc_pixels_per_meter + origin[1]
+            cv2.circle(
+                images_lidar,
+                (int(wp_x), int(wp_y)),
+                radius=8,
+                color=prev_gt_wp_color,
+                thickness=-1,
+            )
+
 
     # Green predicted checkpoint
     if pred_checkpoint is not None:
@@ -249,7 +271,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
                 (int(wp_x), int(wp_y)),
                 radius=6,
                 lineType=cv2.LINE_AA,
-                color=(178, 34, 34),
+                color=pred_wp_color,
                 thickness=-1,
             )
     if pred_wp_prev is not None:
@@ -264,7 +286,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
                 (int(wp_x), int(wp_y)),
                 radius=4,
                 lineType=cv2.LINE_AA,
-                color=(0, 0, 255),
+                color=pred_wp_prev_color,
                 thickness=-1,
             )
     # Draw target points
@@ -362,9 +384,10 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     draw.text((distance_from_left,start+40*3), f"res. gt. (L2): {gt_residual:.2f}", fill=(178, 34, 34), font=font)
     draw.text((distance_from_left,start+40*4), f"loss (L2): {loss:.2f}", fill=(178, 34, 34), font=font)
 
-    draw.text((distance_from_left,start+40*7), f"ground truth", fill=(0,0,0), font=font)
-    draw.text((distance_from_left,start+40*8), f"previous predictions", fill=(0,0,255), font=font)
-    draw.text((distance_from_left,start+40*9), f"current predictions", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
+    draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
+    draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
+    draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
     
     draw.text((distance_from_left,start+40*13), f"condition: {condition}", fill=(178, 34, 34), font=font)
     draw.text((distance_from_left,start+40*14), f"condition value 1< {condition_value_1:.2f}", fill=(178, 34, 34), font=font)
