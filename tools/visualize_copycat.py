@@ -112,7 +112,7 @@ def main(args):
                 condition_value_2=loss_avg_of_avg+loss_avg_of_std*args.tuning_parameter_2
                 condition_2=data_df.iloc[current_index]["loss"]>condition_value_2
             else:
-                condition_value_2=avg_gt-std_gt*args.tuning_parameter_2
+                condition_value_2=avg_gt+std_gt*args.tuning_parameter_2
                 condition_2=gt_residual>condition_value_2
             if condition_1 and condition_2:
                 #0.15 and 1 for the one curve only
