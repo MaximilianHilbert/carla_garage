@@ -106,7 +106,15 @@ def main(args):
                                         target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
                                         gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
                                         gt_residual=gt_residual,copycat_count=count, frame=data_loader_position, loss=data_df.iloc[current_index]["loss"])
-            if pred_residual<avg_of_avg_baseline_predictions-avg_of_std_baseline_predictions*args.pred_tuning_parameter and data_df.iloc[current_index]["loss"]>loss_avg_of_avg+loss_avg_of_std*args.loss_tuning_parameter:#gt_residual>avg_gt-std_gt*args.gt_tuning_parameter:
+            condition_value_1=avg_of_avg_baseline_predictions-avg_of_std_baseline_predictions*args.pred_tuning_parameter
+            condition_1=pred_residual<condition_value_1
+            if args.second_cc_condition=="loss":
+                condition_value_2=loss_avg_of_avg+loss_avg_of_std*args.tuning_parameter_2
+                condition_2=data_df.iloc[current_index]["loss"]>condition_value_2
+            else:
+                condition_value_2=avg_gt-std_gt*args.tuning_parameter_2
+                condition_2=gt_residual>condition_value_2
+            if condition_1 and condition_2:
                 #0.15 and 1 for the one curve only
                 count+=1
                 if args.visualize_non_copycat or args.visualize_copycat:
@@ -115,7 +123,7 @@ def main(args):
                             gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
                             target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
                             gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
-                            gt_residual=gt_residual,copycat_count=count, detect=True, frame=data_loader_position, loss=data_df.iloc[current_index]["loss"])
+                            gt_residual=gt_residual,copycat_count=count, detect=True, frame=data_loader_position, loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition, condition_value_1=condition_value_1, condition_value_2=condition_value_2)
         print(f"count for real copycat for baseline {baseline}: {count}")
 if __name__=="__main__":
     import argparse
@@ -138,7 +146,12 @@ if __name__=="__main__":
         default=1,
     )
     parser.add_argument(
-        "--loss-tuning-parameter",
+        "--second_cc_condition",
+        type=str,
+        default="gt",
+    )
+    parser.add_argument(
+        "--tuning-parameter_2",
         type=float,
         default=1,
     )
