@@ -71,7 +71,6 @@ def main(args):
         if args.custom_validation:
             with open(os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
-                            baseline,#currently without experiment, setting, repetition subfolder
                             f"{baseline}_detected_cc_dirs.csv"), "r", newline="") as file:
                 reader = csv.reader(file)
                 val_lst=[]
@@ -152,7 +151,6 @@ def main(args):
     if not args.custom_validation:
         with open(os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
-                            baseline,#currently without experiment, setting, repetition subfolder
                             f"{baseline}_detected_cc_dirs.csv"), "w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(set(paths))
