@@ -121,7 +121,6 @@ def main(args):
         if args.custom_validation:
             with open(os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
-                            merged_config_object.baseline_folder_name,#currently without experiment, setting, repetition subfolder
                             "detected_cc_dirs.csv"), "r", newline="") as file:
                 reader = csv.reader(file)
                 val_lst=[]
