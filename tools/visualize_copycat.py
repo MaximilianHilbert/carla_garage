@@ -33,14 +33,13 @@ def preprocess(args):
                             "_logs",
                             baseline,
                             f"{baseline}")
-        with open(f"{basename}_std.pkl", 'rb') as f:
+        with open(f"{basename}_predictions_std_all.pkl", 'rb') as f:
             criterion_dict = pickle.load(f)
             std_lst.append(criterion_dict["std_pred"])
             mean_lst.append(criterion_dict["mean_pred"])
-        with open(f"{basename}_std.pkl", 'rb') as f:
-            wp_dict = pickle.load(f)
-            loss_std_lst.append(wp_dict["loss_std"])
-            loss_mean_lst.append(wp_dict["loss_mean"])
+
+            loss_std_lst.append(criterion_dict["loss_std"])
+            loss_mean_lst.append(criterion_dict["loss_mean"])
             
     return np.mean(np.array(std_lst)),np.mean(np.array(mean_lst)), criterion_dict["std_gt"], criterion_dict["mean_gt"], np.mean(np.array(loss_std_lst)), np.mean(np.array(loss_mean_lst))
 
@@ -61,11 +60,19 @@ def main(args):
     
         with open(f"{basename}_config.pkl", 'rb') as f:
             config = pickle.load(f)
-        with open(f"{basename}_wp.pkl", 'rb') as f:
-            wp_dict = pickle.load(f)
+        if not args.custom_validation:
+            with open(f"{basename}_predictions_all.pkl", 'rb') as f:
+                wp_dict = pickle.load(f)
+        else:
+            with open(f"{basename}_predictions_cc_routes_only.pkl", 'rb') as f:
+                wp_dict = pickle.load(f)
+
         data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
         if args.custom_validation:
-            with open(os.path.join(os.environ.get("WORK_DIR"), "cc_dirs.csv"), "r", newline="") as file:
+            with open(os.path.join(os.environ.get("WORK_DIR"),
+                            "_logs",
+                            baseline,#currently without experiment, setting, repetition subfolder
+                            f"{baseline}_detected_cc_dirs.csv"), "r", newline="") as file:
                 reader = csv.reader(file)
                 val_lst=[]
                 for row in reader:
@@ -143,7 +150,10 @@ def main(args):
                             condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
         print(f"count for real copycat for baseline {baseline}: {count}")
     if not args.custom_validation:
-        with open(os.path.join(os.environ.get("WORK_DIR"), "cc_dirs.csv"), "w", newline="") as file:
+        with open(os.path.join(os.environ.get("WORK_DIR"),
+                            "_logs",
+                            baseline,#currently without experiment, setting, repetition subfolder
+                            f"{baseline}_detected_cc_dirs.csv"), "w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(set(paths))
 if __name__=="__main__":
