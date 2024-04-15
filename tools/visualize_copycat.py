@@ -46,7 +46,7 @@ def preprocess(args):
 def load_image_sequence(config,df_data,current_iteration):
     root=os.path.dirname(df_data.iloc[current_iteration]["image"])
     index_in_dataset=int(os.path.basename(df_data.iloc[current_iteration]["image"]).replace(".jpg",""))
-    return np.concatenate([Image.open(os.path.join(root, "0"*(4-len(str(index_in_dataset-i)))+f"{index_in_dataset-i}.jpg"))  for i in reversed(range(config.img_seq_len))],axis=0)
+    return np.concatenate([Image.open(os.path.join(root, "0"*(4-len(str(index_in_dataset-i)))+f"{index_in_dataset-i}.jpg"))  for i in reversed(range(config.img_seq_len))],axis=0), root
 
 
 def main(args):
@@ -76,6 +76,7 @@ def main(args):
             sampler=sampler_val,
         )
         count=0
+        paths=[]
         for data_loader_position, (data, image_path) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images)):
             if data_loader_position==0:
                 continue
@@ -93,10 +94,10 @@ def main(args):
             
             if config.img_seq_len<7:
                 empties=np.concatenate([np.zeros_like(Image.open(data_df.iloc[0]["image"]))]*(7-config.img_seq_len))
-                image_sequence=load_image_sequence(config,data_df, data_loader_position)
+                image_sequence,root=load_image_sequence(config,data_df, data_loader_position)
                 image_sequence=np.concatenate([empties, image_sequence], axis=0)
             else:
-                image_sequence=load_image_sequence(config,data_df, data_loader_position)
+                image_sequence,root=load_image_sequence(config,data_df, data_loader_position)
             pred_residual=norm(data_df.iloc[current_index]["pred"]-data_df.iloc[previous_index]["pred"], ord=args.norm)
             gt_residual=norm(data_df.iloc[current_index]["gt"]-data_df.iloc[previous_index]["gt"], ord=args.norm)
             condition_value_1=avg_of_avg_baseline_predictions-avg_of_std_baseline_predictions*args.pred_tuning_parameter
@@ -118,10 +119,12 @@ def main(args):
                             prev_gt=torch.Tensor(data_df.iloc[previous_index]["gt"][0]),loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
                             condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
             
-            if condition_1 and condition_2 and data["speed"].numpy()[0]<0.05:
+            if condition_1 and condition_2 and data["speed"].numpy()[0]>0.05:
                 #0.15 and 1 for the one curve only
                 count+=1
                 if args.visualize_non_copycat or args.visualize_copycat:
+                    path="/".join(root.split('/')[-4:-1])
+                    paths.append(path)
                     visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
                             pred_wp_prev=torch.Tensor(data_df.iloc[previous_index]["pred"][0]),
                             gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
@@ -131,6 +134,7 @@ def main(args):
                             prev_gt=torch.Tensor(data_df.iloc[previous_index]["gt"][0]),loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
                             condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
         print(f"count for real copycat for baseline {baseline}: {count}")
+        print(set(paths))
 if __name__=="__main__":
     import argparse
 
