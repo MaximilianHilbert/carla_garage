@@ -99,13 +99,6 @@ def main(args):
                 image_sequence=load_image_sequence(config,data_df, data_loader_position)
             pred_residual=norm(data_df.iloc[current_index]["pred"]-data_df.iloc[previous_index]["pred"], ord=args.norm)
             gt_residual=norm(data_df.iloc[current_index]["gt"]-data_df.iloc[previous_index]["gt"], ord=args.norm)
-            if args.visualize_non_copycat:
-                visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
-                                        pred_wp_prev=torch.Tensor(data_df.iloc[previous_index]["pred"][0]),
-                                        gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
-                                        target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
-                                        gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
-                                        gt_residual=gt_residual,copycat_count=count, frame=data_loader_position, loss=data_df.iloc[current_index]["loss"])
             condition_value_1=avg_of_avg_baseline_predictions-avg_of_std_baseline_predictions*args.pred_tuning_parameter
             condition_1=pred_residual<condition_value_1
             if args.second_cc_condition=="loss":
@@ -114,7 +107,18 @@ def main(args):
             else:
                 condition_value_2=avg_gt+std_gt*args.tuning_parameter_2
                 condition_2=gt_residual>condition_value_2
-            if condition_1 and condition_2:
+            
+            if args.visualize_non_copycat:
+                visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
+                            pred_wp_prev=torch.Tensor(data_df.iloc[previous_index]["pred"][0]),
+                            gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
+                            target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
+                            gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
+                            gt_residual=gt_residual,copycat_count=count, detect=False, frame=data_loader_position,
+                            prev_gt=torch.Tensor(data_df.iloc[previous_index]["gt"][0]),loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
+                            condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
+            
+            if condition_1 and condition_2 and data["speed"].numpy()[0]<0.05:
                 #0.15 and 1 for the one curve only
                 count+=1
                 if args.visualize_non_copycat or args.visualize_copycat:
@@ -123,7 +127,9 @@ def main(args):
                             gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
                             target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
                             gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
-                            gt_residual=gt_residual,copycat_count=count, detect=True, frame=data_loader_position, prev_gt=torch.Tensor(data_df.iloc[previous_index]["gt"][0]),loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition, condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
+                            gt_residual=gt_residual,copycat_count=count, detect=True, frame=data_loader_position,
+                            prev_gt=torch.Tensor(data_df.iloc[previous_index]["gt"][0]),loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
+                            condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
         print(f"count for real copycat for baseline {baseline}: {count}")
 if __name__=="__main__":
     import argparse
