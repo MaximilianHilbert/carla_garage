@@ -71,7 +71,7 @@ def main(args):
         if args.custom_validation:
             with open(os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
-                            f"{baseline}_detected_cc_dirs.csv"), "r", newline="") as file:
+                            "detected_cc_dirs.csv"), "r", newline="") as file:
                 reader = csv.reader(file)
                 val_lst=[]
                 for row in reader:
@@ -151,7 +151,7 @@ def main(args):
     if not args.custom_validation:
         with open(os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
-                            f"{baseline}_detected_cc_dirs.csv"), "w", newline="") as file:
+                            "detected_cc_dirs.csv"), "w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(set(paths))
 if __name__=="__main__":

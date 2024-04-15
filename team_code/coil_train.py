@@ -122,7 +122,7 @@ def main(args):
             with open(os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
                             merged_config_object.baseline_folder_name,#currently without experiment, setting, repetition subfolder
-                            f"{args.baseline_folder_name}_detected_cc_dirs.csv"), "r", newline="") as file:
+                            "detected_cc_dirs.csv"), "r", newline="") as file:
                 reader = csv.reader(file)
                 val_lst=[]
                 for row in reader:
