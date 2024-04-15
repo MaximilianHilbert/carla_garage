@@ -69,7 +69,8 @@ def main(args):
                 reader = csv.reader(file)
                 val_lst=next(reader)
             config.val_data=val_lst
-        val_set = CARLA_Data(root=config.val_data, config=config, rank=0,baseline=baseline, custom_val=True)
+            val_set = CARLA_Data(root=config.val_data, config=config, rank=0,baseline=baseline, custom_val=True)
+        val_set = CARLA_Data(root=config.val_data, config=config, rank=0,baseline=baseline, custom_val=False)  
         sampler_val=SequentialSampler(val_set)
         data_loader_val = torch.utils.data.DataLoader(
             val_set,
