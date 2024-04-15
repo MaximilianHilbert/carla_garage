@@ -72,7 +72,8 @@ def main(args):
                     val_lst.append(row)
             config.val_data=val_lst[0]
             val_set = CARLA_Data(root=config.val_data, config=config, rank=0,baseline=baseline, custom_val=True)
-        val_set = CARLA_Data(root=config.val_data, config=config, rank=0,baseline=baseline, custom_val=False)  
+        else:
+            val_set = CARLA_Data(root=config.val_data, config=config, rank=0,baseline=baseline, custom_val=False)
         sampler_val=SequentialSampler(val_set)
         data_loader_val = torch.utils.data.DataLoader(
             val_set,
