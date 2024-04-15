@@ -137,9 +137,9 @@ def main(args):
             if condition_1 and condition_2 and data["speed"].numpy()[0]>0.05:
                 #0.15 and 1 for the one curve only
                 count+=1
+                if not args.custom_validation:
+                    paths.append(os.path.dirname(root))
                 if args.visualize_non_copycat or args.visualize_copycat:
-                    if not args.custom_validation:
-                        paths.append(os.path.dirname(root))
                     visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
                             pred_wp_prev=torch.Tensor(data_df.iloc[previous_index]["pred"][0]),
                             gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
