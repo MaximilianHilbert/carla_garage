@@ -117,7 +117,16 @@ def main(args):
             rank=rank,
             baseline=args.baseline_folder_name
         )
-        val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name)
+        
+        if args.custom_validation:
+            with open(os.path.join(os.environ.get("WORK_DIR"), "cc_dirs.csv"), "r", newline="") as file:
+                reader = csv.reader(file)
+                val_lst=[]
+                for row in reader:
+                    val_lst.append(row)
+            val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name, custom_validation_lst=val_lst[0])
+        else:
+            val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name)
         sampler_val=SequentialSampler(val_set)
         data_loader_val = torch.utils.data.DataLoader(
             val_set,
@@ -472,11 +481,12 @@ def main(args):
                         merged_config_object.baseline_folder_name,#currently without experiment, setting, repetition subfolder
                         f"{args.baseline_folder_name}_wp.pkl"), "wb") as file:
                 pickle.dump(wp_dict, file)
-            with open(os.path.join(os.environ.get("WORK_DIR"),
-                        "_logs",
-                        merged_config_object.baseline_folder_name,
-                        f"{args.baseline_folder_name}_std.pkl"), "wb") as file:
-                pickle.dump(criterion_dict, file)
+            if not args.custom_validation:
+                with open(os.path.join(os.environ.get("WORK_DIR"),
+                            "_logs",
+                            merged_config_object.baseline_folder_name,
+                            f"{args.baseline_folder_name}_std.pkl"), "wb") as file:
+                    pickle.dump(criterion_dict, file)
         with open(os.path.join(os.environ.get("WORK_DIR"),
                         "_logs",
                         merged_config_object.baseline_folder_name,
@@ -568,6 +578,11 @@ if __name__ == "__main__":
         type=int,
         default=0,
         help="make eval over eval dataset and save errors to disk",
+    )
+    parser.add_argument(
+        "--custom-validation",
+        default=0,
+        type=int
     )
     parser.add_argument("--dataset-repetition", type=int, default=1)
 

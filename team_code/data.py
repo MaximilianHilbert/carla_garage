@@ -39,7 +39,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         estimate_sem_distribution=False,
         shared_dict=None,
         rank=0,
-        custom_val=False,
+        custom_validation_lst=None,
         
     ):
         self.config = config
@@ -79,159 +79,27 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         total_routes = 0
         perfect_routes = 0
         crashed_routes = 0
-        if not custom_val:
-            for sub_root in tqdm(root, file=sys.stdout, disable=rank != 0):
-                # list subdirectories in root
-                routes = next(os.walk(sub_root))[1]
-                for route in routes:
-                    route_dir = sub_root + "/" + route
-                    if not os.path.isfile(route_dir + "/results.json.gz"):
-                        total_routes += 1
-                        crashed_routes += 1
+        for sub_root in tqdm(root, file=sys.stdout, disable=rank != 0):
+            # list subdirectories in root
+            routes = next(os.walk(sub_root))[1]
+            for route in routes:
+                if custom_validation_lst:
+                    bases=[os.path.basename(base) for base in custom_validation_lst]
+                    if route not in bases:
                         continue
-
-                    with gzip.open(route_dir + "/results.json.gz", "rt", encoding="utf-8") as f:
-                        total_routes += 1
-                        results_route = ujson.load(f)
-
-                    # We skip data where the expert did not achieve perfect driving score
-                    if results_route["scores"]["score_composed"] < 100.0:
-                        continue
-
-                    perfect_routes += 1
-
-                    num_seq = len(os.listdir(route_dir + "/lidar"))
-                    # seq=timestep; substract seq_len here, to iterate not too far, later we iterate over the last seq value into the "future" hitting the latest datapoint avail.
-                    # skip first introduce config.skip_first
-                    for seq in range(
-                        config.skip_first,
-                        num_seq - self.config.pred_len - self.config.seq_len,
-                    ):
-                        if seq % config.train_sampling_rate != 0:
-                            continue
-                        # load input seq and pred seq jointly
-                        image = []
-                        image_augmented = []
-                        semantic = []
-                        semantic_augmented = []
-                        bev_semantic = []
-                        bev_semantic_augmented = []
-                        depth = []
-                        depth_augmented = []
-                        lidar = []
-                        box = []
-                        future_box = []
-                        measurement = []
-
-                        # Loads the current (and past) frames (if seq_len > 1)
-                        for idx in range(self.config.seq_len):
-                            if self.config.img_seq_len>0:
-                                if not self.config.use_plant:
-                                    image.append(route_dir + "/rgb" + (f"/{(seq + idx):04}.jpg"))
-                                    image_augmented.append(route_dir + "/rgb_augmented" + (f"/{(seq + idx):04}.jpg"))
-                                    semantic.append(route_dir + "/semantics" + (f"/{(seq + idx):04}.png"))
-                                    semantic_augmented.append(route_dir + "/semantics_augmented" + (f"/{(seq + idx):04}.png"))
-                                    bev_semantic.append(route_dir + "/bev_semantics" + (f"/{(seq + idx):04}.png"))
-                                    bev_semantic_augmented.append(
-                                        route_dir + "/bev_semantics_augmented" + (f"/{(seq + idx):04}.png")
-                                    )
-                                    depth.append(route_dir + "/depth" + (f"/{(seq + idx):04}.png"))
-                                    depth_augmented.append(route_dir + "/depth_augmented" + (f"/{(seq + idx):04}.png"))
-                                    lidar.append(route_dir + "/lidar" + (f"/{(seq + idx):04}.laz"))
-
-                                    if estimate_sem_distribution:
-                                        semantics_i = self.converter[
-                                            cv2.imread(semantic[-1], cv2.IMREAD_UNCHANGED)
-                                        ]  # pylint: disable=locally-disabled, unsubscriptable-object
-                                        self.semantic_distribution.extend(semantics_i.flatten().tolist())
-
-                                box.append(route_dir + "/boxes" + (f"/{(seq + idx):04}.json.gz"))
-                                forcast_step = int(config.forcast_time / (config.data_save_freq / config.carla_fps) + 0.5)
-                                future_box.append(route_dir + "/boxes" + (f"/{(seq + idx + forcast_step):04}.json.gz"))
-
-                        # we only store the root and compute the file name when loading,
-                        # because storing 40 * long string per sample can go out of memory.
-
-                        measurement.append(route_dir + "/measurements")
-
-                        if estimate_class_distributions:
-                            with gzip.open(
-                                measurement[-1] + f"/{(seq + self.config.seq_len):04}.json.gz",
-                                "rt",
-                                encoding="utf-8",
-                            ) as f:
-                                measurements_i = ujson.load(f)
-
-                            target_speed_index, angle_index = self.get_indices_speed_angle(
-                                target_speed=measurements_i["target_speed"],
-                                brake=measurements_i["brake"],
-                                angle=measurements_i["angle"],
-                            )
-
-                            self.angle_distribution.append(angle_index)
-                            self.speed_distribution.append(target_speed_index)
-
-                        if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0:
-                            temporal_measurements = []
-                            temporal_lidars = []
-                            number_of_required_measurements = max(
-                                self.config.lidar_seq_len,
-                                self.config.number_previous_waypoints,
-                            )
-                            #if we have arp as baseline we want to go one timestep into the past
-                            for idx in reversed(range(1, number_of_required_measurements + 1)):
-                                if seq - idx >= 0:
-                                    if not self.config.use_plant:
-                                        temporal_measurements.append(
-                                            route_dir + "/measurements" + (f"/{(seq - idx):04}.json.gz")
-                                        )
-                            #if we have arp as baseline we want to go one timestep into the past and then extrapolate the waypoints 8 into the future
-                            if "arp" in baseline:
-                                for idx in range(self.config.pred_len):
-                                    temporal_measurements.append(route_dir + "/measurements" + (f"/{(seq + idx):04}.json.gz"))
-
-                            for idx in range(1, self.config.lidar_seq_len):
-                                if seq - idx >= 0:
-                                    temporal_lidars.append(route_dir + "/lidar" + (f"/{(seq - idx):04}.laz"))
-                            self.temporal_lidars.append(temporal_lidars)
-                            self.temporal_measurements.append(temporal_measurements)
-
-                        if self.config.img_seq_len > 1:
-                            temporal_images = []
-                            temporal_images_augmented = []
-                            for idx in range(1, self.config.img_seq_len):
-                                if seq - idx >= 0:
-                                    if not self.config.use_plant:
-                                        temporal_images.append(route_dir + "/rgb" + (f"/{(seq - idx):04}.jpg"))
-                                        temporal_images_augmented.append(
-                                            route_dir + "/rgb_augmented" + (f"/{(seq - idx):04}.jpg")
-                                        )
-                            self.temporal_images.append(temporal_images)
-                            self.temporal_images_augmented.append(temporal_images_augmented)
-
-                        self.images.append(image)
-
-                        self.images_augmented.append(image_augmented)
-                        self.semantics.append(semantic)
-                        self.semantics_augmented.append(semantic_augmented)
-                        self.bev_semantics.append(bev_semantic)
-                        self.bev_semantics_augmented.append(bev_semantic_augmented)
-                        self.depth.append(depth)
-                        self.depth_augmented.append(depth_augmented)
-                        self.lidars.append(lidar)
-                        self.boxes.append(box)
-                        self.future_boxes.append(future_box)
-                        self.measurements.append(measurement)
-                        self.sample_start.append(seq)
-        else:
-            for sub_root in tqdm(root, file=sys.stdout, disable=rank != 0):
-                route_dir = sub_root
+                route_dir = sub_root + "/" + route
+                if not os.path.isfile(route_dir + "/results.json.gz"):
+                    total_routes += 1
+                    crashed_routes += 1
+                    continue
 
                 with gzip.open(route_dir + "/results.json.gz", "rt", encoding="utf-8") as f:
                     total_routes += 1
                     results_route = ujson.load(f)
 
                 # We skip data where the expert did not achieve perfect driving score
+                if results_route["scores"]["score_composed"] < 100.0:
+                    continue
 
                 perfect_routes += 1
 
@@ -358,6 +226,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     self.future_boxes.append(future_box)
                     self.measurements.append(measurement)
                     self.sample_start.append(seq)
+
         if estimate_class_distributions:
             classes_target_speeds = np.unique(self.speed_distribution)
             target_speed_weights = compute_class_weight(
