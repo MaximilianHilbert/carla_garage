@@ -6,6 +6,7 @@ import torch
 from PIL import Image
 from coil_utils.baseline_helpers import visualize_model, norm
 import os
+import csv
 import pickle
 from coil_utils.baseline_helpers import get_copycat_criteria
 from team_code.data import CARLA_Data
@@ -51,7 +52,7 @@ def load_image_sequence(config,df_data,current_iteration):
 
 def main(args):
     avg_of_std_baseline_predictions, avg_of_avg_baseline_predictions, std_gt, avg_gt, loss_avg_of_std,loss_avg_of_avg=preprocess(args)
-
+    paths=[]
     for baseline in args.baselines:
         basename=os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
@@ -63,8 +64,12 @@ def main(args):
         with open(f"{basename}_wp.pkl", 'rb') as f:
             wp_dict = pickle.load(f)
         data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
-
-        val_set = CARLA_Data(root=config.val_data, config=config, rank=0,baseline=baseline)
+        if args.custom_validation:
+            with open(os.path.join(os.environ.get("WORK_DIR"), "cc_dirs.csv"), "r", newline="") as file:
+                reader = csv.reader(file)
+                val_lst=next(reader)
+            config.val_data=val_lst
+        val_set = CARLA_Data(root=config.val_data, config=config, rank=0,baseline=baseline, custom_val=True)
         sampler_val=SequentialSampler(val_set)
         data_loader_val = torch.utils.data.DataLoader(
             val_set,
@@ -76,7 +81,7 @@ def main(args):
             sampler=sampler_val,
         )
         count=0
-        paths=[]
+        
         for data_loader_position, (data, image_path) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images)):
             if data_loader_position==0:
                 continue
@@ -123,8 +128,8 @@ def main(args):
                 #0.15 and 1 for the one curve only
                 count+=1
                 if args.visualize_non_copycat or args.visualize_copycat:
-                    path="/".join(root.split('/')[-4:-1])
-                    paths.append(path)
+                    if not args.custom_validation:
+                        paths.append(os.path.dirname(root))
                     visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
                             pred_wp_prev=torch.Tensor(data_df.iloc[previous_index]["pred"][0]),
                             gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
@@ -134,12 +139,19 @@ def main(args):
                             prev_gt=torch.Tensor(data_df.iloc[previous_index]["gt"][0]),loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
                             condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
         print(f"count for real copycat for baseline {baseline}: {count}")
-        print(set(paths))
+    if not args.custom_validation:
+        with open(os.path.join(os.environ.get("WORK_DIR"), "cc_dirs.csv"), "w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(set(paths))
 if __name__=="__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-
+    parser.add_argument(
+        "--custom-validation",
+        type=int,
+        default=0,
+    )
     parser.add_argument(
         "--visualize-non-copycat",
         type=int,
