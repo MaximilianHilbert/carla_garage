@@ -121,7 +121,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     condition_value_1=None,
     condition_value_2=None,
     prev_gt=None,
-    ego_speed=None
+    ego_speed=None,
 ):
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
@@ -395,7 +395,6 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     draw.text((distance_from_left,start+40*15), f"condition value 2> {condition_value_2:.2f}", fill=(178, 34, 34), font=font)
     
     draw.text((distance_from_left,start+40*16), f"ego speed{ego_speed:.2f}", fill=(178, 34, 34), font=font)
-
     draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255), font=font_baseline)
     if detect:
         font.set_variation_by_name("Bold")
@@ -403,9 +402,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     all_images=np.array(image)
     all_images = Image.fromarray(all_images.astype(np.uint8))
 
-    store_path = str(str(save_path) + (f"/{step}.png"))
+    store_path = str(str(save_path) + (f"/{step}.jpg"))
     Path(store_path).parent.mkdir(parents=True, exist_ok=True)
-    all_images.save(store_path)
+    all_images.save(store_path, quality=95)
 
 
 def is_ready_to_save(epoch, iteration, data_loader, merged_config):
