@@ -213,7 +213,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     gt_wp_color =  (0, 128, 128)
     prev_gt_wp_color =  (255, 127, 80)
 
-    pred_wp_color=(230, 230, 250)
+    pred_wp_color=(178, 34, 34)
     pred_wp_prev_color= (218, 165, 32)
     # Draw wps
     # Red ground truth
@@ -394,7 +394,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     draw.text((distance_from_left,start+40*14), f"condition value 1< {condition_value_1:.2f}", fill=(178, 34, 34), font=font)
     draw.text((distance_from_left,start+40*15), f"condition value 2> {condition_value_2:.2f}", fill=(178, 34, 34), font=font)
     
-    draw.text((distance_from_left,start+40*16), f"ego speed{ego_speed:.2f}", fill=(178, 34, 34), font=font)
+    draw.text((distance_from_left,start+40*16), f"ego speed {ego_speed:.2f} km/h", fill=(178, 34, 34), font=font)
     draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255), font=font_baseline)
     if detect:
         font.set_variation_by_name("Bold")
