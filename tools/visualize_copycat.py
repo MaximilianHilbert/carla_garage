@@ -159,9 +159,10 @@ def main(args):
                     paths.append(os.path.dirname(root))
                 for i in range(-5,6):
                     data=data_loader_val.dataset.__getitem__(data_loader_position+i)
-                    
                     previous_index=data_loader_position+i-1
                     current_index=data_loader_position+i
+                    pred_residual=norm(data_df.iloc[current_index]["pred"]-previous_prediction_aligned, ord=args.norm)
+                    gt_residual=norm(data["ego_waypoints"][0]-data["previous_ego_waypoints"][0], ord=args.norm)
                     if config.img_seq_len<7:
                         empties=np.concatenate([np.zeros_like(Image.open(data_df.iloc[0]["image"]))]*(7-config.img_seq_len))
                         image_sequence,root=load_image_sequence(config,data_df, data_loader_position+i)
