@@ -210,36 +210,48 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         images_lidar = np.ascontiguousarray(images_lidar, dtype=np.uint8)
 
     #point colors
-    gt_wp_color =  (0, 128, 128)
-    prev_gt_wp_color =  (255, 127, 80)
+    light_blue=(104,	195,	212)
+    dark_blue=(22,	71,	80	)
 
-    pred_wp_color=(178, 34, 34)
-    pred_wp_prev_color= (218, 165, 32)
+    light_yellow=(	252,	209,	78	)
+    dark_yellow=(214,	168,	31)
+    firebrick=(178, 34, 34)
+    gt_wp_color = dark_blue
+    pred_wp_color=dark_yellow
+
+    prev_gt_wp_color =  light_blue
+    pred_wp_prev_color= light_yellow
+
+    
+    gt_size=12
+    prev_gt_size=9
+
+    pred_size=7
+    prev_pred_size=4
+
     # Draw wps
     # Red ground truth
     if gt_wp is not None:
-        
         for wp in gt_wp.detach().cpu().numpy():
             wp_x = wp[0] * loc_pixels_per_meter + origin[0]
             wp_y = wp[1] * loc_pixels_per_meter + origin[1]
             cv2.circle(
                 images_lidar,
                 (int(wp_x), int(wp_y)),
-                radius=10,
+                radius=gt_size,
                 color=gt_wp_color,
                 thickness=-1,
             )
     # Draw wps previous
 
     if prev_gt is not None:
-        
-        for wp in prev_gt.detach().cpu().numpy():
-            wp_x = wp[0] * loc_pixels_per_meter + origin[0]
-            wp_y = wp[1] * loc_pixels_per_meter + origin[1]
+        for wp_prev in prev_gt.detach().cpu().numpy():
+            wp_x = wp_prev[0] * loc_pixels_per_meter + origin[0]
+            wp_y = wp_prev[1] * loc_pixels_per_meter + origin[1]
             cv2.circle(
                 images_lidar,
                 (int(wp_x), int(wp_y)),
-                radius=8,
+                radius=prev_gt_size,
                 color=prev_gt_wp_color,
                 thickness=-1,
             )
@@ -270,7 +282,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             cv2.circle(
                 images_lidar,
                 (int(wp_x), int(wp_y)),
-                radius=6,
+                radius=pred_size,
                 lineType=cv2.LINE_AA,
                 color=pred_wp_color,
                 thickness=-1,
@@ -285,7 +297,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             cv2.circle(
                 images_lidar,
                 (int(wp_x), int(wp_y)),
-                radius=4,
+                radius=prev_pred_size,
                 lineType=cv2.LINE_AA,
                 color=pred_wp_prev_color,
                 thickness=-1,
@@ -314,7 +326,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             0.0,
         ]
     )
-    images_lidar = t_u.draw_box(images_lidar, sample_box, color=(0, 200, 0), pixel_per_meter=16, thickness=4)
+    images_lidar = t_u.draw_box(images_lidar, sample_box, color=firebrick, pixel_per_meter=16, thickness=4)
     if pred_bb is not None:
         for box in pred_bb:
             inv_brake = 1.0 - box[6]
