@@ -140,9 +140,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 
     ## add rgb image and lidar
     if config.use_ground_plane:
-        images_lidar = np.concatenate(list(lidar_bev.detach().cpu().numpy()[0][:1]), axis=1)
+        images_lidar = np.concatenate(list(lidar_bev[:1]), axis=1)
     else:
-        images_lidar = np.concatenate(list(lidar_bev.detach().cpu().numpy()[0][:1]), axis=1)
+        images_lidar = np.concatenate(list(lidar_bev[:1]), axis=1)
 
     images_lidar = 255 - (images_lidar * 255).astype(np.uint8)
     images_lidar = np.stack([images_lidar, images_lidar, images_lidar], axis=-1)
@@ -161,7 +161,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     # images_lidar = road[:, :, 3:4] * road[:, :, :3] + (1 - road[:, :, 3:4]) * images_lidar
 
     if pred_bev_semantic is not None:
-        bev_semantic_indices = np.argmax(pred_bev_semantic[0].detach().cpu().numpy(), axis=0)
+        bev_semantic_indices = np.argmax(pred_bev_semantic, axis=0)
         converter = np.array(config.bev_classes_list)
         converter[1][0:3] = 40
         bev_semantic_image = converter[bev_semantic_indices, ...].astype("uint8")
@@ -185,7 +185,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         images_lidar = bev_semantic_image * alpha + (1 - alpha) * images_lidar
 
     if gt_bev_semantic is not None:
-        bev_semantic_indices = gt_bev_semantic[0].detach().cpu().numpy()
+        bev_semantic_indices = gt_bev_semantic
         converter = np.array(config.bev_classes_list)
         converter[1][0:3] = 40
         bev_semantic_image = converter[bev_semantic_indices, ...].astype("uint8")
@@ -232,7 +232,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     # Draw wps
     # Red ground truth
     if gt_wp is not None:
-        for wp in gt_wp.detach().cpu().numpy():
+        for wp in gt_wp:
             wp_x = wp[0] * loc_pixels_per_meter + origin[0]
             wp_y = wp[1] * loc_pixels_per_meter + origin[1]
             cv2.circle(
@@ -245,7 +245,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     # Draw wps previous
 
     if prev_gt is not None:
-        for wp_prev in prev_gt.detach().cpu().numpy():
+        for wp_prev in prev_gt:
             wp_x = wp_prev[0] * loc_pixels_per_meter + origin[0]
             wp_y = wp_prev[1] * loc_pixels_per_meter + origin[1]
             cv2.circle(
@@ -259,7 +259,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 
     # Green predicted checkpoint
     if pred_checkpoint is not None:
-        for wp in pred_checkpoint.detach().cpu().numpy():
+        for wp in pred_checkpoint:
             wp_x = wp[0] * loc_pixels_per_meter + origin[0]
             wp_y = wp[1] * loc_pixels_per_meter + origin[1]
             cv2.circle(
@@ -273,7 +273,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 
     # Blue predicted wp
     if pred_wp is not None:
-        pred_wps = pred_wp.detach().cpu().numpy()
+        pred_wps = pred_wp
         num_wp = len(pred_wps)
         for idx, wp in enumerate(pred_wps):
             color_weight = 0.5 + 0.5 * float(idx) / num_wp
@@ -288,7 +288,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
                 thickness=-1,
             )
     if pred_wp_prev is not None:
-        pred_wp_prev = pred_wp_prev.detach().cpu().numpy()
+        pred_wp_prev = pred_wp_prev
         num_wp = len(pred_wp_prev)
         for idx, wp in enumerate(pred_wp_prev):
             color_weight = 0.5 + 0.5 * float(idx) / num_wp
@@ -304,8 +304,8 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             )
     # Draw target points
     if config.use_tp:
-        x_tp = target_point[0][0] * loc_pixels_per_meter + origin[0]
-        y_tp = target_point[0][1] * loc_pixels_per_meter + origin[1]
+        x_tp = target_point[0] * loc_pixels_per_meter + origin[0]
+        y_tp = target_point[1] * loc_pixels_per_meter + origin[1]
         cv2.circle(
             images_lidar,
             (int(x_tp), int(y_tp)),
@@ -336,7 +336,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             images_lidar = t_u.draw_box(images_lidar, box, color=color_box, pixel_per_meter=loc_pixels_per_meter)
 
     if gt_bbs is not None:
-        gt_bbs = gt_bbs.detach().cpu().numpy()[0]
+        gt_bbs = gt_bbs
         real_boxes = gt_bbs.sum(axis=-1) != 0.0
         gt_bbs = gt_bbs[real_boxes]
         for box in gt_bbs:
@@ -377,7 +377,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         )
 
     if pred_speed is not None:
-        pred_speed = pred_speed.detach().cpu().numpy()[0]
+        pred_speed = pred_speed
         images_lidar = np.ascontiguousarray(images_lidar, dtype=np.uint8)
         t_u.draw_probability_boxes(images_lidar, pred_speed, config.target_speeds)
    
