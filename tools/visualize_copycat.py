@@ -51,6 +51,15 @@ def load_image_sequence(config,df_data,current_iteration):
 
 def main(args):
     avg_of_std_baseline_predictions, avg_of_avg_baseline_predictions, std_gt, avg_gt, loss_avg_of_std,loss_avg_of_avg=preprocess(args)
+    
+    keyframe_correlations=np.load(os.path.join(
+            os.environ.get("WORK_DIR"),
+            "_logs",
+            "keyframes",
+            f"repetition_0",
+            f"bcoh_weights_prev9_rep0_neurons300.npy",
+        ))
+    
     paths=[]
     for baseline in args.baselines:
         basename=os.path.join(os.environ.get("WORK_DIR"),
@@ -164,14 +173,14 @@ def main(args):
                     else:
                         detection=False
                     previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"].squeeze(), data["ego_matrix_previous"], data["ego_matrix_current"])
-                    visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=data["lidar"],
+                    visualize_model(config=config, save_path_with_rgb=os.path.join(os.environ.get("WORK_DIR"),"vis_rgb",baseline),save_path_without_rgb=os.path.join(os.environ.get("WORK_DIR"),"vis_no_rgb",baseline), rgb=image_sequence, lidar_bev=data["lidar"],
                             pred_wp_prev=np.squeeze(previous_prediction_aligned),
                             gt_bev_semantic=data["bev_semantic"], step=current_index,
                             target_point=data["target_point"], pred_wp=np.squeeze(data_df.iloc[current_index]["pred"]),
                             gt_wp=data["ego_waypoints"],pred_residual=pred_residual,
                             gt_residual=gt_residual,copycat_count=count, detect=detection, frame=data_loader_position,
                             prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
-                            condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"])
+                            condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"], correlation_weight=keyframe_correlations[data_loader_position-i])
         print(f"count for real copycat for baseline {baseline}: {count}")
     if not args.custom_validation:
         with open(os.path.join(os.environ.get("WORK_DIR"),

@@ -92,7 +92,8 @@ def get_predictions(controls, branches):
 
 def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     config,
-    save_path,
+    save_path_with_rgb,
+    save_path_without_rgb,
     step,
     rgb, #tensor of one or multiple images shape img,h,w,c
     target_point,
@@ -122,6 +123,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     condition_value_2=None,
     prev_gt=None,
     ego_speed=None,
+    correlation_weight=None
 ):
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
@@ -383,8 +385,11 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
    
     
     all_images = np.concatenate([rgb,images_lidar],axis=0)
+    
     image=Image.fromarray(all_images.astype(np.uint8))
+    
     draw = ImageDraw.Draw(image)
+    
     font = ImageFont.truetype("Ubuntu-B.ttf", 40)
     font_baseline = ImageFont.truetype("Ubuntu-B.ttf", 100)
     font_copycat=ImageFont.truetype("Ubuntu-B.ttf", 100)
@@ -407,16 +412,60 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     draw.text((distance_from_left,start+40*15), f"condition value 2> {condition_value_2:.2f}", fill=(178, 34, 34), font=font)
     
     draw.text((distance_from_left,start+40*16), f"ego speed {ego_speed:.2f} km/h", fill=(178, 34, 34), font=font)
+
+    draw.text((distance_from_left,start+40*17), f"corr_weight {correlation_weight:.2f}", fill=(178, 34, 34), font=font)
+
     draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255), font=font_baseline)
     if detect:
         font.set_variation_by_name("Bold")
         draw.text((distance_from_left-50,start+40*10), f"copycat!", fill=(178, 34, 34), font=font_copycat)
+    
     all_images=np.array(image)
     all_images = Image.fromarray(all_images.astype(np.uint8))
 
-    store_path = str(str(save_path) + (f"/{step}.jpg"))
+    store_path = str(str(save_path_with_rgb) + (f"/{step}.jpg"))
     Path(store_path).parent.mkdir(parents=True, exist_ok=True)
     all_images.save(store_path, quality=95)
+
+
+    no_rgb_image=images_lidar
+    no_rgb_image=Image.fromarray(no_rgb_image.astype(np.uint8))
+    no_rgb_image_draw = ImageDraw.Draw(no_rgb_image)
+
+    start=20
+    distance_from_left=600
+    no_rgb_image_draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
+
+    no_rgb_image_draw.text((distance_from_left,start+40), f"copycat counter {copycat_count}", fill=(178, 34, 34), font=font)
+    no_rgb_image_draw.text((distance_from_left,start+40*2), f"res. pred. (L2): {pred_residual:.2f}", fill=(178, 34, 34), font=font)
+    no_rgb_image_draw.text((distance_from_left,start+40*3), f"res. gt. (L2): {gt_residual:.2f}", fill=(178, 34, 34), font=font)
+    no_rgb_image_draw.text((distance_from_left,start+40*4), f"loss (L2): {loss:.2f}", fill=(178, 34, 34), font=font)
+
+    no_rgb_image_draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
+    no_rgb_image_draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
+    no_rgb_image_draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
+    no_rgb_image_draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
+    
+    no_rgb_image_draw.text((distance_from_left,start+40*13), f"condition: {condition}", fill=(178, 34, 34), font=font)
+    no_rgb_image_draw.text((distance_from_left,start+40*14), f"condition value 1< {condition_value_1:.2f}", fill=(178, 34, 34), font=font)
+    no_rgb_image_draw.text((distance_from_left,start+40*15), f"condition value 2> {condition_value_2:.2f}", fill=(178, 34, 34), font=font)
+    
+    no_rgb_image_draw.text((distance_from_left,start+40*16), f"ego speed {ego_speed:.2f} km/h", fill=(178, 34, 34), font=font)
+
+    no_rgb_image_draw.text((distance_from_left,start+40*17), f"corr_weight {correlation_weight:.2f}", fill=(178, 34, 34), font=font)
+
+    no_rgb_image_draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(0,0,0), font=font_baseline)
+    if detect:
+        font.set_variation_by_name("Bold")
+        no_rgb_image_draw.text((distance_from_left-50,start+40*10), f"copycat!", fill=(178, 34, 34), font=font_copycat)
+
+
+    no_rgb_images=np.array(no_rgb_image)
+    no_rgb_images = Image.fromarray(no_rgb_images.astype(np.uint8))
+
+    store_path = str(str(save_path_without_rgb) + (f"/{step}.jpg"))
+    Path(store_path).parent.mkdir(parents=True, exist_ok=True)
+    no_rgb_images.save(store_path, quality=95)
 
 
 def is_ready_to_save(epoch, iteration, data_loader, merged_config):
