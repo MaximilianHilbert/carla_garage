@@ -126,7 +126,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     future_box = []
                     measurement = []
 
-                    # Loads the current (and past) frames (if seq_len > 1)
+                   
                     for idx in range(self.config.seq_len):
                         if self.config.img_seq_len>0:
                             if not self.config.use_plant:
@@ -188,8 +188,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                     temporal_measurements.append(
                                         route_dir + "/measurements" + (f"/{(seq - idx):04}.json.gz")
                                     )
-                        #if we have arp as baseline we want to go one timestep into the past and then extrapolate the waypoints 8 into the future
-                        if "arp" in baseline:
+                        #if we have arp as baseline we want to go one timestep into the past and then extrapolate the waypoints 8 into the future, same when we want to detect a copycat issue
+                        if "arp" in baseline or self.config.visualize_copycat:
                             for idx in range(self.config.pred_len):
                                 temporal_measurements.append(route_dir + "/measurements" + (f"/{(seq + idx):04}.json.gz"))
 
@@ -865,14 +865,17 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 )
                 data["ego_waypoints"] = np.array(current_waypoints, dtype=np.float32)
                 if self.config.number_previous_waypoints>0:
-                    waypoints_per_step = self.get_waypoints(
+                    waypoints_per_step= self.get_waypoints(
                         loaded_temporal_measurements[self.config.seq_len - 1 :],
                         y_augmentation=aug_translation,
                         yaw_augmentation=aug_rotation,
+                        prev=True
                     )
-                
-
-                data["previous_ego_waypoints"] = np.array(waypoints_per_step, dtype=np.float32)
+                if loaded_temporal_measurements:
+                    data["ego_matrix_previous"]=np.array(loaded_temporal_measurements[0]["ego_matrix"])
+                data["ego_matrix_current"]=np.array(current_measurement["ego_matrix"])
+                if waypoints_per_step:
+                    data["previous_ego_waypoints"] = np.array(waypoints_per_step, dtype=np.float32)
         # Convert target speed to indexes
         brake = np.float32(current_measurement["brake"])
 
@@ -1124,14 +1127,19 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         target_point_aug = rotation_matrix.T @ (pos - translation)
         return np.squeeze(target_point_aug)
 
-    def get_waypoints(self, measurements, y_augmentation=0.0, yaw_augmentation=0.0):
+    def get_waypoints(self, measurements, y_augmentation=0.0, yaw_augmentation=0.0, prev=False):
         """transform waypoints to be origin at ego_matrix"""
-        origin = measurements[0]
+        if prev:
+            origin = measurements[1]
+        else:
+            origin = measurements[0]
         origin_matrix = np.array(origin["ego_matrix"])[:3]
         origin_translation = origin_matrix[:, 3:4]
         origin_rotation = origin_matrix[:, :3]
 
         waypoints = []
+        #if gt for previous wp, skip index==1, because this is the origin for the alignment
+
         for index in range(self.config.seq_len, len(measurements)):
             waypoint = np.array(measurements[index]["ego_matrix"])[:3, 3:4]
             waypoint_ego_frame = origin_rotation.T @ (waypoint - origin_translation)
@@ -1155,7 +1163,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             waypoints_aug.append(np.squeeze(waypoint_aug))
 
         return waypoints_aug
-
     def align(
         self,
         lidar_0,
