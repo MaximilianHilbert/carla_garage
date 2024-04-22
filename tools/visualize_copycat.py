@@ -143,30 +143,35 @@ def main(args):
                 condition_value_2=avg_gt+std_gt*args.tuning_parameter_2
                 condition_2=gt_residual>condition_value_2
             
-            if args.visualize_non_copycat:
-                visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
-                            pred_wp_prev=torch.Tensor(previous_prediction_aligned),
-                            gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
-                            target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
-                            gt_wp=data["ego_waypoints"][0],pred_residual=pred_residual,
-                            gt_residual=gt_residual,copycat_count=count, detect=False, frame=data_loader_position,
-                            prev_gt=data["previous_ego_waypoints"][0],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
-                            condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
-            
             if condition_1 and condition_2 and data["speed"].numpy()[0]>0.05:
                 #0.15 and 1 for the one curve only
                 count+=1
                 if not args.custom_validation:
                     paths.append(os.path.dirname(root))
-                if args.visualize_non_copycat or args.visualize_copycat:
-                    visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
-                            pred_wp_prev=torch.Tensor(previous_prediction_aligned),
-                            gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
-                            target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
-                            gt_wp=data["ego_waypoints"][0],pred_residual=pred_residual,
-                            gt_residual=gt_residual,copycat_count=count, detect=True, frame=data_loader_position,
-                            prev_gt=data["previous_ego_waypoints"][0],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
-                            condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
+                for i in range(-5,6):
+                    data=data_loader_val.dataset.__getitem__(data_loader_position+i)
+                    
+                    previous_index=data_loader_position+i-1
+                    current_index=data_loader_position+i
+                    if config.img_seq_len<7:
+                        empties=np.concatenate([np.zeros_like(Image.open(data_df.iloc[0]["image"]))]*(7-config.img_seq_len))
+                        image_sequence,root=load_image_sequence(config,data_df, data_loader_position+i)
+                        image_sequence=np.concatenate([empties, image_sequence], axis=0)
+                    else:
+                        image_sequence,root=load_image_sequence(config,data_df, data_loader_position+i)
+                    if i==0:
+                        detection=True
+                    else:
+                        detection=False
+                    previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"].squeeze(), data["ego_matrix_previous"], data["ego_matrix_current"])
+                    visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=data["lidar"],
+                            pred_wp_prev=np.squeeze(previous_prediction_aligned),
+                            gt_bev_semantic=data["bev_semantic"], step=current_index,
+                            target_point=data["target_point"], pred_wp=np.squeeze(data_df.iloc[current_index]["pred"]),
+                            gt_wp=data["ego_waypoints"],pred_residual=pred_residual,
+                            gt_residual=gt_residual,copycat_count=count, detect=detection, frame=data_loader_position,
+                            prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
+                            condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"])
         print(f"count for real copycat for baseline {baseline}: {count}")
     if not args.custom_validation:
         with open(os.path.join(os.environ.get("WORK_DIR"),
@@ -180,16 +185,6 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--custom-validation",
-        type=int,
-        default=0,
-    )
-    parser.add_argument(
-        "--visualize-non-copycat",
-        type=int,
-        default=0,
-    )
-    parser.add_argument(
-        "--visualize-copycat",
         type=int,
         default=0,
     )
