@@ -60,6 +60,8 @@ def main(args):
     
         with open(f"{basename}_config.pkl", 'rb') as f:
             config = pickle.load(f)
+        config.number_previous_waypoints=1
+        config.visualize_copycat=True
         if not args.custom_validation:
             with open(f"{basename}_predictions_all.pkl", 'rb') as f:
                 wp_dict = pickle.load(f)
@@ -105,15 +107,33 @@ def main(args):
             #0.2 0.5
             #single curve 0.2 ung std_value gt 1
             #oder 0.1
+            def align_previous_prediction(pred, matrix_previous, matrix_current):
+                matrix_prev = matrix_previous[:3]
+                translation_prev = matrix_prev[:, 3:4].flatten()
+                rotation_prev = matrix_prev[:, :3]
+
+                matrix_curr = matrix_current[:3]
+                translation_curr = matrix_curr[:, 3:4].flatten()
+                rotation_curr = matrix_curr[:, :3]
+
+                waypoints=[]
+                for waypoint in pred:
+                    waypoint_3d=np.append(waypoint, 0)
+                    waypoint_world_frame = (rotation_prev@waypoint_3d) + translation_prev
+                    waypoint_aligned_frame=rotation_curr.T @(waypoint_world_frame-translation_curr)
+                    waypoints.append(waypoint_aligned_frame[:-1])
+                return np.array(waypoints)
+
             
+            previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"][0], data["ego_matrix_previous"].detach().cpu().numpy()[0], data["ego_matrix_current"].detach().cpu().numpy()[0])
             if config.img_seq_len<7:
                 empties=np.concatenate([np.zeros_like(Image.open(data_df.iloc[0]["image"]))]*(7-config.img_seq_len))
                 image_sequence,root=load_image_sequence(config,data_df, data_loader_position)
                 image_sequence=np.concatenate([empties, image_sequence], axis=0)
             else:
                 image_sequence,root=load_image_sequence(config,data_df, data_loader_position)
-            pred_residual=norm(data_df.iloc[current_index]["pred"]-data_df.iloc[previous_index]["pred"], ord=args.norm)
-            gt_residual=norm(data_df.iloc[current_index]["gt"]-data_df.iloc[previous_index]["gt"], ord=args.norm)
+            pred_residual=norm(data_df.iloc[current_index]["pred"]-previous_prediction_aligned, ord=args.norm)
+            gt_residual=norm(data["ego_waypoints"][0].detach().cpu().numpy()-data["previous_ego_waypoints"][0].detach().cpu().numpy(), ord=args.norm)
             condition_value_1=avg_of_avg_baseline_predictions-avg_of_std_baseline_predictions*args.pred_tuning_parameter
             condition_1=pred_residual<condition_value_1
             if args.second_cc_condition=="loss":
@@ -125,12 +145,12 @@ def main(args):
             
             if args.visualize_non_copycat:
                 visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
-                            pred_wp_prev=torch.Tensor(data_df.iloc[previous_index]["pred"][0]),
+                            pred_wp_prev=torch.Tensor(previous_prediction_aligned),
                             gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
                             target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
-                            gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
+                            gt_wp=data["ego_waypoints"][0],pred_residual=pred_residual,
                             gt_residual=gt_residual,copycat_count=count, detect=False, frame=data_loader_position,
-                            prev_gt=torch.Tensor(data_df.iloc[previous_index]["gt"][0]),loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
+                            prev_gt=data["previous_ego_waypoints"][0],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
                             condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
             
             if condition_1 and condition_2 and data["speed"].numpy()[0]>0.05:
@@ -140,12 +160,12 @@ def main(args):
                     paths.append(os.path.dirname(root))
                 if args.visualize_non_copycat or args.visualize_copycat:
                     visualize_model(config=config, save_path=os.path.join(os.environ.get("WORK_DIR"),"vis",baseline), rgb=image_sequence, lidar_bev=torch.Tensor(data["lidar"]),
-                            pred_wp_prev=torch.Tensor(data_df.iloc[previous_index]["pred"][0]),
+                            pred_wp_prev=torch.Tensor(previous_prediction_aligned),
                             gt_bev_semantic=torch.ByteTensor(data["bev_semantic"]), step=current_index,
                             target_point=torch.Tensor(data["target_point"]), pred_wp=torch.Tensor(data_df.iloc[current_index]["pred"][0]),
-                            gt_wp=torch.Tensor(data_df.iloc[current_index]["gt"][0]),pred_residual=pred_residual,
+                            gt_wp=data["ego_waypoints"][0],pred_residual=pred_residual,
                             gt_residual=gt_residual,copycat_count=count, detect=True, frame=data_loader_position,
-                            prev_gt=torch.Tensor(data_df.iloc[previous_index]["gt"][0]),loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
+                            prev_gt=data["previous_ego_waypoints"][0],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
                             condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"].numpy()[0])
         print(f"count for real copycat for baseline {baseline}: {count}")
     if not args.custom_validation:
