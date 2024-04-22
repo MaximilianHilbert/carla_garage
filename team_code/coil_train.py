@@ -117,28 +117,7 @@ def main(args):
             rank=rank,
             baseline=args.baseline_folder_name
         )
-        
-        if args.custom_validation:
-            with open(os.path.join(os.environ.get("WORK_DIR"),
-                            "_logs",
-                            "detected_cc_dirs.csv"), "r", newline="") as file:
-                reader = csv.reader(file)
-                val_lst=[]
-                for row in reader:
-                    val_lst.append(row)
-            val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name, custom_validation_lst=val_lst[0])
-        else:
-            val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name)
-        sampler_val=SequentialSampler(val_set)
-        data_loader_val = torch.utils.data.DataLoader(
-            val_set,
-            batch_size=args.batch_size,
-            num_workers=args.number_of_workers,
-            pin_memory=True,
-            shuffle=False,  # because of DDP
-            drop_last=True,
-            sampler=sampler_val,
-        )
+    
 
         if "keyframes" in args.experiment:
             # load the correlation weights and reshape them, that the last 3 elements that do not fit into the batch size dimension get dropped, because the dataloader of Carla_Dataset does the same, it should fit
@@ -423,10 +402,33 @@ def main(args):
                         )
             torch.cuda.empty_cache()
         dist.destroy_process_group()
+        merged_config_object.number_previous_waypoints=7
+        merged_config_object.visualize_copycat=True
+        if args.custom_validation:
+            with open(os.path.join(os.environ.get("WORK_DIR"),
+                            "_logs",
+                            "detected_cc_dirs.csv"), "r", newline="") as file:
+                reader = csv.reader(file)
+                val_lst=[]
+                for row in reader:
+                    val_lst.append(row)
+            val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name, custom_validation_lst=val_lst[0])
+        else:
+            val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name)
+        sampler_val=SequentialSampler(val_set)
+        data_loader_val = torch.utils.data.DataLoader(
+            val_set,
+            batch_size=args.batch_size,
+            num_workers=args.number_of_workers,
+            pin_memory=True,
+            shuffle=False,  # because of DDP
+            drop_last=True,
+            sampler=sampler_val,
+        )
+
         if args.metric:
             print("Start of Evaluation")
             wp_dict={}
-            vis_dict={}
             for iteration, (data,image) in enumerate(zip(tqdm(data_loader_val), data_loader_val.dataset.images), start=7):
                 image=str(image, encoding="utf-8").replace("\x00", "")
                 current_image,current_speed,target_point,targets,previous_targets,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
@@ -510,7 +512,7 @@ def main(args):
 def extract_and_normalize_data(args, device_id, merged_config_object, data):
     temporal_images=[]
     current_speed=[]
-
+    previous_targets=[]
     current_image = torch.reshape(
                     data["rgb"].to(device_id).to(torch.float32) / 255.0,
                     (
@@ -525,8 +527,8 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
         current_speed = torch.zeros_like(current_speed)
     target_point = data["target_point"].to(device_id)
     targets = data["ego_waypoints"].to(device_id)
-    previous_targets = data["previous_ego_waypoints"].to(device_id)
-
+    if merged_config_object.number_previous_waypoints>0:
+        previous_targets = data["previous_ego_waypoints"].to(device_id)
     if "arp" in args.experiment or "bcoh" in args.experiment or "keyframes" in args.experiment:
         temporal_images = data["temporal_rgb"].to(device_id) / 255.0
     return current_image,current_speed,target_point,targets,previous_targets,temporal_images

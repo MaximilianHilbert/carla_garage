@@ -58,7 +58,7 @@ class GlobalConfig:
         self.threshold_ratio = 0.1
         self.threshold_weight = 5.0
         self.correlation_weights = False
-
+        self.visualize_copycat=False
         self.pre_trained = True
         #
         # -----------------------------------------------------------------------------
@@ -370,7 +370,7 @@ class GlobalConfig:
         self.clip_throttle = 0.75  # Maximum throttle allowed by the controller
 
         # Whether the model in and outputs will be visualized and saved into SAVE_PATH
-        self.debug = False
+        self.debug = True
 
         # -----------------------------------------------------------------------------
         # Logger
