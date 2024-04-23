@@ -91,6 +91,7 @@ def get_predictions(controls, branches):
 
 
 def visualize_model(  # pylint: disable=locally-disabled, unused-argument
+    args,
     config,
     save_path_with_rgb,
     save_path_without_rgb,
@@ -386,7 +387,14 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     font_baseline = ImageFont.truetype("Ubuntu-B.ttf", 100)
     font_copycat=ImageFont.truetype("Ubuntu-B.ttf", 70)
     distance_from_left=600
-    for image_name in ["combined", "lidar_only"]:
+    options=[]
+    if args.visualize_without_rgb:
+        options.append("lidar_only")
+    if args.visualize_combined:
+        options.append("combined")
+
+
+    for image_name in options:
         if image_name=="combined":
             start=1800
             image=Image.fromarray(all_images.astype(np.uint8))
