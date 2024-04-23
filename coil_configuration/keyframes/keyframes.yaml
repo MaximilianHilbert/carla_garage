@@ -1,6 +1,7 @@
 img_seq_len: 7  # number of frames fused
 correlation_weights: true
-
+use_color_aug: 0
+augment: 0
 model_type: 'coil-icra' # the type of model. defines which modules the model has.
 model_configuration:  # based on the model_type, we specify the structure
   perception:  # the module that process the image input, it ouput the number of classes
@@ -29,3 +30,5 @@ pre_trained: true  # if the weights are started with imagenet.
 use_wp_gru: true
 branch_loss_weight: [1,0]
 importance_sample_method: "softmax"
+speed_input: false
+num_repetitions: 3
