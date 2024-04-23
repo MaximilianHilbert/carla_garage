@@ -21,13 +21,60 @@ class SequentialSampler(Sampler):
     def __len__(self):
         return len(self.data_source)
 
+def align_previous_prediction(pred, matrix_previous, matrix_current):
+    matrix_prev = matrix_previous[:3]
+    translation_prev = matrix_prev[:, 3:4].flatten()
+    rotation_prev = matrix_prev[:, :3]
+
+    matrix_curr = matrix_current[:3]
+    translation_curr = matrix_curr[:, 3:4].flatten()
+    rotation_curr = matrix_curr[:, :3]
+
+    waypoints=[]
+    for waypoint in pred:
+        waypoint_3d=np.append(waypoint, 0)
+        waypoint_world_frame = (rotation_prev@waypoint_3d) + translation_prev
+        waypoint_aligned_frame=rotation_curr.T @(waypoint_world_frame-translation_curr)
+        waypoints.append(waypoint_aligned_frame[:-1])
+    return np.array(waypoints)
+
+def determine_copycat(gpu,args,data_df,data,previous_prediction_aligned,keyframe_correlation,current_index, previous_index,params):
+    detection_keyframes,detection_ours=False,False
+    pred_residual=norm(data_df.iloc[current_index]["pred"]-previous_prediction_aligned, ord=args.norm)
+    gt_residual=norm(data["ego_waypoints"][0].detach().cpu().numpy()-data["previous_ego_waypoints"][0].detach().cpu().numpy(), ord=args.norm) if gpu else norm(data["ego_waypoints"]-data["previous_ego_waypoints"], ord=args.norm)
     
+    condition_value_1=params["avg_of_avg_baseline_predictions"]-params["avg_of_std_baseline_predictions"]*args.pred_tuning_parameter
+    condition_1=pred_residual<condition_value_1
+    condition_value_keyframes=params["avg_of_kf"]+params["std_of_kf"]*args.pred_tuning_parameter
+    condition_keyframes=keyframe_correlation>condition_value_keyframes
+
+    if args.second_cc_condition=="loss":
+        condition_value_2=params["loss_avg_of_avg"]+params["loss_avg_of_std"]*args.tuning_parameter_2
+        condition_2=data_df.iloc[current_index]["loss"]>condition_value_2
+    else:
+        condition_value_2=params["avg_gt"]+params["std_gt"]*args.tuning_parameter_2
+        condition_2=gt_residual>condition_value_2
+
+    if condition_1 and condition_2:
+        detection_ours=True
+    if condition_keyframes:
+        detection_keyframes=True
+    return detection_ours, detection_keyframes, {"pred_residual":pred_residual, "gt_residual": gt_residual, "condition_value_1": condition_value_1, "condition_value_2": condition_value_2, "condition_value_keyframes": condition_value_keyframes}
+
+
 def preprocess(args):
     std_lst=[]
     mean_lst=[]
 
     loss_std_lst=[]
     loss_mean_lst=[]
+    keyframe_correlations=np.load(os.path.join(
+            os.environ.get("WORK_DIR"),
+            "_logs",
+            "keyframes",
+            f"repetition_0",
+            f"bcoh_weights_prev9_rep0_neurons300.npy",
+        ))
     for baseline in args.baselines:
         basename=os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
@@ -41,7 +88,9 @@ def preprocess(args):
             loss_std_lst.append(criterion_dict["loss_std"])
             loss_mean_lst.append(criterion_dict["loss_mean"])
             
-    return np.mean(np.array(std_lst)),np.mean(np.array(mean_lst)), criterion_dict["std_gt"], criterion_dict["mean_gt"], np.mean(np.array(loss_std_lst)), np.mean(np.array(loss_mean_lst))
+    return {"avg_of_std_baseline_predictions": np.mean(np.array(std_lst)),"avg_of_avg_baseline_predictions":np.mean(np.array(mean_lst)),
+            "std_gt":criterion_dict["std_gt"], "avg_gt":criterion_dict["mean_gt"], "loss_avg_of_std":np.mean(np.array(loss_std_lst)), "loss_avg_of_avg":np.mean(np.array(loss_mean_lst)), "avg_of_kf":np.mean(keyframe_correlations),
+    "std_of_kf":np.std(keyframe_correlations), "keyframes_correlations": keyframe_correlations}
 
 def load_image_sequence(config,df_data,current_iteration):
     root=os.path.dirname(df_data.iloc[current_iteration]["image"])
@@ -50,15 +99,7 @@ def load_image_sequence(config,df_data,current_iteration):
 
 
 def main(args):
-    avg_of_std_baseline_predictions, avg_of_avg_baseline_predictions, std_gt, avg_gt, loss_avg_of_std,loss_avg_of_avg=preprocess(args)
-    
-    keyframe_correlations=np.load(os.path.join(
-            os.environ.get("WORK_DIR"),
-            "_logs",
-            "keyframes",
-            f"repetition_0",
-            f"bcoh_weights_prev9_rep0_neurons300.npy",
-        ))
+    params=preprocess(args)
     
     paths=[]
     for baseline in args.baselines:
@@ -100,9 +141,11 @@ def main(args):
             drop_last=True,
             sampler=sampler_val,
         )
-        count=0
+        keyframes_cc_positions=[]
+        our_cc_positions=[]
         
-        for data_loader_position, (data, image_path) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images)):
+        already_saved_indices=[]
+        for data_loader_position, (data, image_path, keyframe_correlation) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images, params["keyframes_correlations"])):
             if data_loader_position==0:
                 continue
             data_image=str(image_path, encoding="utf-8").replace("\x00", "")
@@ -111,78 +154,42 @@ def main(args):
             pred_image=data_df.iloc[current_index]["image"]
             if data_image!=pred_image:
                 assert("not aligned")
-    
-            #only red lights 0.01 1
-            #0.2 0.5
-            #single curve 0.2 ung std_value gt 1
-            #oder 0.1
-            def align_previous_prediction(pred, matrix_previous, matrix_current):
-                matrix_prev = matrix_previous[:3]
-                translation_prev = matrix_prev[:, 3:4].flatten()
-                rotation_prev = matrix_prev[:, :3]
-
-                matrix_curr = matrix_current[:3]
-                translation_curr = matrix_curr[:, 3:4].flatten()
-                rotation_curr = matrix_curr[:, :3]
-
-                waypoints=[]
-                for waypoint in pred:
-                    waypoint_3d=np.append(waypoint, 0)
-                    waypoint_world_frame = (rotation_prev@waypoint_3d) + translation_prev
-                    waypoint_aligned_frame=rotation_curr.T @(waypoint_world_frame-translation_curr)
-                    waypoints.append(waypoint_aligned_frame[:-1])
-                return np.array(waypoints)
-
-            
             previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"][0], data["ego_matrix_previous"].detach().cpu().numpy()[0], data["ego_matrix_current"].detach().cpu().numpy()[0])
-            if config.img_seq_len<7:
-                empties=np.concatenate([np.zeros_like(Image.open(data_df.iloc[0]["image"]))]*(7-config.img_seq_len))
-                image_sequence,root=load_image_sequence(config,data_df, data_loader_position)
-                image_sequence=np.concatenate([empties, image_sequence], axis=0)
-            else:
-                image_sequence,root=load_image_sequence(config,data_df, data_loader_position)
-            pred_residual=norm(data_df.iloc[current_index]["pred"]-previous_prediction_aligned, ord=args.norm)
-            gt_residual=norm(data["ego_waypoints"][0].detach().cpu().numpy()-data["previous_ego_waypoints"][0].detach().cpu().numpy(), ord=args.norm)
-            condition_value_1=avg_of_avg_baseline_predictions-avg_of_std_baseline_predictions*args.pred_tuning_parameter
-            condition_1=pred_residual<condition_value_1
-            if args.second_cc_condition=="loss":
-                condition_value_2=loss_avg_of_avg+loss_avg_of_std*args.tuning_parameter_2
-                condition_2=data_df.iloc[current_index]["loss"]>condition_value_2
-            else:
-                condition_value_2=avg_gt+std_gt*args.tuning_parameter_2
-                condition_2=gt_residual>condition_value_2
-            
-            if condition_1 and condition_2 and data["speed"].numpy()[0]>0.05:
-                #0.15 and 1 for the one curve only
-                count+=1
-                if not args.custom_validation:
-                    paths.append(os.path.dirname(root))
+            detection_ours, detection_keyframes,_=determine_copycat(True,args,data_df,data,previous_prediction_aligned,keyframe_correlation,current_index,previous_index,params)
+            if detection_keyframes:
+                keyframes_cc_positions.append(data_loader_position)
+            if detection_ours:
+                our_cc_positions.append(data_loader_position)
+            if detection_ours or detection_keyframes:
+                # if not args.custom_validation:
+                #     paths.append(os.path.dirname(root))
                 for i in range(-5,6):
-                    data=data_loader_val.dataset.__getitem__(data_loader_position+i)
+                    detection_ours, detection_keyframes=False, False
                     previous_index=data_loader_position+i-1
                     current_index=data_loader_position+i
-                    pred_residual=norm(data_df.iloc[current_index]["pred"]-previous_prediction_aligned, ord=args.norm)
-                    gt_residual=norm(data["ego_waypoints"][0]-data["previous_ego_waypoints"][0], ord=args.norm)
-                    if config.img_seq_len<7:
-                        empties=np.concatenate([np.zeros_like(Image.open(data_df.iloc[0]["image"]))]*(7-config.img_seq_len))
-                        image_sequence,root=load_image_sequence(config,data_df, data_loader_position+i)
-                        image_sequence=np.concatenate([empties, image_sequence], axis=0)
-                    else:
-                        image_sequence,root=load_image_sequence(config,data_df, data_loader_position+i)
-                    if i==0:
-                        detection=True
-                    else:
-                        detection=False
-                    previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"].squeeze(), data["ego_matrix_previous"], data["ego_matrix_current"])
-                    visualize_model(config=config, save_path_with_rgb=os.path.join(os.environ.get("WORK_DIR"),"vis_rgb",baseline),save_path_without_rgb=os.path.join(os.environ.get("WORK_DIR"),"vis_no_rgb",baseline), rgb=image_sequence, lidar_bev=data["lidar"],
-                            pred_wp_prev=np.squeeze(previous_prediction_aligned),
-                            gt_bev_semantic=data["bev_semantic"], step=current_index,
-                            target_point=data["target_point"], pred_wp=np.squeeze(data_df.iloc[current_index]["pred"]),
-                            gt_wp=data["ego_waypoints"],pred_residual=pred_residual,
-                            gt_residual=gt_residual,copycat_count=count, detect=detection, frame=data_loader_position,
-                            prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
-                            condition_value_1=condition_value_1, condition_value_2=condition_value_2, ego_speed=data["speed"], correlation_weight=keyframe_correlations[data_loader_position-i])
-        print(f"count for real copycat for baseline {baseline}: {count}")
+                    if previous_index>=0:
+                        data=data_loader_val.dataset.__getitem__(data_loader_position+i)
+                        if config.img_seq_len<7:
+                            empties=np.concatenate([np.zeros_like(Image.open(data_df.iloc[0]["image"]))]*(7-config.img_seq_len))
+                            image_sequence,root=load_image_sequence(config,data_df, data_loader_position+i)
+                            image_sequence=np.concatenate([empties, image_sequence], axis=0)
+                        else:
+                            image_sequence,root=load_image_sequence(config,data_df, data_loader_position+i)
+                       
+                        previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"].squeeze(), data["ego_matrix_previous"], data["ego_matrix_current"])
+                        detection_ours, detection_keyframes, copycat_information=determine_copycat(False,args,data_df,data,previous_prediction_aligned,params["keyframes_correlations"][current_index],current_index,previous_index,params)
+                        visualize_model(config=config, save_path_with_rgb=os.path.join(os.environ.get("WORK_DIR"),"vis_rgb",baseline),save_path_without_rgb=os.path.join(os.environ.get("WORK_DIR"),"vis_no_rgb",baseline), rgb=image_sequence, lidar_bev=data["lidar"],
+                                pred_wp_prev=np.squeeze(previous_prediction_aligned),
+                                gt_bev_semantic=data["bev_semantic"], step=current_index,
+                                target_point=data["target_point"], pred_wp=np.squeeze(data_df.iloc[current_index]["pred"]),
+                                gt_wp=data["ego_waypoints"],parameters=copycat_information,
+                                detect_our=detection_ours, detect_kf=detection_keyframes,frame=current_index,
+                                prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
+                                 ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
+
+        print(f"count for our detector copycat for baseline {baseline}: {len(our_cc_positions)}")
+        print(f"count for keyframes detector copycat for baseline {baseline}: {len(keyframes_cc_positions)}")
+        
     if not args.custom_validation:
         with open(os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
