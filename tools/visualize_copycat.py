@@ -185,14 +185,15 @@ def main(args):
                        
                         previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"].squeeze(), data["ego_matrix_previous"], data["ego_matrix_current"])
                         detection_ours, detection_keyframes, copycat_information=determine_copycat(False,args,data_df,data,previous_prediction_aligned,params["keyframes_correlations"][current_index],current_index,previous_index,params)
-                        visualize_model(config=config, save_path_with_rgb=os.path.join(os.environ.get("WORK_DIR"),"vis_rgb",baseline),save_path_without_rgb=os.path.join(os.environ.get("WORK_DIR"),"vis_no_rgb",baseline), rgb=image_sequence, lidar_bev=data["lidar"],
-                                pred_wp_prev=np.squeeze(previous_prediction_aligned),
-                                gt_bev_semantic=data["bev_semantic"], step=current_index,
-                                target_point=data["target_point"], pred_wp=np.squeeze(data_df.iloc[current_index]["pred"]),
-                                gt_wp=data["ego_waypoints"],parameters=copycat_information,
-                                detect_our=detection_ours, detect_kf=detection_keyframes,frame=current_index,
-                                prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
-                                 ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
+                        if args.visualize:
+                            visualize_model(config=config, save_path_with_rgb=os.path.join(os.environ.get("WORK_DIR"),"vis_rgb",baseline),save_path_without_rgb=os.path.join(os.environ.get("WORK_DIR"),"vis_no_rgb",baseline), rgb=image_sequence, lidar_bev=data["lidar"],
+                                    pred_wp_prev=np.squeeze(previous_prediction_aligned),
+                                    gt_bev_semantic=data["bev_semantic"], step=current_index,
+                                    target_point=data["target_point"], pred_wp=np.squeeze(data_df.iloc[current_index]["pred"]),
+                                    gt_wp=data["ego_waypoints"],parameters=copycat_information,
+                                    detect_our=detection_ours, detect_kf=detection_keyframes,frame=current_index,
+                                    prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
+                                    ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
 
         print(f"count for our detector copycat for baseline {baseline}: {len(our_cc_positions)}")
         print(f"count for keyframes detector copycat for baseline {baseline}: {len(keyframes_cc_positions)}")
@@ -214,6 +215,11 @@ if __name__=="__main__":
     )
     parser.add_argument(
         "--pred-tuning-parameter",
+        type=float,
+        default=1,
+    )
+    parser.add_argument(
+        "--visualize",
         type=float,
         default=1,
     )
