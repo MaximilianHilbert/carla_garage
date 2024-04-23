@@ -8,8 +8,9 @@ from coil_utils.baseline_helpers import visualize_model, norm
 import os
 import csv
 import pickle
-from coil_utils.baseline_helpers import get_copycat_criteria
+from scipy.special import softmax
 from team_code.data import CARLA_Data
+from coil_utils.baseline_helpers import get_action_predict_loss_threshold
 from torch.utils.data import Sampler
 class SequentialSampler(Sampler):
     def __init__(self, data_source):
@@ -46,7 +47,7 @@ def determine_copycat(gpu,args,data_df,data,previous_prediction_aligned,keyframe
     condition_value_1=params["avg_of_avg_baseline_predictions"]-params["avg_of_std_baseline_predictions"]*args.pred_tuning_parameter
     condition_1=pred_residual<condition_value_1
     condition_value_keyframes=params["avg_of_kf"]+params["std_of_kf"]*args.pred_tuning_parameter
-    condition_keyframes=keyframe_correlation>condition_value_keyframes
+    condition_keyframes=True if keyframe_correlation==5.0 else False#keyframe_correlation>condition_value_keyframes
 
     if args.second_cc_condition=="loss":
         condition_value_2=params["loss_avg_of_avg"]+params["loss_avg_of_std"]*args.tuning_parameter_2
@@ -68,6 +69,9 @@ def preprocess(args):
 
     loss_std_lst=[]
     loss_mean_lst=[]
+    threshold_ratio=0.1
+    importance_sampling_threshold_weight=5.0
+    
     keyframe_correlations=np.load(os.path.join(
             os.environ.get("WORK_DIR"),
             "_logs",
@@ -75,6 +79,9 @@ def preprocess(args):
             f"repetition_0",
             f"bcoh_weights_prev9_rep0_neurons300.npy",
         ))
+
+    importance_sampling_threshold=get_action_predict_loss_threshold(keyframe_correlations,threshold_ratio)
+    keyframe_correlations=(keyframe_correlations > importance_sampling_threshold)* (importance_sampling_threshold_weight - 1) + 1
     for baseline in args.baselines:
         basename=os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
@@ -144,7 +151,7 @@ def main(args):
         keyframes_cc_positions=[]
         our_cc_positions=[]
         
-        already_saved_indices=[]
+       
         for data_loader_position, (data, image_path, keyframe_correlation) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images, params["keyframes_correlations"])):
             if data_loader_position==0:
                 continue
