@@ -111,16 +111,13 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     gt_speed=None,
     gt_bev_semantic=None,
     wp_selected=None,
-    imprint=False,
-    pred_residual=None,
-    gt_residual=None,
-    copycat_count=None,
-    detect=False,
+    detect_our=None,
+    detect_kf=None,
+    parameters=None,
+
     frame=None,
     loss=None,
     condition=None,
-    condition_value_1=None,
-    condition_value_2=None,
     prev_gt=None,
     ego_speed=None,
     correlation_weight=None
@@ -385,87 +382,55 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
    
     
     all_images = np.concatenate([rgb,images_lidar],axis=0)
-    
-    image=Image.fromarray(all_images.astype(np.uint8))
-    
-    draw = ImageDraw.Draw(image)
-    
     font = ImageFont.truetype("Ubuntu-B.ttf", 40)
     font_baseline = ImageFont.truetype("Ubuntu-B.ttf", 100)
-    font_copycat=ImageFont.truetype("Ubuntu-B.ttf", 100)
-    start=1800
+    font_copycat=ImageFont.truetype("Ubuntu-B.ttf", 70)
     distance_from_left=600
-    draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
+    for image_name in ["combined", "lidar_only"]:
+        if image_name=="combined":
+            start=1800
+            image=Image.fromarray(all_images.astype(np.uint8))
+        else:
+            start=20
+            image=Image.fromarray(images_lidar.astype(np.uint8))
+        draw = ImageDraw.Draw(image)
 
-    draw.text((distance_from_left,start+40), f"copycat counter {copycat_count}", fill=(178, 34, 34), font=font)
-    draw.text((distance_from_left,start+40*2), f"res. pred. (L2): {pred_residual:.2f}", fill=(178, 34, 34), font=font)
-    draw.text((distance_from_left,start+40*3), f"res. gt. (L2): {gt_residual:.2f}", fill=(178, 34, 34), font=font)
-    draw.text((distance_from_left,start+40*4), f"loss (L2): {loss:.2f}", fill=(178, 34, 34), font=font)
+        draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
 
-    draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
-    draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
-    draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
-    draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
-    
-    draw.text((distance_from_left,start+40*13), f"condition: {condition}", fill=(178, 34, 34), font=font)
-    draw.text((distance_from_left,start+40*14), f"condition value 1< {condition_value_1:.2f}", fill=(178, 34, 34), font=font)
-    draw.text((distance_from_left,start+40*15), f"condition value 2> {condition_value_2:.2f}", fill=(178, 34, 34), font=font)
-    
-    draw.text((distance_from_left,start+40*16), f"ego speed {ego_speed:.2f} km/h", fill=(178, 34, 34), font=font)
+        draw.text((distance_from_left,start+40*3), f"pred. res.: {parameters['pred_residual']:.2f}", fill=firebrick, font=font)
+        draw.text((distance_from_left,start+40*4), f"gt. res.: {parameters['gt_residual']:.2f}", fill=firebrick, font=font)
+        draw.text((distance_from_left,start+40*5), f"loss: {loss:.2f}", fill=firebrick, font=font)
 
-    draw.text((distance_from_left,start+40*17), f"corr_weight {correlation_weight:.2f}", fill=(178, 34, 34), font=font)
+        draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
+        draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
+        draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
+        draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
+        
+        draw.text((distance_from_left,start+40*16), f"condition: {condition}", fill=firebrick, font=font)
+        draw.text((distance_from_left,start+40*17), f"pred. res. th. < {parameters['condition_value_1']:.2f}", fill=firebrick, font=font)
+        draw.text((distance_from_left,start+40*18), f"gt. res. th. > {parameters['condition_value_2']:.2f}", fill=firebrick, font=font)
+        draw.text((distance_from_left,start+40*19), f"kf. th. > {parameters['condition_value_keyframes']:.2f}", fill=firebrick, font=font)
 
-    draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255), font=font_baseline)
-    if detect:
-        font.set_variation_by_name("Bold")
-        draw.text((distance_from_left-50,start+40*10), f"copycat!", fill=(178, 34, 34), font=font_copycat)
-    
-    all_images=np.array(image)
-    all_images = Image.fromarray(all_images.astype(np.uint8))
+        draw.text((distance_from_left,start+40*20), f"kf. score: {correlation_weight:.2f}", fill=firebrick, font=font)
 
-    store_path = str(str(save_path_with_rgb) + (f"/{step}.jpg"))
-    Path(store_path).parent.mkdir(parents=True, exist_ok=True)
-    all_images.save(store_path, quality=95)
+        draw.text((distance_from_left,start+40*22), f"ego speed: {ego_speed:.2f} km/h", fill=firebrick, font=font)
 
+        draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255) if image_name=="combined" else (0,0,0), font=font_baseline)
+        if detect_our:
+            font.set_variation_by_name("Bold")
+            draw.text((distance_from_left,start+40*10), f"our copycat", fill=firebrick, font=font_copycat)
+        if detect_kf:
+            font.set_variation_by_name("Bold")
+            draw.text((distance_from_left,start+40*13), f"kf. copycat", fill=dark_blue, font=font_copycat)
 
-    no_rgb_image=images_lidar
-    no_rgb_image=Image.fromarray(no_rgb_image.astype(np.uint8))
-    no_rgb_image_draw = ImageDraw.Draw(no_rgb_image)
-
-    start=20
-    distance_from_left=600
-    no_rgb_image_draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
-
-    no_rgb_image_draw.text((distance_from_left,start+40), f"copycat counter {copycat_count}", fill=(178, 34, 34), font=font)
-    no_rgb_image_draw.text((distance_from_left,start+40*2), f"res. pred. (L2): {pred_residual:.2f}", fill=(178, 34, 34), font=font)
-    no_rgb_image_draw.text((distance_from_left,start+40*3), f"res. gt. (L2): {gt_residual:.2f}", fill=(178, 34, 34), font=font)
-    no_rgb_image_draw.text((distance_from_left,start+40*4), f"loss (L2): {loss:.2f}", fill=(178, 34, 34), font=font)
-
-    no_rgb_image_draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
-    no_rgb_image_draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
-    no_rgb_image_draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
-    no_rgb_image_draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
-    
-    no_rgb_image_draw.text((distance_from_left,start+40*13), f"condition: {condition}", fill=(178, 34, 34), font=font)
-    no_rgb_image_draw.text((distance_from_left,start+40*14), f"condition value 1< {condition_value_1:.2f}", fill=(178, 34, 34), font=font)
-    no_rgb_image_draw.text((distance_from_left,start+40*15), f"condition value 2> {condition_value_2:.2f}", fill=(178, 34, 34), font=font)
-    
-    no_rgb_image_draw.text((distance_from_left,start+40*16), f"ego speed {ego_speed:.2f} km/h", fill=(178, 34, 34), font=font)
-
-    no_rgb_image_draw.text((distance_from_left,start+40*17), f"corr_weight {correlation_weight:.2f}", fill=(178, 34, 34), font=font)
-
-    no_rgb_image_draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(0,0,0), font=font_baseline)
-    if detect:
-        font.set_variation_by_name("Bold")
-        no_rgb_image_draw.text((distance_from_left-50,start+40*10), f"copycat!", fill=(178, 34, 34), font=font_copycat)
-
-
-    no_rgb_images=np.array(no_rgb_image)
-    no_rgb_images = Image.fromarray(no_rgb_images.astype(np.uint8))
-
-    store_path = str(str(save_path_without_rgb) + (f"/{step}.jpg"))
-    Path(store_path).parent.mkdir(parents=True, exist_ok=True)
-    no_rgb_images.save(store_path, quality=95)
+        final_image=np.array(image)
+        final_image_object = Image.fromarray(final_image.astype(np.uint8))
+        if image_name=="combined":
+            store_path = str(str(save_path_with_rgb) + (f"/{step}.jpg"))
+        else:
+            store_path = str(str(save_path_without_rgb) + (f"/{step}.jpg"))
+        Path(store_path).parent.mkdir(parents=True, exist_ok=True)
+        final_image_object.save(store_path, quality=95)
 
 
 def is_ready_to_save(epoch, iteration, data_loader, merged_config):
