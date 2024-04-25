@@ -1,33 +1,23 @@
 import numpy as np
-import scipy
-import sys
 import os
-import glob
 import torch
 import cv2
-import random
-import time
-import gzip
-import ujson
 import cv2
 from collections import deque
-from coil_utils.baseline_helpers import merge_config_files
 from torch.nn.parallel import DistributedDataParallel as DDP
 from coil_utils.baseline_helpers import visualize_model
 import matplotlib.pyplot as plt
 from leaderboard.envs.sensor_interface import SensorInterface
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
 from leaderboard.autoagents.autonomous_agent import Track
+from coil_utils.baseline_helpers import norm
 from nav_planner import RoutePlanner
-from nav_planner import extrapolate_waypoint_route
 from srunner.scenariomanager.timer import GameTime
 from coil_network.coil_model import CoILModel
 from coil_planner.planner import Planner
 from team_code.transfuser_utils import preprocess_compass, inverse_conversion_2d
 import carla
-import torch.distributed as dist
 from team_code.transfuser_utils import PIDController
-
 
 def get_entry_point():
     return "CoILAgent"
@@ -74,7 +64,7 @@ class CoILAgent(AutonomousAgent):
         self.first_iter = True
         # self.rgb_queue=deque(maxlen=g_conf.NUMBER_FRAMES_FUSION)
         self.rgb_queue = deque(maxlen=self.config.img_seq_len - 1)
-        self.prev_wp = deque(maxlen=self.config.number_previous_waypoints)
+        self.prev_wp = deque(maxlen=self.config.closed_loop_previous_waypoint_predictions)
 
         # TODO watch out, this is the old planner from coiltraine!
         self._planner = Planner(city_name)
@@ -106,26 +96,25 @@ class CoILAgent(AutonomousAgent):
             del self.model
     def init_visualization(self):
         # Privileged map access for visualization
-        if self.config.debug:
-            from birds_eye_view.chauffeurnet import (
-                ObsManager,
-            )  # pylint: disable=locally-disabled, import-outside-toplevel
-            from srunner.scenariomanager.carla_data_provider import (
-                CarlaDataProvider,
-            )  # pylint: disable=locally-disabled, import-outside-toplevel
+        from birds_eye_view.chauffeurnet import (
+            ObsManager,
+        )  # pylint: disable=locally-disabled, import-outside-toplevel
+        from srunner.scenariomanager.carla_data_provider import (
+            CarlaDataProvider,
+        )  # pylint: disable=locally-disabled, import-outside-toplevel
 
-            obs_config = {
-                "width_in_pixels": self.config.lidar_resolution_width * 4,
-                "pixels_ev_to_bottom": self.config.lidar_resolution_height / 2.0 * 4,
-                "pixels_per_meter": self.config.pixels_per_meter * 4,
-                "history_idx": [-1],
-                "scale_bbox": True,
-                "scale_mask_col": 1.0,
-                "map_folder": "maps_high_res",
-            }
-            self._vehicle = CarlaDataProvider.get_hero_actor()
-            self.ss_bev_manager = ObsManager(obs_config, self.config)
-            self.ss_bev_manager.attach_ego_vehicle(self._vehicle, criteria_stop=None)
+        obs_config = {
+            "width_in_pixels": self.config.lidar_resolution_width * 4,
+            "pixels_ev_to_bottom": self.config.lidar_resolution_height / 2.0 * 4,
+            "pixels_per_meter": self.config.pixels_per_meter * 4,
+            "history_idx": [-1],
+            "scale_bbox": True,
+            "scale_mask_col": 1.0,
+            "map_folder": "maps_high_res",
+        }
+        self._vehicle = CarlaDataProvider.get_hero_actor()
+        self.ss_bev_manager = ObsManager(obs_config, self.config)
+        self.ss_bev_manager.attach_ego_vehicle(self._vehicle, criteria_stop=None)
     def sensors(self):
         return [
             {
@@ -192,7 +181,7 @@ class CoILAgent(AutonomousAgent):
         y = np.sin(yaw)
         z = 0
         return x, y, z
-
+    
     def _init(self):
         from srunner.scenariomanager.carla_data_provider import (
             CarlaDataProvider,
@@ -203,19 +192,19 @@ class CoILAgent(AutonomousAgent):
 
         self.world_map = CarlaDataProvider.get_map()
         trajectory = [item[0].location for item in self._global_plan_world_coord]
-        self.dense_route, _ = interpolate_trajectory(self.world_map, trajectory)  # privileged
+        self.dense_route, _ = interpolate_trajectory(self.world_map, trajectory, hop_resolution=self.config.hop_resolution)  # privileged
 
         self._waypoint_planner = RoutePlanner(
             self.config.log_route_planner_min_distance,
             self.config.route_planner_max_distance,
         )
-        self._waypoint_planner.set_route(self.dense_route, True)
+        self._waypoint_planner.set_route(self._global_plan_world_coord, False)
 
         self._route_planner = RoutePlanner(
             self.config.route_planner_min_distance,
             self.config.route_planner_max_distance,
         )
-        self._route_planner.set_route(self._global_plan, True)
+        self._route_planner.set_route(self._global_plan_world_coord, False)
         self.initialized = True
 
     def run_step(
@@ -244,8 +233,7 @@ class CoILAgent(AutonomousAgent):
         # retrieve location data from sensors and normalize/transform to ego vehicle system
         if not self.initialized:
             self._init()
-            if self.config.debug:
-                print("DEBUG MODE")
+            if self.config.visualize_without_rgb or self.config.visualize_combined:
                 self.init_visualization()
         measurements = sensor_data.get("imu")
         current_location = self.vehicle.get_location()
@@ -285,16 +273,11 @@ class CoILAgent(AutonomousAgent):
         # if perturb_speed and norm_speed < 0.01:
         #     norm_speed += random.uniform(0.05, 0.15)
         norm_speed = torch.cuda.FloatTensor([norm_speed]).unsqueeze(0)
-        if self.config.baseline_folder_name not in ["arp"]:
-            if self.config.use_wp_gru:
-                measurement_input = norm_speed
-            else:
-                measurement_input = norm_speed / self.config.speed_factor
-        else:
-            measurement_input = torch.zeros_like(norm_speed)
+        measurement_input = torch.zeros_like(norm_speed)
 
         single_image, observation_history = self._process_sensors(current_image, original_image_list)
         if self.config.baseline_folder_name == "arp":
+            merged_history_and_current = torch.cat([observation_history, single_image], dim=0)
             _, memory = self._mem_extract(
                 x=torch.unsqueeze(observation_history, 0),
                 target_point=end_point_location_ego_system,
@@ -348,6 +331,30 @@ class CoILAgent(AutonomousAgent):
                             a=measurement_input,
                         )
             predicted_speed = self.model.module.extract_predicted_speed().cpu().detach().numpy()
+
+        current_predictions=model_outputs[0].squeeze().detach().cpu().numpy()
+        if not self.prev_wp:
+            previous_waypoints=None
+            prediction_residual=None
+        else:
+            previous_waypoints=self.prev_wp[-1].detach().cpu().numpy()
+            prediction_residual=norm(current_predictions-previous_waypoints, ord=self.config.norm)
+        if self.config.visualize_without_rgb or self.config.visualize_combined:
+            if self.config.img_seq_len<7:
+                single_image=single_image.detach().cpu().numpy()
+                empties=np.concatenate([np.zeros_like(single_image)]*(7-self.config.img_seq_len), axis=1)
+                image_sequence=np.concatenate([empties, single_image], axis=1)
+                image_sequence=np.transpose(image_sequence,(1,2,0))*255
+            else:
+                original_image_list.append(current_image)
+                image_sequence=np.concatenate(original_image_list, axis=0)
+            visualize_model(save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,str(self.scenario_identifier)),
+                            pred_wp=current_predictions,config=self.config,pred_wp_prev=previous_waypoints,
+                            rgb=image_sequence,step=timestamp,target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(),
+                            parameters={'pred_residual':prediction_residual},
+                            args=self.config,frame=timestamp,
+                            ss_bev_manager=self.ss_bev_manager, closed_loop=True)
+        self.prev_wp.append(model_outputs[0].squeeze())
         if self.config.use_wp_gru:
             model_outputs = model_outputs[0].cpu().detach()
             steer, throttle, brake = self.control_pid(
@@ -370,9 +377,7 @@ class CoILAgent(AutonomousAgent):
         print(target_point_location)
         print("current location")
         print(current_location)
-        # visualize_model(config=self.config, save_path="/home/maximilian/Master/inference.mp4", step=timestamp, lidar_bev=torch.Tensor(np.full((1,1,256,256), 0, dtype=np.uint8)).to("cuda:0"),
-        #                 rgb=single_image, target_point=end_point_location_ego_system, gt_bev_semantic=torch.Tensor(self.ss_bev_manager.get_road().copy()).to("cuda:0"),
-        #                 )
+    
         return control, current_image
 
     def control_pid(self, waypoints, velocity):
