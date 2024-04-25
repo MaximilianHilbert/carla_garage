@@ -29,4 +29,4 @@ pre_trained: true  # if the weights are started with imagenet.
 use_wp_gru: true
 branch_loss_weight: [1,0]
 speed_input: false
-num_repetitions: 1
+num_repetitions: 3
