@@ -13,6 +13,7 @@ It must not be modified and is for reference only!
 from __future__ import print_function
 import signal
 import sys
+import random
 import time
 
 import py_trees
@@ -123,7 +124,7 @@ class ScenarioManager(object):
 
         self._watchdog.start()
         self._running = True
-
+        self._agent._agent.scenario_identifier= random.randint(10000, 99999)
         while self._running:
             timestamp = None
             world = CarlaDataProvider.get_world()
