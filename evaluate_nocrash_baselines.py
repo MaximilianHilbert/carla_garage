@@ -23,6 +23,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--agent-config", default=f"{os.environ.get('CONFIG_ROOT')}, 'coil_config.py")
     parser.add_argument("--agent-yaml", dest="agent_yaml", default="experiments/config_nocrash.yaml")
+    parser.add_argument("--visualize-combined",default=0)
+    parser.add_argument("--visualize-without-rgb",default=0)
+    parser.add_argument("--norm",default=2, type=int)
+    
 
     # Benchmark configs
     parser.add_argument("--town", required=True, choices=["Town01", "Town02"])
