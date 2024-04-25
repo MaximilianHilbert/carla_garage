@@ -35,7 +35,7 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --track=${CHALLENGE_TRACK_CODENAME} \
 --agent=${TEAM_AGENT} \
 --agent-config=${TEAM_CONFIG} \
---route=/home/maximilian/Master/carla_garage/leaderboard/data/nocrash_split/Town01/nocrash_Town01_split_1.txt \
+--route=${WORK_DIR}/leaderboard/data/nocrash_split/Town01/nocrash_Town01_split_1.txt \
 --resume=${RESUME} \
 --timeout=600 \
 --experiment=bcoh_nospeed_data_rep_3 \
