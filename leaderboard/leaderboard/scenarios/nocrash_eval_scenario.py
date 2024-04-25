@@ -75,7 +75,7 @@ class NoCrashEvalScenario(RouteScenario):
         self.agent = agent
 
         # Set route
-        self._set_route()
+        self._set_route(self.config.hop_resolution)
 
         ego_vehicle = self._update_ego_vehicle()
         traffic_lvl = ["Empty", "Regular", "Dense"][traffic_idx]
