@@ -31,6 +31,7 @@ class GlobalConfig:
         # Dataloader
         self.number_previous_waypoints = 0
         self.number_future_waypoints = 1
+        self.closed_loop_previous_waypoint_predictions=5
         self.keyframes = False
         self.epochs_baselines = 30
         self.speed_input=False
@@ -60,7 +61,8 @@ class GlobalConfig:
         self.correlation_weights = False
         self.visualize_copycat=False
         self.pre_trained = True
-        #
+        #closed loop
+        self.hop_resolution=1.0 # generates target point in closed loop every 30 meters
         # -----------------------------------------------------------------------------
         # Autopilot
         # -----------------------------------------------------------------------------
