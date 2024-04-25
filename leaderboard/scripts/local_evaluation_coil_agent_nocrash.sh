@@ -1,5 +1,5 @@
-export CARLA_ROOT=${1:-/home/maximilian/Master/carla_garage/carla}
-export WORK_DIR=${2:-/home/maximilian/Master/carla_garage}
+export CARLA_ROOT=/home/maximilian-hilbert/carla_garage/carla
+export WORK_DIR=/home/maximilian-hilbert/carla_garage
 
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
@@ -25,7 +25,10 @@ export DATAGEN=0
 export SAVE_PATH=${WORK_DIR}/results
 export DIRECT=0
 export BENCHMARK=longest6
-export COIL_MODEL_CHECKPOINT=/home/maximilian/Master/carla_garage/_logs/arp/arp/repetition_0/all/checkpoints/30.pth
+#uni pc
+export COIL_MODEL_CHECKPOINT=/home/maximilian-hilbert/carla_garage/_logs/bcoh/bcoh_nospeed_data_rep_1/repetition_0/02_withheld/checkpoints/30.pth
+#home
+#export COIL_MODEL_CHECKPOINT=/home/maximilian/Master/carla_garage/_logs/arp/arp/repetition_0/all/checkpoints/30.pth
 
 python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --coil_checkpoint=${COIL_MODEL_CHECKPOINT} \
@@ -35,9 +38,10 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --route=/home/maximilian/Master/carla_garage/leaderboard/data/nocrash_split/Town01/nocrash_Town01_split_1.txt \
 --resume=${RESUME} \
 --timeout=600 \
+--norm=2 \
+--visualize-combined=1 \
 --resume=true \
 --eval_id=id_000 \
 --town=Town01 \
 --weather=train \
 --log_path=${WORK_DIR}/logs
-
