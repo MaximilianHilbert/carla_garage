@@ -91,13 +91,14 @@ def get_predictions(controls, branches):
 
 
 def visualize_model(  # pylint: disable=locally-disabled, unused-argument
-    args,
     config,
-    save_path_with_rgb,
-    save_path_without_rgb,
+    args,
+    save_path_root,
     step,
-    rgb, #tensor of one or multiple images shape img,h,w,c
+    rgb,
     target_point,
+    ss_bev_manager=None,
+    closed_loop=False,
     lidar_bev=None,
     pred_wp=None,
     pred_wp_prev=None,
@@ -137,28 +138,36 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     scale_factor = 4
     origin = ((size_width * scale_factor) // 2, (size_height * scale_factor) // 2)
     loc_pixels_per_meter = config.pixels_per_meter * scale_factor
+    if not closed_loop:
+        ## add rgb image and lidar
+        if config.use_ground_plane:
+            images_lidar = np.concatenate(list(lidar_bev[:1]), axis=1)
+        else:
+            images_lidar = np.concatenate(list(lidar_bev[:1]), axis=1)
 
-    ## add rgb image and lidar
-    if config.use_ground_plane:
-        images_lidar = np.concatenate(list(lidar_bev[:1]), axis=1)
+        images_lidar = 255 - (images_lidar * 255).astype(np.uint8)
+        images_lidar = np.stack([images_lidar, images_lidar, images_lidar], axis=-1)
+
+        images_lidar = cv2.resize(
+            images_lidar,
+            dsize=(
+                images_lidar.shape[1] * scale_factor,
+                images_lidar.shape[0] * scale_factor,
+            ),
+            interpolation=cv2.INTER_NEAREST,
+        )
     else:
-        images_lidar = np.concatenate(list(lidar_bev[:1]), axis=1)
-
-    images_lidar = 255 - (images_lidar * 255).astype(np.uint8)
-    images_lidar = np.stack([images_lidar, images_lidar, images_lidar], axis=-1)
-
-    images_lidar = cv2.resize(
-        images_lidar,
-        dsize=(
-            images_lidar.shape[1] * scale_factor,
-            images_lidar.shape[0] * scale_factor,
-        ),
-        interpolation=cv2.INTER_NEAREST,
-    )
-    # # Render road over image
-    # road = self.ss_bev_manager.get_road()
-    # # Alpha blending the road over the LiDAR
-    # images_lidar = road[:, :, 3:4] * road[:, :, :3] + (1 - road[:, :, 3:4]) * images_lidar
+        road = ss_bev_manager.get_road()
+        images_lidar=road[:,:,:3]
+        images_lidar[(images_lidar == [0, 0, 0]).all(axis=2)]=[255.,255.,255.]
+        images_lidar = cv2.resize(
+            images_lidar,
+            dsize=(
+                images_lidar.shape[1] * 1,
+                images_lidar.shape[0] * 1,
+            ),
+            interpolation=cv2.INTER_NEAREST,
+        )
 
     if pred_bev_semantic is not None:
         bev_semantic_indices = np.argmax(pred_bev_semantic, axis=0)
@@ -220,15 +229,17 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     pred_wp_color=dark_yellow
 
     prev_gt_wp_color =  light_blue
-    pred_wp_prev_color= light_yellow
+    pred_wp_prev_color= firebrick
 
     
     gt_size=12
     prev_gt_size=9
-
-    pred_size=7
-    prev_pred_size=4
-
+    if closed_loop:
+        pred_size=12
+        prev_pred_size=9
+    else:
+        pred_size=7
+        prev_pred_size=4
     # Draw wps
     # Red ground truth
     if gt_wp is not None:
@@ -380,8 +391,25 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         pred_speed = pred_speed
         images_lidar = np.ascontiguousarray(images_lidar, dtype=np.uint8)
         t_u.draw_probability_boxes(images_lidar, pred_speed, config.target_speeds)
-   
-    
+    if closed_loop:
+        images_lidar_zoomed = cv2.resize(
+                images_lidar,
+                dsize=(
+                    images_lidar.shape[1] * 1,
+                    images_lidar.shape[0] * 1,
+                ),
+                interpolation=cv2.INTER_NEAREST,
+            )
+            
+        start_row = (images_lidar_zoomed.shape[0] - images_lidar.shape[0]) // 2
+        start_col = (images_lidar_zoomed.shape[1] - images_lidar.shape[1]) // 2
+
+        # Calculate the ending row and column indices for the ROI
+        end_row = start_row + images_lidar.shape[0]
+        end_col = start_col + images_lidar.shape[1]
+
+        # Extract the ROI from the zoomed-in image
+        images_lidar = images_lidar_zoomed[start_row:end_row, start_col:end_col]
     all_images = np.concatenate([rgb,images_lidar],axis=0)
     font = ImageFont.truetype("Ubuntu-B.ttf", 40)
     font_baseline = ImageFont.truetype("Ubuntu-B.ttf", 100)
@@ -402,41 +430,49 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             start=20
             image=Image.fromarray(images_lidar.astype(np.uint8))
         draw = ImageDraw.Draw(image)
+        if closed_loop:
+            draw.text((distance_from_left,start), f"time {frame:.2f}", fill=(0, 0, 0), font=font)
+        else:
+            draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
+        if parameters['pred_residual']:
+            draw.text((distance_from_left,start+40*3), f"pred. res.: {parameters['pred_residual']:.2f}", fill=firebrick, font=font)
+        else:
+            draw.text((distance_from_left,start+40*3), f"pred. res.: None", fill=firebrick, font=font)
+        if not closed_loop:
+            draw.text((distance_from_left,start+40*4), f"gt. res.: {parameters['gt_residual']:.2f}", fill=firebrick, font=font)
+            draw.text((distance_from_left,start+40*5), f"loss: {loss:.2f}", fill=firebrick, font=font)
 
-        draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
+            draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
+            draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
+            draw.text((distance_from_left,start+40*16), f"condition: {condition}", fill=firebrick, font=font)
 
-        draw.text((distance_from_left,start+40*3), f"pred. res.: {parameters['pred_residual']:.2f}", fill=firebrick, font=font)
-        draw.text((distance_from_left,start+40*4), f"gt. res.: {parameters['gt_residual']:.2f}", fill=firebrick, font=font)
-        draw.text((distance_from_left,start+40*5), f"loss: {loss:.2f}", fill=firebrick, font=font)
+            draw.text((distance_from_left,start+40*17), f"pred. res. th. < {parameters['condition_value_1']:.2f}", fill=firebrick, font=font)
+            draw.text((distance_from_left,start+40*18), f"gt. res. th. > {parameters['condition_value_2']:.2f}", fill=firebrick, font=font)
+            draw.text((distance_from_left,start+40*19), f"kf. th. > {parameters['condition_value_keyframes']:.2f}", fill=firebrick, font=font)
 
-        draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
-        draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
+            draw.text((distance_from_left,start+40*20), f"kf. score: {correlation_weight:.2f}", fill=firebrick, font=font)
+
+            if detect_our:
+                font.set_variation_by_name("Bold")
+                draw.text((distance_from_left,start+40*10), f"our copycat", fill=firebrick, font=font_copycat)
+            if detect_kf:
+                font.set_variation_by_name("Bold")
+                draw.text((distance_from_left,start+40*13), f"kf. copycat", fill=dark_blue, font=font_copycat)
+
         draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
         draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
-        
-        draw.text((distance_from_left,start+40*16), f"condition: {condition}", fill=firebrick, font=font)
-        draw.text((distance_from_left,start+40*17), f"pred. res. th. < {parameters['condition_value_1']:.2f}", fill=firebrick, font=font)
-        draw.text((distance_from_left,start+40*18), f"gt. res. th. > {parameters['condition_value_2']:.2f}", fill=firebrick, font=font)
-        draw.text((distance_from_left,start+40*19), f"kf. th. > {parameters['condition_value_keyframes']:.2f}", fill=firebrick, font=font)
-
-        draw.text((distance_from_left,start+40*20), f"kf. score: {correlation_weight:.2f}", fill=firebrick, font=font)
-
-        draw.text((distance_from_left,start+40*22), f"ego speed: {ego_speed:.2f} km/h", fill=firebrick, font=font)
+        if ego_speed:
+            draw.text((distance_from_left,start+40*22), f"ego speed: {ego_speed:.2f} km/h", fill=firebrick, font=font)
 
         draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255) if image_name=="combined" else (0,0,0), font=font_baseline)
-        if detect_our:
-            font.set_variation_by_name("Bold")
-            draw.text((distance_from_left,start+40*10), f"our copycat", fill=firebrick, font=font_copycat)
-        if detect_kf:
-            font.set_variation_by_name("Bold")
-            draw.text((distance_from_left,start+40*13), f"kf. copycat", fill=dark_blue, font=font_copycat)
+        
 
         final_image=np.array(image)
         final_image_object = Image.fromarray(final_image.astype(np.uint8))
         if image_name=="combined":
-            store_path = str(str(save_path_with_rgb) + (f"/{step}.jpg"))
+            store_path = os.path.join(save_path_root, "with_rgb", f"{step}.jpg")
         else:
-            store_path = str(str(save_path_without_rgb) + (f"/{step}.jpg"))
+            store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
         Path(store_path).parent.mkdir(parents=True, exist_ok=True)
         final_image_object.save(store_path, quality=95)
 
