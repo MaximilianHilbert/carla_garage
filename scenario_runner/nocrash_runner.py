@@ -32,16 +32,21 @@ class StatisticsManager:
         "baseline",
         "experiment",
         "setting",
+        "eval_rep",
         "traffic",
         "weather",
         "start",
         "target",
         "route_completion",
+        "outside_route",
+        "stops_ran",
+        "inroute",
         "lights_ran",
+        "collision",
         "duration",
         "timeout",
-        "collision",
-    ]
+        "blocked"
+]
 
     def __init__(self, args):
         self.finished_tasks = {"Town01": {}, "Town02": {}}
@@ -68,6 +73,7 @@ class StatisticsManager:
                         str(row["baseline"]),
                         str(row["experiment"]),
                         str(row["setting"]),
+                        str(row["eval_rep"]),
                         int(row["traffic"]),
                         int(row["weather"]),
                         int(row["start"]),
@@ -75,8 +81,14 @@ class StatisticsManager:
                     )
                 ] = [
                     float(row["route_completion"]),
+                    float(row["outside_route"]),
+                    int(row["stops_ran"]),
+                    float(row["inroute"]),
                     int(row["lights_ran"]),
+                    int(row["collision"]),
                     float(row["duration"]),
+                    float(row["timeout"]),
+                    int(row["blocked"])
                 ]
 
     def log(
@@ -85,15 +97,20 @@ class StatisticsManager:
         baseline,
         experiment,
         setting,
+        eval_rep,
         traffic,
         weather,
         start,
         target,
         route_completion,
+        outside_route,
+        stops_ran,
+        inroute,
         lights_ran,
+        collision,
         duration,
         timeout,
-        collision,
+        blocked
     ):
         with open(self.path_to_file, "a") as csv_file:
             csv_writer = csv.DictWriter(csv_file, fieldnames=self.headers)
@@ -102,16 +119,21 @@ class StatisticsManager:
                     "baseline": baseline,
                     "experiment": experiment,
                     "setting": setting,
+                    "eval_rep": eval_rep,
                     "town": town,
                     "traffic": traffic,
                     "weather": weather,
                     "start": start,
                     "target": target,
                     "route_completion": route_completion,
+                    "outside_route": outside_route,
+                    "stops_ran": stops_ran,
+                    "inroute": inroute,
                     "lights_ran": lights_ran,
+                    "collision": collision,
                     "duration": duration,
                     "timeout": timeout,
-                    "collision": collision,
+                    "blocked": blocked
                 }
             )
 

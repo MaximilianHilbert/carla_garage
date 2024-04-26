@@ -358,26 +358,27 @@ class NoCrashEvaluator(object):
             self.manager.stop_scenario()
 
             (
-                route_completion,
-                lights_ran,
-                duration,
-                timeout,
-                collision,
+                route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout, blocked
             ) = self.manager.get_nocrash_diagnostics()
             self.statistics_manager.log(
                 self.town,
                 args.baseline_folder_name,
                 args.experiment,
                 args.setting,
+                args.eval_rep,
                 traffic_idx,
                 weather_idx,
                 start_idx,
                 target_idx,
                 route_completion,
+                outside_route,
+                stops_ran,
+                inroute,
                 lights_ran,
+                collision,
                 duration,
                 timeout,
-                collision,
+                blocked
             )
 
             if args.record:

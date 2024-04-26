@@ -236,12 +236,17 @@ class ScenarioManager(object):
 
             if name == "RouteCompletionTest":
                 route_completion = float(actual_value)
-            elif name == "RunningRedLightTest":
+            if name == "OutsideRouteLanesTest":
+                outside_route = float(actual_value)
+            if name == "RunningStopTest":
+                stops_ran = int(actual_value)
+            if name == "InRouteTest":
+                inroute = int(actual_value)
+            if name == "RunningRedLightTest":
                 lights_ran = int(actual_value)
-            elif name == "CollisionTest":
-                if criterion.status.name == "FAILURE":
-                    collision = 1
-                else:
-                    collision = 0
+            if name == "CollisionTest":
+                collision=int(actual_value)
+            if name == "AgentBlockedTest":
+                blocked=int(actual_value)
 
-        return route_completion, lights_ran, duration, timeout, collision
+        return route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout, blocked
