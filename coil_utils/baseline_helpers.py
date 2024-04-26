@@ -97,7 +97,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     step,
     rgb,
     target_point,
-    ss_bev_manager=None,
+    road=None,
     closed_loop=False,
     lidar_bev=None,
     pred_wp=None,
@@ -157,7 +157,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             interpolation=cv2.INTER_NEAREST,
         )
     else:
-        road = ss_bev_manager.get_road()
+
         images_lidar=road[:,:,:3]
         images_lidar[(images_lidar == [0, 0, 0]).all(axis=2)]=[255.,255.,255.]
         images_lidar = cv2.resize(
@@ -431,7 +431,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             image=Image.fromarray(images_lidar.astype(np.uint8))
         draw = ImageDraw.Draw(image)
         if closed_loop:
-            draw.text((distance_from_left,start), f"time {frame:.2f}", fill=(0, 0, 0), font=font)
+            draw.text((distance_from_left,start), f"time {step:.2f}", fill=(0, 0, 0), font=font)
         else:
             draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
         if parameters['pred_residual']:
@@ -470,9 +470,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         final_image=np.array(image)
         final_image_object = Image.fromarray(final_image.astype(np.uint8))
         if image_name=="combined":
-            store_path = os.path.join(save_path_root, "with_rgb", f"{step}.jpg")
+            store_path = os.path.join(save_path_root, "with_rgb", f"{step:.2f}.jpg")
         else:
-            store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
+            store_path = os.path.join(save_path_root, "without_rgb", f"{step:.2f}.jpg")
         Path(store_path).parent.mkdir(parents=True, exist_ok=True)
         final_image_object.save(store_path, quality=95)
 
