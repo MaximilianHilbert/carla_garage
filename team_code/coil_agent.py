@@ -5,7 +5,6 @@ import cv2
 import cv2
 from collections import deque
 from torch.nn.parallel import DistributedDataParallel as DDP
-from coil_utils.baseline_helpers import visualize_model
 import matplotlib.pyplot as plt
 from leaderboard.envs.sensor_interface import SensorInterface
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
@@ -66,6 +65,14 @@ class CoILAgent(AutonomousAgent):
         self.rgb_queue = deque(maxlen=self.config.img_seq_len - 1)
         self.prev_wp = deque(maxlen=self.config.closed_loop_previous_waypoint_predictions)
 
+        #queues for replay simulation
+        if self.config.visualize_without_rgb or self.config.visualize_combined:
+            self.replay_image_queue=deque(maxlen=self.config.replay_seq_len)
+            self.replay_previous_waypoints_queue=deque(maxlen=self.config.replay_seq_len)
+            self.replay_current_waypoints_queue=deque(maxlen=self.config.replay_seq_len)
+            self.replay_target_points_queue=deque(maxlen=self.config.replay_seq_len)
+            self.replay_road_queue=deque(maxlen=self.config.replay_seq_len)
+            self.replay_pred_residual_queue=deque(maxlen=self.config.replay_seq_len)
         # TODO watch out, this is the old planner from coiltraine!
         self._planner = Planner(city_name)
         # Carla 0.9 related attributes
@@ -166,14 +173,15 @@ class CoILAgent(AutonomousAgent):
             control.throttle = 0.0
             current_image = current_data.get("CentralRGB")[1][..., :3]
             current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
+            replay_params={}
             # past_actions=[0.,0.,0.] # maybe change to previous waypoints for experiments
         else:
-            control, current_image = self.run_step(current_data, list(self.rgb_queue), timestamp)
+            control, current_image,replay_params = self.run_step(current_data, list(self.rgb_queue), timestamp)
         control.manual_gear_shift = False
         # past_actions=(control.steer, control.throttle, control.brake)
         self.rgb_queue.append(current_image)
         # self.previous_actions.extend(past_actions)
-        return control
+        return control, replay_params
 
     def yaw_to_orientation(self, yaw):
         # Calculate the orientation vector in old carla convention
@@ -348,13 +356,14 @@ class CoILAgent(AutonomousAgent):
             else:
                 original_image_list.append(current_image)
                 image_sequence=np.concatenate(original_image_list, axis=0)
-            visualize_model(save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,str(self.scenario_identifier)),
-                            pred_wp=current_predictions,config=self.config,pred_wp_prev=previous_waypoints,
-                            rgb=image_sequence,step=timestamp,target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(),
-                            parameters={'pred_residual':prediction_residual},
-                            args=self.config,frame=timestamp,
-                            ss_bev_manager=self.ss_bev_manager, closed_loop=True)
+            self.replay_previous_waypoints_queue.append(previous_waypoints)
+            self.replay_current_waypoints_queue.append(current_predictions)
+            self.replay_image_queue.append(image_sequence)
+            self.replay_target_points_queue.append(end_point_location_ego_system.squeeze().detach().cpu().numpy())
+            self.replay_road_queue.append(self.ss_bev_manager.get_road())
+            self.replay_pred_residual_queue.append(prediction_residual)
         self.prev_wp.append(model_outputs[0].squeeze())
+        
         if self.config.use_wp_gru:
             model_outputs = model_outputs[0].cpu().detach()
             steer, throttle, brake = self.control_pid(
@@ -378,7 +387,9 @@ class CoILAgent(AutonomousAgent):
         print("current location")
         print(current_location)
     
-        return control, current_image
+        return control, current_image,{"image_sequence": self.replay_image_queue, "previous_predictions": self.replay_previous_waypoints_queue,
+                                       "current_waypoints": self.replay_current_waypoints_queue, "target_points":self.replay_target_points_queue, "roads": self.replay_road_queue,
+                                       "pred_residual": self.replay_pred_residual_queue} if self.config.visualize_without_rgb or self.config.visualize_combined else {}
 
     def control_pid(self, waypoints, velocity):
         """

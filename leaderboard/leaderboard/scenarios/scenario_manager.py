@@ -148,7 +148,8 @@ class ScenarioManager(object):
             GameTime.on_carla_tick(timestamp)
             CarlaDataProvider.on_carla_tick()
             try:
-                ego_action = self._agent()
+                ego_action, replay_params = self._agent()
+                self.replay_parameter=replay_params
             # Special exception inside the agent that isn't caused by the agent
             except SensorReceivedNoData as e:
                 raise RuntimeError(e)
@@ -223,8 +224,6 @@ class ScenarioManager(object):
         ResultOutputProvider(self, global_result)
 
     def get_nocrash_diagnostics(self):
-        route_completion = None
-        lights_ran = None
         duration = round(self.scenario_duration_game, 2)
         if self.scenario_duration_game > self.scenario.timeout:
             timeout = 1

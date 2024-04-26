@@ -35,13 +35,16 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --track=${CHALLENGE_TRACK_CODENAME} \
 --agent=${TEAM_AGENT} \
 --agent-config=${TEAM_CONFIG} \
---route=${WORK_DIR}/leaderboard/data/nocrash_split/Town01/nocrash_Town01_split_1.txt \
+--route=${WORK_DIR}/scenario_runner/suite/nocrash_Town01.txt \
 --resume=${RESUME} \
 --timeout=600 \
 --experiment=bcoh_nospeed_data_rep_3 \
 --baseline-folder-name=bcoh \
 --norm=2 \
 --visualize-combined=1 \
+--visualize-without-rgb=0 \
+--setting=02_withheld \
+--eval_rep=0 \
 --resume=true \
 --eval_id=id_000 \
 --town=Town01 \

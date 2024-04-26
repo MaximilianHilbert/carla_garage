@@ -63,6 +63,9 @@ class GlobalConfig:
         self.pre_trained = True
         #closed loop
         self.hop_resolution=1.0 # generates target point in closed loop every 30 meters
+        #originally only for dataloader but we use it in inference too
+        self.carla_fps = 20  # Simulator Frames per second
+        self.replay_seq_len=int(self.carla_fps*20) #saves last n sec. of simulation time to disk
         # -----------------------------------------------------------------------------
         # Autopilot
         # -----------------------------------------------------------------------------
@@ -147,7 +150,7 @@ class GlobalConfig:
         # Dataloader
         # -----------------------------------------------------------------------------
 
-        self.carla_fps = 20  # Simulator Frames per second
+        
         self.seq_len = 1  # length of the sequence loaded (into the future)
         # use different seq len for image and lidar
         self.img_seq_len = (
