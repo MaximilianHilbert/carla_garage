@@ -22,6 +22,7 @@ import importlib
 import os
 import pkg_resources
 import sys
+from coil_utils.baseline_helpers import visualize_model
 import carla
 import signal
 from coil_utils.baseline_helpers import find_free_port
@@ -341,7 +342,6 @@ class NoCrashEvaluator(object):
             print("\n\033[91mStopping the route, the agent has crashed:")
             print("> {}\033[0m\n".format(e))
             traceback.print_exc()
-
             crash_message = "Agent crashed"
 
         except Exception as e:
@@ -360,6 +360,15 @@ class NoCrashEvaluator(object):
             (
                 route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout, blocked
             ) = self.manager.get_nocrash_diagnostics()
+            
+            for criterion in self.manager.scenario_class.scenario.test_criteria:
+                if criterion.test_status=="FAILURE":
+                    fail=True
+            if fail and self.config.visualize_without_rgb or self.config.visualize_combined:
+                observations,prev_pred,curr_pred,target_points, roads, pred_residual=self.manager.replay_parameter.values()
+                for iteration, (obs_i, pred_history_i, pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(observations, prev_pred, curr_pred, target_points, roads,pred_residual)):
+                    visualize_model(config=self.config, args=args, closed_loop=True, save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name, f"repetition_{self.config.eval_rep}",self.manager.scenario_class.scenario.name),
+                                    rgb=obs_i, pred_wp=pred_i, pred_wp_prev=pred_history_i, target_point=target_point_i, step=-1/self.config.carla_fps*(len(observations)-iteration), road=roads_i, parameters={"pred_residual": pred_residual_i})
             self.statistics_manager.log(
                 self.town,
                 args.baseline_folder_name,
