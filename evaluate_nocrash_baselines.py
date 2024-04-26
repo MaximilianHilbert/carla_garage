@@ -23,8 +23,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--agent-config", default=f"{os.environ.get('CONFIG_ROOT')}, 'coil_config.py")
     parser.add_argument("--agent-yaml", dest="agent_yaml", default="experiments/config_nocrash.yaml")
-    parser.add_argument("--visualize-combined",default=0)
-    parser.add_argument("--visualize-without-rgb",default=0)
+    parser.add_argument("--visualize-combined",type=int,default=0)
+    parser.add_argument("--visualize-without-rgb",type=int,default=0)
     parser.add_argument("--norm",default=2, type=int)
     
 
@@ -74,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument("--baseline-folder-name", help="either arp bcoh bcso keyframes")
     parser.add_argument("--setting", help="coil or all")
     parser.add_argument("--debug", type=int, help="Run with debug output", default=0)
+    parser.add_argument("--eval_rep", type=int, default=0)
 
     args = parser.parse_args()
 
