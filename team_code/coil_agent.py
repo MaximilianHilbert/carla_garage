@@ -200,19 +200,19 @@ class CoILAgent(AutonomousAgent):
 
         self.world_map = CarlaDataProvider.get_map()
         trajectory = [item[0].location for item in self._global_plan_world_coord]
-        self.dense_route, _ = interpolate_trajectory(self.world_map, trajectory, hop_resolution=self.config.hop_resolution)  # privileged
+        self.dense_route, _ = interpolate_trajectory(self.world_map, trajectory, hop_resolution=self.config.interpolation_resolution)  # privileged
 
         self._waypoint_planner = RoutePlanner(
             self.config.log_route_planner_min_distance,
             self.config.route_planner_max_distance,
         )
-        self._waypoint_planner.set_route(self._global_plan_world_coord, False)
+        self._waypoint_planner.set_route(self.dense_route, gps=True)
 
-        self._route_planner = RoutePlanner(
-            self.config.route_planner_min_distance,
-            self.config.route_planner_max_distance,
-        )
-        self._route_planner.set_route(self._global_plan_world_coord, False)
+        # self._route_planner = RoutePlanner(
+        #     self.config.route_planner_min_distance,
+        #     self.config.route_planner_max_distance,
+        # )
+        # self._route_planner.set_route(self._global_plan_world_coord, False)
         self.initialized = True
 
     def run_step(
