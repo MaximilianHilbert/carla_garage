@@ -203,7 +203,7 @@ class CoILAgent(AutonomousAgent):
         self.dense_route, _ = interpolate_trajectory(self.world_map, trajectory, hop_resolution=self.config.interpolation_resolution)  # privileged
 
         self._waypoint_planner = RoutePlanner(
-            self.config.log_route_planner_min_distance,
+            self.config.route_planner_min_distance,
             self.config.route_planner_max_distance,
         )
         self._waypoint_planner.set_route(self.dense_route, gps=True)
