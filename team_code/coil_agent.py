@@ -10,6 +10,7 @@ from leaderboard.envs.sensor_interface import SensorInterface
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
 from leaderboard.autoagents.autonomous_agent import Track
 from coil_utils.baseline_helpers import norm
+from coil_utils.baseline_helpers import visualize_model
 from nav_planner import RoutePlanner
 from srunner.scenariomanager.timer import GameTime
 from coil_network.coil_model import CoILModel
@@ -356,6 +357,15 @@ class CoILAgent(AutonomousAgent):
             else:
                 original_image_list.append(current_image)
                 image_sequence=np.concatenate(original_image_list, axis=0)
+            if self.config.debug:
+                if int(timestamp)%2==0:
+                    visualize_model(save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name),
+                                    pred_wp=current_predictions,config=self.config,pred_wp_prev=previous_waypoints,
+                                    rgb=image_sequence,step=timestamp,target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(),
+                                    parameters={'pred_residual':prediction_residual},
+                                    args=self.config,frame=timestamp,
+                                    road=self.ss_bev_manager.get_road(), closed_loop=True)
+                    
             self.replay_previous_waypoints_queue.append(previous_waypoints)
             self.replay_current_waypoints_queue.append(current_predictions)
             self.replay_image_queue.append(image_sequence)
