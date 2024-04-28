@@ -74,7 +74,6 @@ if __name__ == "__main__":
     parser.add_argument("--baseline-folder-name", help="either arp bcoh bcso keyframes")
     parser.add_argument("--setting", help="coil or all")
     parser.add_argument("--debug", type=int, help="Run with debug output", default=0)
-    parser.add_argument("--eval_rep", type=int, default=0)
 
     args = parser.parse_args()
 
