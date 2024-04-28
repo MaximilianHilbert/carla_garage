@@ -63,7 +63,8 @@ class GlobalConfig:
         self.pre_trained = True
         #closed loop
         self.hop_resolution=1.0 #for global plan in closed loop
-        self.interpolation_resolution=10.0
+        self.interpolation_resolution=1.0
+        self.downsample_factor=50
         #originally only for dataloader but we use it in inference too
         self.carla_fps = 20  # Simulator Frames per second
         self.replay_seq_len=int(self.carla_fps*20) #saves last n sec. of simulation time to disk
@@ -574,10 +575,10 @@ class GlobalConfig:
         # Iou threshold used for non-maximum suppression on the Bounding Box
         # predictions for the ensembles
         self.iou_treshold_nms = 0.2
-        self.route_planner_min_distance = 10
+        self.route_planner_min_distance = 4
         self.route_planner_max_distance = 50.0
         # Min distance to the waypoint in the dense rout that the expert is trying to follow
-        self.dense_route_planner_min_distance = 7.5
+        self.dense_route_planner_min_distance = 4.0
         self.dense_route_planner_max_distance = 50.0
         self.action_repeat = 1  # Number of times we repeat the networks action.
         # Number of frames after which the creep controller starts triggering. 1100 is larger than wait time at red light.
