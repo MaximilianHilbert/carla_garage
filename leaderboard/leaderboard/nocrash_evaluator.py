@@ -375,7 +375,6 @@ class NoCrashEvaluator(object):
                 args.baseline_folder_name,
                 args.experiment,
                 args.setting,
-                args.eval_rep,
                 traffic_idx,
                 weather_idx,
                 start_idx,
@@ -431,7 +430,7 @@ class NoCrashEvaluator(object):
         # weathers = {'train': [1], 'test': [10]}.get(args.weather)
         # traffics = [1]
         for traffic, route, weather in itertools.product(traffics, routes, weathers):
-            if self.statistics_manager.is_finished(args, route, weather, traffic):
+            if self.statistics_manager.is_finished(args, route,weather, traffic):
                 continue
 
             self._load_and_run_scenario(args, route, weather, traffic)

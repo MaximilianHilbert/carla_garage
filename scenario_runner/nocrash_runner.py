@@ -32,7 +32,6 @@ class StatisticsManager:
         "baseline",
         "experiment",
         "setting",
-        "eval_rep",
         "traffic",
         "weather",
         "start",
@@ -73,7 +72,6 @@ class StatisticsManager:
                         str(row["baseline"]),
                         str(row["experiment"]),
                         str(row["setting"]),
-                        str(row["eval_rep"]),
                         int(row["traffic"]),
                         int(row["weather"]),
                         int(row["start"]),
@@ -97,7 +95,6 @@ class StatisticsManager:
         baseline,
         experiment,
         setting,
-        eval_rep,
         traffic,
         weather,
         start,
@@ -119,7 +116,6 @@ class StatisticsManager:
                     "baseline": baseline,
                     "experiment": experiment,
                     "setting": setting,
-                    "eval_rep": eval_rep,
                     "town": town,
                     "traffic": traffic,
                     "weather": weather,
@@ -139,7 +135,7 @@ class StatisticsManager:
 
             csv_file.flush()
 
-    def is_finished(self, args, route, weather, traffic):
+    def is_finished(self, args, route,weather, traffic):
         start, target = route
-        key = (str(args.baseline_folder_name), str(args.experiment), str(args.setting), int(traffic), int(weather), int(start), int(target))
+        key = (str(args.baseline_folder_name), str(args.experiment), str(args.setting),int(traffic), int(weather), int(start), int(target))
         return key in self.finished_tasks[args.town]
