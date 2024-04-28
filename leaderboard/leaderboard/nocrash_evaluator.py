@@ -361,12 +361,11 @@ class NoCrashEvaluator(object):
                 route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout, blocked
             ) = self.manager.get_nocrash_diagnostics()
             
+            fail=False
             for criterion in self.manager.scenario_class.scenario.test_criteria:
-                if criterion.test_status=="FAILURE":
+                if criterion.test_status=="FAILURE" and criterion._terminate_on_failure:
                     fail=True
-                else:
-                    fail=False
-            if fail and self.config.visualize_without_rgb or self.config.visualize_combined:
+            if fail and (self.config.visualize_without_rgb or self.config.visualize_combined):
                 observations,prev_pred,curr_pred,target_points, roads, pred_residual=self.manager.replay_parameter.values()
                 for iteration, (obs_i, pred_history_i, pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(observations, prev_pred, curr_pred, target_points, roads,pred_residual)):
                     visualize_model(config=self.config, args=args, closed_loop=True, save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name, f"repetition_{self.config.eval_rep}",self.manager.scenario_class.scenario.name),
