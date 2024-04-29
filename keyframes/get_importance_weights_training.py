@@ -62,7 +62,7 @@ def main(args):
         "checkpoints",
     )
     for repetition, seed in enumerate(tqdm(args.seeds)):
-        checkpoint_name = f"correlation_weights_prev{merged_config_object.number_previous_waypoints}_rep{repetition}_neurons{args.neurons[0]}.npy"
+        checkpoint_name = f"checkpoint_keyframes{merged_config_object.number_previous_waypoints}_rep{repetition}_neurons{args.neurons[0]}.npy"
         checkpoint_full_path = os.path.join(checkpoint_path, checkpoint_name)
         train_ape_model(
             args,
