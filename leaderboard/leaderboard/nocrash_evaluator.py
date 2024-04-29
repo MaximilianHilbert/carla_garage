@@ -430,10 +430,8 @@ class NoCrashEvaluator(object):
             "r",
         ) as f:
             routes = [tuple(map(int, l.split())) for l in f.readlines()]
-        #weathers = {"train": [1, 3, 6, 8], "test": [10, 14]}.get(args.weather)
-        #traffics = [0, 1, 2]
-        weathers = {'train': [8], 'test': [10]}.get(args.weather)
-        traffics = [0]
+        weathers = {"train": [1, 6, 10, 14], "test": [3,8]}.get(args.weather)
+        traffics = [0, 1, 2]
         for traffic, route, weather in itertools.product(traffics, routes, weathers):
             if self.statistics_manager.is_finished(args, route,weather, traffic):
                 continue
