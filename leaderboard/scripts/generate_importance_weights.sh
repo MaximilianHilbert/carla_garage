@@ -6,6 +6,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=week
 #SBATCH --cpus-per-task=24
+#SBATCH --mem-per-cpu=9G
 #SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
 #uni pc
