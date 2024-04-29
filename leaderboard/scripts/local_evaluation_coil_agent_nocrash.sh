@@ -26,7 +26,7 @@ export SAVE_PATH=${WORK_DIR}/results
 export DIRECT=0
 export BENCHMARK=longest6
 #uni pc
-export COIL_MODEL_CHECKPOINT=/home/maximilian-hilbert/carla_garage/_logs/bcoh/bcoh_nospeed_data_rep_1/repetition_0/02_withheld/checkpoints/30.pth
+export COIL_MODEL_CHECKPOINT=/home/maximilian-hilbert/carla_garage/_logs/bcoh/bcoh_nospeed_data_rep_3/repetition_0/02_withheld/checkpoints/30.pth
 #home
 #export COIL_MODEL_CHECKPOINT=/home/maximilian/Master/carla_garage/_logs/arp/arp/repetition_0/all/checkpoints/30.pth
 
@@ -44,7 +44,6 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --visualize-combined=1 \
 --visualize-without-rgb=0 \
 --setting=02_withheld \
---eval_rep=0 \
 --resume=true \
 --eval_id=id_000 \
 --town=Town01 \
