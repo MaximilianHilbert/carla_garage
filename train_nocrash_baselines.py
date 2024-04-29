@@ -32,7 +32,7 @@ def generate_batch_script(
 #SBATCH --gres=gpu:8
 #SBATCH --partition=week
 #SBATCH --cpus-per-task={args.number_of_cpus}
-#SBATCH --mem=320G
+#SBATCH --mem-per-cpu=9G
 #SBATCH --output=/home/hilbert/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.out  # File to which STDOUT will be written
 #SBATCH --error=/home/hilbert/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.err   # File to which STDERR will be written
 
