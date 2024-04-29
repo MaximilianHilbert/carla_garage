@@ -5,7 +5,7 @@
 #SBATCH --time=2-00:00
 #SBATCH --gres=gpu:1
 #SBATCH --partition=week
-#SBATCH --cpus-per-task=24
+#SBATCH --cpus-per-task=12
 #SBATCH --mem-per-cpu=9G
 #SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
@@ -51,5 +51,5 @@ conda activate garage
 # source ~/.bashrc
 # conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 
-python $WORK_DIR/keyframes/get_importance_weights_training.py --seeds 111 --training-repetition 0 --baseline-folder-name keyframes --experiment keyframes_weights --number-of-workers 25 --neurons 300 --batch-size 512 --setting 02_withheld
-#python $WORK_DIR/keyframes/get_importance_weights_inference.py --training-repetition 0 --baseline-folder-name keyframes --experiment keyframes_weights --number-of-workers 25 --setting 02_withheld
+python $WORK_DIR/keyframes/get_importance_weights_training.py --seeds 111 --training-repetition 0 --baseline-folder-name keyframes --experiment keyframes_weights --number-of-workers 12 --neurons 300 --batch-size 512 --setting 02_withheld
+#python $WORK_DIR/keyframes/get_importance_weights_inference.py --training-repetition 0 --baseline-folder-name keyframes --experiment keyframes_weights --number-of-workers 12 --setting 02_withheld
