@@ -858,18 +858,18 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 else:
                     data["ego_waypoints"] = np.array(current_measurement["plant_wp"])[indices]
             else:
-                current_waypoints = self.get_waypoints(
+                current_waypoints, origin_current = self.get_waypoints(
                     loaded_measurements[self.config.seq_len - 1 :],
                     y_augmentation=aug_translation,
                     yaw_augmentation=aug_rotation,
                 )
                 data["ego_waypoints"] = np.array(current_waypoints, dtype=np.float32)
                 if self.config.number_previous_waypoints>0:
-                    waypoints_per_step= self.get_waypoints(
+                    waypoints_per_step,_= self.get_waypoints(
                         loaded_temporal_measurements[self.config.seq_len - 1 :],
                         y_augmentation=aug_translation,
                         yaw_augmentation=aug_rotation,
-                        prev=True
+                        origin=origin_current
                     )
                 if loaded_temporal_measurements:
                     data["ego_matrix_previous"]=np.array(loaded_temporal_measurements[0]["ego_matrix"])
@@ -1127,11 +1127,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         target_point_aug = rotation_matrix.T @ (pos - translation)
         return np.squeeze(target_point_aug)
 
-    def get_waypoints(self, measurements, y_augmentation=0.0, yaw_augmentation=0.0, prev=False):
+    def get_waypoints(self, measurements, y_augmentation=0.0, yaw_augmentation=0.0, origin=None):
         """transform waypoints to be origin at ego_matrix"""
-        if prev:
-            origin = measurements[1]
-        else:
+        if not origin:
             origin = measurements[0]
         origin_matrix = np.array(origin["ego_matrix"])[:3]
         origin_translation = origin_matrix[:, 3:4]
@@ -1162,7 +1160,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             waypoint_aug = rotation_matrix.T @ (pos - translation)
             waypoints_aug.append(np.squeeze(waypoint_aug))
 
-        return waypoints_aug
+        return waypoints_aug, origin
     def align(
         self,
         lidar_0,
