@@ -7,8 +7,8 @@
 #SBATCH --partition=week
 #SBATCH --cpus-per-task=12
 #SBATCH --mem-per-cpu=9G
-#SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
-#SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
+#SBATCH --output=/home/hilbert/slurmlogs/gen_importance_weights.out  # File to which STDOUT will be written
+#SBATCH --error=/home/hilbert/slurmlogs/gen_importance_weights.err   # File to which STDERR will be written
 #uni pc
 
 
