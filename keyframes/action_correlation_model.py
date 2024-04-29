@@ -49,7 +49,7 @@ def train(args, model, optimizer, train_loader, loss_func, epoch, all_epochs, lo
 
         model.zero_grad()
         output = model(previous_wp)
-        loss = loss_func(output, current_wp).mean()
+        loss = loss_func(output, current_wp)
         accumulate_loss.append(float(loss.item()))
         loss.backward()
         optimizer.step()
@@ -132,7 +132,7 @@ def train_ape_model(args, seed, repetition, merged_config_object, checkpoint_ful
     )
     model.cuda()
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)#, betas=(0.9, 0.999))
     loss_func = mse_loss
 
     result_dir = os.path.join(
@@ -161,10 +161,10 @@ def train_ape_model(args, seed, repetition, merged_config_object, checkpoint_ful
             merged_config_object.epochs,
             writer,
         )
-        min_loss, max_loss = test(args, model, testloader, loss_func, epoch, writer)
+        #min_loss, max_loss = test(args, model, testloader, loss_func, epoch, writer)
 
-        if epoch % (merged_config_object.epochs // 3) == 0:
-            adjustlr(optimizer, 0.1)
+        # if epoch % (merged_config_object.epochs // 3) == 0:
+        #     adjustlr(optimizer, 0.1)
 
     if if_save:
         os.makedirs(
