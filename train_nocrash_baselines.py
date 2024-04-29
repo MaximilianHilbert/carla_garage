@@ -30,25 +30,25 @@ def generate_batch_script(
 #SBATCH --nodes=1
 #SBATCH --time=0-{walltime}:00
 #SBATCH --gres=gpu:8
-#SBATCH --partition=gpu-2080ti,gpu-v100
+#SBATCH --partition=week
 #SBATCH --cpus-per-task={args.number_of_cpus}
 #SBATCH --mem=320G
-#SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.out  # File to which STDOUT will be written
-#SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.err   # File to which STDERR will be written
+#SBATCH --output=/home/hilbert/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.out  # File to which STDOUT will be written
+#SBATCH --error=/home/hilbert/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.err   # File to which STDERR will be written
 
-#export WORK_DIR=/home/hilbert/carla_garage
-#export CONFIG_ROOT=$WORK_DIR/coil_configuration
-#export TEAM_CODE=$WORK_DIR/team_code
-#export CARLA_ROOT=$WORK_DIR/carla
-#export DATASET_ROOT=/home/hilbert/dataset_v08
-#export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
-
-export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+export WORK_DIR=/home/hilbert/carla_garage
 export CONFIG_ROOT=$WORK_DIR/coil_configuration
-export CARLA_ROOT=$WORK_DIR/carla
-export DATASET_ROOT=/mnt/qb/work2/geiger0/bjaeger25/datasets/hb_dataset_v08_2023_05_10
-export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 export TEAM_CODE=$WORK_DIR/team_code
+export CARLA_ROOT=$WORK_DIR/carla
+export DATASET_ROOT=/home/hilbert/dataset_v08
+export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
+
+# export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+# export CONFIG_ROOT=$WORK_DIR/coil_configuration
+# export CARLA_ROOT=$WORK_DIR/carla
+# export DATASET_ROOT=/mnt/qb/work2/geiger0/bjaeger25/datasets/hb_dataset_v08_2023_05_10
+# export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+# export TEAM_CODE=$WORK_DIR/team_code
 
 export CARLA_SERVER=$CARLA_ROOT/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI
@@ -60,11 +60,11 @@ export PYTHONPATH=$PYTHONPATH:$COIL_NETWORK
 export PYTHONPATH=$PYTHONPATH:$TEAM_CODE
 export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 
-# source /home/hilbert/.bashrc
-# eval "$(conda shell.bash hook)"
-# conda activate garage
-source ~/.bashrc
-conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+source /home/hilbert/.bashrc
+eval "$(conda shell.bash hook)"
+conda activate garage
+# source ~/.bashrc
+# conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS={args.number_of_cpus}  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
 torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --experiment {experiment} --number-of-workers {int(args.number_of_cpus/8)} --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
