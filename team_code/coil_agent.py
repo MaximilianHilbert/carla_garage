@@ -300,7 +300,7 @@ class CoILAgent(AutonomousAgent):
 
             predicted_speed = self._policy.module.extract_predicted_speed().cpu().detach().numpy()
         else:
-            if self.config.baseline_folder_name == "bcoh":
+            if self.config.baseline_folder_name in ["bcoh", "keyframes"]:
                 merged_history_and_current = torch.cat([observation_history, single_image], dim=0)
                 if self.config.train_with_actions_as_input:
                     model_outputs = self.model.module.forward_branch(
