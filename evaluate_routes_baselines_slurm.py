@@ -126,9 +126,9 @@ def make_jobsub_file(commands, exp_name, exp_root_name, filename, partition):
 #SBATCH -e evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_err{filename}.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=9
+#SBATCH --cpus-per-task=6
 #SBATCH --mem=10gb
-#SBATCH --time=00-08:00
+#SBATCH --time=00-10:00
 #SBATCH --gres=gpu:1
 """
     for cmd in commands:
@@ -163,20 +163,19 @@ def get_num_jobs(job_name, username):
 
 def main():
     single_test = False
-    settings_to_be_tested = ["coil"]  # only set when single test is True
+    settings_to_be_tested = ["02_withheld"]  # only set when single test is True
     training_reps_to_be_tested = ["repetition_2"]  # only set when single test is True
 
     towns = ["Town01", "Town02"]
-    weathers = {"train": [1, 3, 6, 8], "test": [10, 14]}
+    weathers = {"train": [1, 6, 10, 14], "test": [3,8]}
     traffics_len = 3
     weathers_conditions = ["train", "test"]
-    partition = "gpu-2080ti"
-    username = "gwb629"
+    partition = "day"
+    username = "hilbert"
     epochs = ["30"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3
-    #code_root = '/home/maximilian/Master/carla_garage'
-    code_root = "/mnt/qb/work/geiger/gwb629/carla_garage"
+    code_root="/home/hilbert/carla_garage"
     benchmark = "nocrash"
     model_dir = os.path.join(code_root, "_logs")
     carla_root = os.path.join(code_root, "carla")
@@ -187,6 +186,8 @@ def main():
     experiment_name_stem = f"{benchmark}"
     for baseline in tqdm(os.listdir(model_dir)):
         for experiment in tqdm(os.listdir(os.path.join(model_dir, baseline))):
+            if not os.path.isdir(os.path.join(model_dir, baseline, experiment)):
+                continue
             yaml_path = f'{os.path.join(code_root, "coil_configuration", baseline, experiment+".yaml")}'
             for repetition in (
                 tqdm(os.listdir(os.path.join(model_dir, baseline, experiment)))
