@@ -211,14 +211,14 @@ class NoCrashEvalScenario(RouteScenario):
         red_light_criterion = RunningRedLightTest(self.ego_vehicles[0])
 
         stop_criterion = RunningStopTest(self.ego_vehicles[0])
-
-        blocked_criterion = ActorSpeedAboveThresholdTest(
-            self.ego_vehicles[0],
-            speed_threshold=0.1,
-            below_threshold_max_time=180.0,
-            terminate_on_failure=True,
-            name="AgentBlockedTest",
-        )
+        #turned off, because it is not working, all blocked scenarios are counted as timeout
+        # blocked_criterion = ActorSpeedAboveThresholdTest(
+        #     self.ego_vehicles[0],
+        #     speed_threshold=0.1,
+        #     below_threshold_max_time=180.0,
+        #     terminate_on_failure=True,
+        #     name="AgentBlockedTest",
+        # )
 
         criteria.append(completion_criterion)
         criteria.append(outsidelane_criterion)
@@ -226,6 +226,5 @@ class NoCrashEvalScenario(RouteScenario):
         criteria.append(red_light_criterion)
         criteria.append(stop_criterion)
         criteria.append(route_criterion)
-        criteria.append(blocked_criterion)
 
         return criteria
