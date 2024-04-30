@@ -245,7 +245,5 @@ class ScenarioManager(object):
                 lights_ran = int(actual_value)
             if name == "CollisionTest":
                 collision=int(actual_value)
-            if name == "AgentBlockedTest":
-                blocked=int(actual_value)
 
-        return route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout, blocked
+        return route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout

@@ -359,9 +359,9 @@ class NoCrashEvaluator(object):
             self.manager.stop_scenario()
 
             (
-                route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout, blocked
+                route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout_blocked
             ) = self.manager.get_nocrash_diagnostics()
-            
+
             fail=False
             for criterion in self.manager.scenario_class.scenario.test_criteria:
                 if criterion.test_status=="FAILURE" and criterion._terminate_on_failure:

@@ -43,8 +43,7 @@ class StatisticsManager:
         "lights_ran",
         "collision",
         "duration",
-        "timeout",
-        "blocked"
+        "timeout_blocked",
 ]
 
     def __init__(self, args):
@@ -85,8 +84,7 @@ class StatisticsManager:
                     int(row["lights_ran"]),
                     int(row["collision"]),
                     float(row["duration"]),
-                    float(row["timeout"]),
-                    int(row["blocked"])
+                    float(row["timeout_blocked"])
                 ]
 
     def log(
@@ -106,8 +104,7 @@ class StatisticsManager:
         lights_ran,
         collision,
         duration,
-        timeout,
-        blocked
+        timeout_blocked
     ):
         with open(self.path_to_file, "a") as csv_file:
             csv_writer = csv.DictWriter(csv_file, fieldnames=self.headers)
@@ -128,8 +125,7 @@ class StatisticsManager:
                     "lights_ran": lights_ran,
                     "collision": collision,
                     "duration": duration,
-                    "timeout": timeout,
-                    "blocked": blocked
+                    "timeout_blocked": timeout_blocked,
                 }
             )
 
