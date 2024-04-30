@@ -226,7 +226,7 @@ def main():
                                       
                                       exp_names_tmp = []
                                       exp_names_tmp.append(experiment_name_stem + f"_e{evaluation_repetition}")
-                                      route_path = f"leaderboard/data/{benchmark}_split/{town}"
+                                      route_path = f"{code_root}/leaderboard/data/{benchmark}_split/{town}"
                                       route_pattern = "*.txt"
 
                                       carla_world_port_start = 10000
