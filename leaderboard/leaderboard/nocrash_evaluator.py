@@ -397,8 +397,7 @@ class NoCrashEvaluator(object):
                 lights_ran,
                 collision,
                 duration,
-                timeout,
-                blocked
+                timeout_blocked,
             )
 
             if args.record:
