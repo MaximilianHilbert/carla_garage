@@ -20,6 +20,7 @@ from datetime import datetime
 from distutils.version import LooseVersion
 import importlib
 import os
+import numpy as np
 import pkg_resources
 import pickle
 import sys
@@ -374,10 +375,15 @@ class NoCrashEvaluator(object):
                     failure_case="timeout_blocked"
                 else:
                     failure_case="misc"
-                root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name, f"repetition_{self.config.eval_id}",self.manager.scenario_class.scenario.name)
-                for iteration, (obs_i, pred_history_i, pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(observations, prev_pred, curr_pred, target_points, roads,pred_residual)):
+                root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name, f"repetition_{self.config.eval_id}",failure_case,self.manager.scenario_class.scenario.name)
+    
+                for iteration, (pred_history_i, pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(prev_pred, curr_pred, target_points, roads,pred_residual)):
+                    if iteration<self.config.max_img_seq_len_baselines:
+                        continue
+                    image_sequence=self.build_image_sequence(list(observations), iteration)
                     visualize_model(config=self.config, args=args, closed_loop=True, save_path_root=root,
-                                    rgb=obs_i, pred_wp=pred_i, pred_wp_prev=pred_history_i, target_point=target_point_i, step=-1/self.config.carla_fps*(len(observations)-iteration), road=roads_i, parameters={"pred_residual": pred_residual_i})
+                                    rgb=image_sequence, pred_wp=pred_i, pred_wp_prev=pred_history_i, target_point=target_point_i,
+                                    step=-1/self.config.carla_fps*(len(observations)-iteration), road=roads_i, parameters={"pred_residual": pred_residual_i})
                 params={"prev": prev_pred[0], "curr": curr_pred[0]}
                 with open(os.path.join(root, "predictions.pkl"), "wb") as file:
                     pickle.dump(params, file)
@@ -417,7 +423,18 @@ class NoCrashEvaluator(object):
 
         if crash_message == "Simulation crashed":
             sys.exit(-1)
+    def build_image_sequence(self,recorded_images, index):
+        prev_images=recorded_images[index-self.config.max_img_seq_len_baselines:index]
+        current_image=recorded_images[index]
+        if self.config.img_seq_len<self.config.max_img_seq_len_baselines:
+            empties=np.concatenate([np.zeros_like(recorded_images[0])]*(self.config.max_img_seq_len_baselines-self.config.img_seq_len), axis=1)
+            image_sequence=np.concatenate([empties, current_image], axis=1)
+        else:
+            prev_images.append(current_image)
+            image_sequence=np.concatenate(prev_images, axis=1)
 
+        image_sequence=np.transpose(image_sequence,(1,2,0))*255
+        return image_sequence
     def run(self, args):
         """
         Run the challenge mode

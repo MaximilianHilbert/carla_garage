@@ -348,7 +348,8 @@ class CoILAgent(AutonomousAgent):
         else:
             previous_waypoints=self.prev_wp[-1].detach().cpu().numpy()
             prediction_residual=norm(current_predictions-previous_waypoints, ord=self.config.norm)
-        if self.config.visualize_without_rgb or self.config.visualize_combined:
+
+        if self.config.debug:
             if self.config.img_seq_len<7:
                 single_image=single_image.detach().cpu().numpy()
                 empties=np.concatenate([np.zeros_like(single_image)]*(7-self.config.img_seq_len), axis=1)
@@ -357,18 +358,17 @@ class CoILAgent(AutonomousAgent):
             else:
                 original_image_list.append(current_image)
                 image_sequence=np.concatenate(original_image_list, axis=0)
-            if self.config.debug:
-                if int(timestamp)%2==0:
-                    visualize_model(save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name),
-                                    pred_wp=current_predictions,config=self.config,pred_wp_prev=previous_waypoints,
-                                    rgb=image_sequence,step=timestamp,target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(),
-                                    parameters={'pred_residual':prediction_residual},
-                                    args=self.config,frame=timestamp,
-                                    road=self.ss_bev_manager.get_road(), closed_loop=True)
-                    
+            if int(timestamp)%2==0:
+                visualize_model(save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name),
+                                pred_wp=current_predictions,config=self.config,pred_wp_prev=previous_waypoints,
+                                rgb=image_sequence,step=timestamp,target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(),
+                                parameters={'pred_residual':prediction_residual},
+                                args=self.config,frame=timestamp,
+                                road=self.ss_bev_manager.get_road(), closed_loop=True)
+        if self.config.visualize_without_rgb or self.config.visualize_combined:            
             self.replay_previous_waypoints_queue.append(previous_waypoints)
             self.replay_current_waypoints_queue.append(current_predictions)
-            self.replay_image_queue.append(image_sequence)
+            self.replay_image_queue.append(single_image.detach().cpu().numpy())
             self.replay_target_points_queue.append(end_point_location_ego_system.squeeze().detach().cpu().numpy())
             self.replay_road_queue.append(self.ss_bev_manager.get_road())
             self.replay_pred_residual_queue.append(prediction_residual)
