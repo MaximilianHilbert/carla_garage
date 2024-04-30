@@ -66,7 +66,7 @@ class GlobalConfig:
         self.hop_resolution=1.0 #for global plan in closed loop
         self.interpolation_resolution=1.0
         self.downsample_factor=50
-        self.collision_frame_length=200 # if there is a collision closed loop only 200 frames of the queue get saved, timeouts get the whole queue
+        self.collision_frame_length=400 # if there is a collision closed loop only 200 frames of the queue get saved, timeouts get the whole queue
         #originally only for dataloader but we use it in inference too
         self.carla_fps = 20  # Simulator Frames per second
         self.replay_seq_len=int(self.carla_fps*150) #saves last n sec. of simulation time to disk
