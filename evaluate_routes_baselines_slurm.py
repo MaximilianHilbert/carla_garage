@@ -89,8 +89,9 @@ export RESUME=1
 export SETTING={setting}
 export ROUTE={route}
 source /home/hilbert/.bashrc
-eval '$(conda shell.bash hook)'
-conda activate garage"""
+eval "$(conda shell.bash hook)"
+conda activate garage
+"""
         )
 #mcloud 
 #source ~/.bashrc
