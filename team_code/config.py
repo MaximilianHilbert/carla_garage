@@ -37,6 +37,7 @@ class GlobalConfig:
         self.speed_input=False
         self.lidar_seq_len = 1
         self.img_seq_len = 1
+        self.max_img_seq_len_baselines=6 #history frames only
         self.targets = ["steer", "throttle", "brake"]
         self.inputs = ["speed"]
         self.speed_factor = 12
@@ -67,7 +68,7 @@ class GlobalConfig:
         self.downsample_factor=50
         #originally only for dataloader but we use it in inference too
         self.carla_fps = 20  # Simulator Frames per second
-        self.replay_seq_len=int(self.carla_fps*20) #saves last n sec. of simulation time to disk
+        self.replay_seq_len=int(self.carla_fps*150) #saves last n sec. of simulation time to disk
         # -----------------------------------------------------------------------------
         # Autopilot
         # -----------------------------------------------------------------------------
