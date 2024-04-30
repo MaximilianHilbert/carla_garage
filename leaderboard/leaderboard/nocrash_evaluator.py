@@ -368,6 +368,12 @@ class NoCrashEvaluator(object):
                     fail=True
             if fail and (self.config.visualize_without_rgb or self.config.visualize_combined):
                 observations,prev_pred,curr_pred,target_points, roads, pred_residual=self.manager.replay_parameter.values()
+                if collision>0:
+                    failure_case="collision"
+                elif timeout_blocked>0:
+                    failure_case="timeout_blocked"
+                else:
+                    failure_case="misc"
                 root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name, f"repetition_{self.config.eval_id}",self.manager.scenario_class.scenario.name)
                 for iteration, (obs_i, pred_history_i, pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(observations, prev_pred, curr_pred, target_points, roads,pred_residual)):
                     visualize_model(config=self.config, args=args, closed_loop=True, save_path_root=root,
