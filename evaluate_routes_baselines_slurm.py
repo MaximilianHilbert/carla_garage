@@ -113,7 +113,8 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --resume=${RESUME} \
 --repetitions=${REPETITIONS} \
 --setting=${SETTING} \
---route=${ROUTE}
+--route=${ROUTE} \
+--visualize-combined=1
 """
         )
 
