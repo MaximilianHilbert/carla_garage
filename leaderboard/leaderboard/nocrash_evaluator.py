@@ -377,12 +377,12 @@ class NoCrashEvaluator(object):
                     failure_case="misc"
                 root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name, f"repetition_{self.config.eval_id}",failure_case,self.manager.scenario_class.scenario.name)
                 #for collisions we dont want too many data trash, only approx last 10 secs
-                prev_pred=prev_pred[-self.config.collision_frame_length:] if failure_case=="collision" else prev_pred
-                curr_pred=curr_pred[-self.config.collision_frame_length:] if failure_case=="collision" else curr_pred
-                target_points=target_points[-self.config.collision_frame_length:] if failure_case=="collision" else target_points
-                roads=roads[-self.config.collision_frame_length:] if failure_case=="collision" else roads
-                pred_residual=pred_residual[-self.config.collision_frame_length:] if failure_case=="collision" else pred_residual
-                observations=observations[-self.config.collision_frame_length:] if failure_case=="collision" else observations
+                prev_pred=list(prev_pred)[-self.config.collision_frame_length:] if failure_case=="collision" else prev_pred
+                curr_pred=list(curr_pred)[-self.config.collision_frame_length:] if failure_case=="collision" else curr_pred
+                target_points=list(target_points)[-self.config.collision_frame_length:] if failure_case=="collision" else target_points
+                roads=list(roads)[-self.config.collision_frame_length:] if failure_case=="collision" else roads
+                pred_residual=list(pred_residual)[-self.config.collision_frame_length:] if failure_case=="collision" else pred_residual
+                observations=list(observations)[-self.config.collision_frame_length:] if failure_case=="collision" else observations
 
                 for iteration, (pred_history_i, pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(prev_pred, curr_pred, target_points, roads,pred_residual)):
                     if iteration<self.config.max_img_seq_len_baselines:
