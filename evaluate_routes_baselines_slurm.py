@@ -88,10 +88,13 @@ export REPETITIONS=1
 export RESUME=1
 export SETTING={setting}
 export ROUTE={route}
-source ~/.bashrc
-conda activate /mnt/qb/work/geiger/gwb629/conda/garage
-"""
+source /home/hilbert/.bashrc
+eval '$(conda shell.bash hook)'
+conda activate garage"""
         )
+#mcloud 
+#source ~/.bashrc
+#conda activate /mnt/qb/work/geiger/gwb629/conda/garage
         rsh.write(
             """
 python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
