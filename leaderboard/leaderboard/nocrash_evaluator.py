@@ -375,7 +375,8 @@ class NoCrashEvaluator(object):
                     failure_case="timeout_blocked"
                 else:
                     failure_case="misc"
-                root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name, f"repetition_{self.config.eval_id}",failure_case,self.manager.scenario_class.scenario.name)
+                root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
+                                  failure_case,self.config.eval_id,self.manager.scenario_class.scenario.name)
                 #for collisions we dont want too many data trash, only approx last 10 secs
                 prev_pred=list(prev_pred)[-self.config.collision_frame_length:] if failure_case=="collision" else prev_pred
                 curr_pred=list(curr_pred)[-self.config.collision_frame_length:] if failure_case=="collision" else curr_pred
