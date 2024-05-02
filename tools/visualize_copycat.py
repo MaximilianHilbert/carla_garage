@@ -179,7 +179,7 @@ def main(args):
                 cc_save_path=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", baseline,route_name )
                 # if not args.custom_validation:
                 #     paths.append(os.path.dirname(root))
-                for i in range(-5,6):
+                for i in range(-args.num_surrounding_frames,args.num_surrounding_frames+1):
                     detection_ours, detection_keyframes=False, False
                     previous_index=data_loader_position+i-1
                     current_index=data_loader_position+i
@@ -226,6 +226,11 @@ if __name__=="__main__":
         "--custom-validation",
         type=int,
         default=0,
+    )
+    parser.add_argument(
+        "--num-surrounding-frames",
+        type=int,
+        default=3,
     )
     parser.add_argument(
         "--keyframes-threshold",
