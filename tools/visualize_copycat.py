@@ -77,7 +77,7 @@ def preprocess(args):
             "_logs",
             "keyframes",
             f"repetition_0",
-            f"bcoh_weights_prev9_rep0_neurons300.npy",
+            f"bcoh_weights_copycat_prev9_rep0_neurons300.npy",
         ))
     if args.keyframes_threshold=="absolute":
         threshold_ratio=0.1
