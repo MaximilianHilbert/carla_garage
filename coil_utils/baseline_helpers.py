@@ -485,19 +485,13 @@ def is_ready_to_save(epoch, iteration, data_loader, merged_config):
         return False
 
 
-def get_latest_saved_checkpoint(shared_config_object, repetition, setting):
+def get_latest_saved_checkpoint(basepath):
     """
     Returns the , latest checkpoint number that was saved
 
     """
     checkpoint_files = os.listdir(
-        os.path.join(
-            f'{os.environ.get("WORK_DIR")}',
-            "_logs",
-            shared_config_object.baseline_folder_name,
-            shared_config_object.experiment,
-            f"repetition_{str(repetition)}",
-            setting,
+        os.path.join(basepath,
             "checkpoints",
         )
     )

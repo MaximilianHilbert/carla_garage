@@ -59,6 +59,12 @@ def main(args):
     device_id = torch.device(f"cuda:{rank}")
 
     merged_config_object = merge_config_files(args)
+    basepath=os.path.join(os.environ.get("WORK_DIR"),
+                    "_logs",
+                    merged_config_object.baseline_folder_name,
+                    merged_config_object.experiment,
+                    f"repetition_{str(args.training_repetition)}",
+                    args.setting)
     logger = Logger(
         merged_config_object.baseline_folder_name,
         merged_config_object.experiment,
@@ -72,19 +78,11 @@ def main(args):
     try:
         set_seed(args.seed)
         checkpoint_file = get_latest_saved_checkpoint(
-            merged_config_object,
-            repetition=args.training_repetition,
-            setting=args.setting,
+            basepath
         )
         if checkpoint_file is not None:
             checkpoint = torch.load(
-                os.path.join(
-                    os.environ.get("WORK_DIR"),
-                    "_logs",
-                    merged_config_object.baseline_folder_name,
-                    merged_config_object.experiment,
-                    f"repetition_{str(args.training_repetition)}",
-                    args.setting,
+                os.path.join(basepath,
                     "checkpoints",
                     f"{checkpoint_file}.pth",
                 ),
@@ -371,13 +369,7 @@ def main(args):
 
                         torch.save(
                             state,
-                            os.path.join(
-                                os.environ.get("WORK_DIR"),
-                                "_logs",
-                                merged_config_object.baseline_folder_name,
-                                merged_config_object.experiment,
-                                f"repetition_{str(args.training_repetition)}",
-                                args.setting,
+                            os.path.join(basepath,
                                 "checkpoints",
                                 str(epoch) + ".pth",
                             ),
@@ -480,28 +472,17 @@ def main(args):
                 wp_dict.update({iteration:{"image": image,"pred":predictions[0].cpu().detach().numpy(), "gt":targets.cpu().detach().numpy(), "loss":loss.cpu().detach().numpy()}})
             data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
             criterion_dict=get_copycat_criteria(data_df, args.norm)
+           
             if not args.custom_validation:
-                with open(os.path.join(os.environ.get("WORK_DIR"),
-                            "_logs",
-                            merged_config_object.baseline_folder_name,#currently without experiment, setting, repetition subfolder
-                            f"{args.baseline_folder_name}_predictions_all.pkl"), "wb") as file:
-                    pickle.dump(wp_dict, file)
+                with open(os.path.join(basepath,f"predictions_all.pkl"), "wb") as file:
+                        pickle.dump(wp_dict, file)
             else:
-                with open(os.path.join(os.environ.get("WORK_DIR"),
-                            "_logs",
-                            merged_config_object.baseline_folder_name,#currently without experiment, setting, repetition subfolder
-                            f"{args.baseline_folder_name}_predictions_cc_routes_only.pkl"), "wb") as file:
+                with open(os.path.join(basepath,"predictions_cc_routes_only.pkl"), "wb") as file:
                     pickle.dump(wp_dict, file)
             if not args.custom_validation:
-                with open(os.path.join(os.environ.get("WORK_DIR"),
-                            "_logs",
-                            merged_config_object.baseline_folder_name,
-                            f"{args.baseline_folder_name}_predictions_std_all.pkl"), "wb") as file:
+                with open(os.path.join(basepath,"predictions_std_all.pkl"), "wb") as file:
                     pickle.dump(criterion_dict, file)
-        with open(os.path.join(os.environ.get("WORK_DIR"),
-                        "_logs",
-                        merged_config_object.baseline_folder_name,
-                        f"{args.baseline_folder_name}_config.pkl"), "wb") as file:
+        with open(os.path.join(basepath,"config.pkl"), "wb") as file:
                 pickle.dump(merged_config_object, file)
     except RuntimeError as e:
         traceback.print_exc()

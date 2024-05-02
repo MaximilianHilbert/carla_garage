@@ -82,12 +82,13 @@ def preprocess(args):
 
     importance_sampling_threshold=get_action_predict_loss_threshold(keyframe_correlations,threshold_ratio)
     keyframe_correlations=(keyframe_correlations > importance_sampling_threshold)* (importance_sampling_threshold_weight - 1) + 1
-    for baseline in args.baselines:
+    for baseline, experiment in zip(args.baselines, args.experiments):
         basename=os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
                             baseline,
-                            f"{baseline}")
-        with open(f"{basename}_predictions_std_all.pkl", 'rb') as f:
+                            experiment,f"repetition_{str(args.training_repetition)}",
+                    args.setting)
+        with open(os.path.join(basename,"predictions_std_all.pkl"), 'rb') as f:
             criterion_dict = pickle.load(f)
             std_lst.append(criterion_dict["std_pred"])
             mean_lst.append(criterion_dict["mean_pred"])
@@ -109,22 +110,24 @@ def main(args):
     params=preprocess(args)
     paths=[]
     results=pd.DataFrame(columns=["baseline", "metric", "length", "positions"])
-    for baseline in args.baselines:
-        basename=os.path.join(os.environ.get("WORK_DIR"),
-                            "_logs",
-                            baseline,
-                            baseline)
+    for baseline,experiment in zip(args.baselines, args.experiments):
+        basename=os.path.join(os.path.join(os.environ.get("WORK_DIR"),
+                    "_logs",
+                    baseline,
+                    experiment,
+                    f"repetition_{str(args.training_repetition)}",
+                    args.setting))
     
-        with open(f"{basename}_config.pkl", 'rb') as f:
+        with open(os.path.join(basename, "config.pkl"), 'rb') as f:
             config = pickle.load(f)
         config.number_previous_waypoints=1
         config.visualize_copycat=True
         
         if not args.custom_validation:
-            with open(f"{basename}_predictions_all.pkl", 'rb') as f:
+            with open(os.path.join(basename,"predictions_all.pkl"), 'rb') as f:
                 wp_dict = pickle.load(f)
         else:
-            with open(f"{basename}_predictions_cc_routes_only.pkl", 'rb') as f:
+            with open(os.path.join(basename,"predictions_cc_routes_only.pkl"), 'rb') as f:
                 wp_dict = pickle.load(f)
 
         data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
@@ -196,7 +199,7 @@ def main(args):
                                     prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
                                     ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
         for metric, count, pos in zip(["our", "kf"], [len(our_cc_positions), len(keyframes_cc_positions)], [our_cc_positions,keyframes_cc_positions]):
-            results=results.append({"baseline":baseline, "metric":metric, "length": count, "positions": pos}, ignore_index=True)
+            results=results.append({"baseline":baseline, "experiment": experiment,"metric":metric, "length": count, "positions": pos}, ignore_index=True)
 
 
     results.to_csv(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", "metric_results.csv"), index=False)
@@ -213,6 +216,16 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--custom-validation",
+        type=int,
+        default=0,
+    )
+    parser.add_argument(
+        "--setting",
+        type=str,
+        default="02_withheld",
+    )
+    parser.add_argument(
+        "--training_repetition",
         type=int,
         default=0,
     )
@@ -255,6 +268,12 @@ if __name__=="__main__":
     )
     parser.add_argument(
         "--baselines",
+        nargs="+",
+        type=str
+
+    )
+    parser.add_argument(
+        "--experiments",
         nargs="+",
         type=str
 
