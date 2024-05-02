@@ -157,7 +157,8 @@ def main(args):
         keyframes_cc_positions=[]
         our_cc_positions=[]
         
-       
+        
+        assert len(params["keyframes_correlations"])==len(data_loader_val.dataset) , "wrong correlation weights selected!"
         for data_loader_position, (data, image_path, keyframe_correlation) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images, params["keyframes_correlations"])):
             already_saved_indices=[]
             if data_loader_position==0:

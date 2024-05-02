@@ -32,7 +32,10 @@ def main(args):
     checkpoint = torch.load(os.path.join(checkpoint_path, checkpoint))
     action_prediction_model.load_state_dict(checkpoint["state_dict"])
     action_prediction_model = action_prediction_model.cuda()
-    full_dataset = CARLA_Data(root=merged_config_object.train_data, config=merged_config_object)
+    if args.use_case=="training":
+        full_dataset = CARLA_Data(root=merged_config_object.train_data, config=merged_config_object)
+    else:
+        full_dataset = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object)
     sampler = SequentialSampler(full_dataset)
     data_loader = DataLoader(
         full_dataset,
@@ -57,11 +60,10 @@ def main(args):
             "_logs",
             "keyframes",
             f"repetition_{str(args.repetition)}",
-            f"bcoh_weights_prev{number_previous_actions}_rep{repetition}_neurons{neurons}.npy",
+            f"bcoh_weights_{args.use_case}_prev{number_previous_actions}_rep{repetition}_neurons{neurons}.npy",
         ),
         action_predict_losses,
     )
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -72,6 +74,13 @@ if __name__ == "__main__":
         default="keyframes",
         help="name of the folder that gets created for the baseline",
     )
+    parser.add_argument(
+        "--use-case",
+        type=str,
+        default="training",
+        choices=["training", "copycat"],
+    )
+
     parser.add_argument(
         "--baseline-name",
         dest="baseline_name",
