@@ -170,9 +170,7 @@ def main(args):
             if data_image!=pred_image:
                 assert("not aligned")
             previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"][0], data["ego_matrix_previous"].detach().cpu().numpy()[0], data["ego_matrix_current"].detach().cpu().numpy()[0])
-            #TODO currently the not-aligned predictions are used for comparison
-            previous_predictions_not_aligned=data_df.iloc[previous_index]["pred"][0]
-            detection_ours, detection_keyframes,_=determine_copycat(True,args,data_df,data,previous_predictions_not_aligned,keyframe_correlation,current_index,previous_index,params)
+            detection_ours, detection_keyframes,_=determine_copycat(True,args,data_df,data,previous_prediction_aligned,keyframe_correlation,current_index,previous_index,params)
             if detection_keyframes:
                 keyframes_cc_positions.append(data_loader_position)
             if detection_ours:
@@ -198,9 +196,8 @@ def main(args):
                             image_sequence,root=load_image_sequence(config,data_df, data_loader_position+i)
                        
                         previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"].squeeze(), data["ego_matrix_previous"], data["ego_matrix_current"])
-                        #TODO currently the not-aligned predictions are used for comparison
-                        previous_predictions_not_aligned=data_df.iloc[previous_index]["pred"][0]
-                        detection_ours, detection_keyframes, copycat_information=determine_copycat(False,args,data_df,data,previous_predictions_not_aligned,params["keyframes_correlations"][current_index],current_index,previous_index,params)
+
+                        detection_ours, detection_keyframes, copycat_information=determine_copycat(False,args,data_df,data,previous_prediction_aligned,params["keyframes_correlations"][current_index],current_index,previous_index,params)
                         if args.visualize_combined or args.visualize_without_rgb:
                             visualize_model(args=args,config=config, save_path_root=cc_save_path, rgb=image_sequence, lidar_bev=data["lidar"],
                                     pred_wp_prev=np.squeeze(previous_prediction_aligned),
