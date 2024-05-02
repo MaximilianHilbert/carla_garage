@@ -157,6 +157,7 @@ def main(args):
         
        
         for data_loader_position, (data, image_path, keyframe_correlation) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images, params["keyframes_correlations"])):
+            already_saved_indices=[]
             if data_loader_position==0:
                 continue
             data_image=str(image_path, encoding="utf-8").replace("\x00", "")
@@ -180,6 +181,8 @@ def main(args):
                     detection_ours, detection_keyframes=False, False
                     previous_index=data_loader_position+i-1
                     current_index=data_loader_position+i
+                    if current_index in already_saved_indices:
+                        continue
                     if previous_index>=0:
                         data=data_loader_val.dataset.__getitem__(data_loader_position+i)
                         if config.img_seq_len<7:
@@ -200,6 +203,7 @@ def main(args):
                                     detect_our=detection_ours, detect_kf=detection_keyframes,frame=current_index,
                                     prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
                                     ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
+                            already_saved_indices.append(current_index)
         for metric, count, pos in zip(["our", "kf"], [len(our_cc_positions), len(keyframes_cc_positions)], [our_cc_positions,keyframes_cc_positions]):
             results=results.append({"baseline":baseline, "experiment": experiment,"metric":metric, "length": count, "positions": pos}, ignore_index=True)
 
