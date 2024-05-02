@@ -119,16 +119,13 @@ def main(args):
 
         if "keyframes" in args.experiment:
             # load the correlation weights and reshape them, that the last 3 elements that do not fit into the batch size dimension get dropped, because the dataloader of Carla_Dataset does the same, it should fit
-            list_of_files_path = os.path.join(
+            filename = os.path.join(
                 os.environ.get("WORK_DIR"),
-                "_logs",
-                merged_config_object.baseline_folder_name,
-                f"repetition_{str(args.training_repetition)}",
-            )
-            for file in os.listdir(list_of_files_path):
-                full_filename = os.path.join(list_of_files_path, file)
-                if f"rep{str(args.training_repetition)}" in file:
-                    dataset.set_correlation_weights(path=full_filename)
+                    "_logs",
+                    "keyframes",
+                    "repetition_0",
+                    "bcoh_weights_training_prev9_rep0_neurons300.npy")
+            dataset.set_correlation_weights(path=filename)
             action_predict_threshold = get_action_predict_loss_threshold(
                 dataset.get_correlation_weights(), merged_config_object.threshold_ratio
             )
