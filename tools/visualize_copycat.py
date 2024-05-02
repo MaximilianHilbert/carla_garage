@@ -107,8 +107,8 @@ def load_image_sequence(config,df_data,current_iteration):
 
 def main(args):
     params=preprocess(args)
-    
     paths=[]
+    results=pd.DataFrame(columns=["baseline", "metric", "length", "positions"])
     for baseline in args.baselines:
         basename=os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
@@ -194,9 +194,11 @@ def main(args):
                                 detect_our=detection_ours, detect_kf=detection_keyframes,frame=current_index,
                                 prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
                                 ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
+        for metric, count, pos in zip(["our", "kf"], [len(our_cc_positions), len(keyframes_cc_positions)], [our_cc_positions,keyframes_cc_positions]):
+            results=results.append({"baseline":baseline, "metric":metric, "length": count, "positions": pos}, ignore_index=True)
 
-        print(f"count for our detector copycat for baseline {baseline}: {len(our_cc_positions)}")
-        print(f"count for keyframes detector copycat for baseline {baseline}: {len(keyframes_cc_positions)}")
+
+    results.to_csv(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", "metric_results.csv"), index=False)
         
     if not args.custom_validation:
         with open(os.path.join(os.environ.get("WORK_DIR"),
