@@ -47,8 +47,10 @@ def determine_copycat(gpu,args,data_df,data,previous_prediction_aligned,keyframe
     condition_value_1=params["avg_of_avg_baseline_predictions"]-params["avg_of_std_baseline_predictions"]*args.pred_tuning_parameter
     condition_1=pred_residual<condition_value_1
     condition_value_keyframes=params["avg_of_kf"]+params["std_of_kf"]*args.pred_tuning_parameter
-    condition_keyframes=True if keyframe_correlation==5.0 else False#keyframe_correlation>condition_value_keyframes
-
+    if args.keyframes_threshold=="absolute":
+        condition_keyframes=True if keyframe_correlation==5.0 else False
+    else:
+        condition_keyframes=keyframe_correlation>condition_value_keyframes
     if args.second_cc_condition=="loss":
         condition_value_2=params["loss_avg_of_avg"]+params["loss_avg_of_std"]*args.tuning_parameter_2
         condition_2=data_df.iloc[current_index]["loss"]>condition_value_2
@@ -69,8 +71,6 @@ def preprocess(args):
 
     loss_std_lst=[]
     loss_mean_lst=[]
-    threshold_ratio=0.1
-    importance_sampling_threshold_weight=5.0
     
     keyframe_correlations=np.load(os.path.join(
             os.environ.get("WORK_DIR"),
@@ -79,9 +79,11 @@ def preprocess(args):
             f"repetition_0",
             f"bcoh_weights_prev9_rep0_neurons300.npy",
         ))
-
-    importance_sampling_threshold=get_action_predict_loss_threshold(keyframe_correlations,threshold_ratio)
-    keyframe_correlations=(keyframe_correlations > importance_sampling_threshold)* (importance_sampling_threshold_weight - 1) + 1
+    if args.keyframes_threshold=="absolute":
+        threshold_ratio=0.1
+        importance_sampling_threshold_weight=5.0
+        importance_sampling_threshold=get_action_predict_loss_threshold(keyframe_correlations,threshold_ratio)
+        keyframe_correlations=(keyframe_correlations > importance_sampling_threshold)* (importance_sampling_threshold_weight - 1) + 1        
     for baseline, experiment in zip(args.baselines, args.experiments):
         basename=os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
@@ -224,6 +226,12 @@ if __name__=="__main__":
         "--custom-validation",
         type=int,
         default=0,
+    )
+    parser.add_argument(
+        "--keyframes-threshold",
+        type=str,
+        default="relative",
+        choices=['relative', 'absolute']
     )
     parser.add_argument(
         "--setting",
