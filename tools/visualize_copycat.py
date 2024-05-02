@@ -186,14 +186,15 @@ def main(args):
                        
                         previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"].squeeze(), data["ego_matrix_previous"], data["ego_matrix_current"])
                         detection_ours, detection_keyframes, copycat_information=determine_copycat(False,args,data_df,data,previous_prediction_aligned,params["keyframes_correlations"][current_index],current_index,previous_index,params)
-                        visualize_model(args=args,config=config, save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", baseline), rgb=image_sequence, lidar_bev=data["lidar"],
-                                pred_wp_prev=np.squeeze(previous_prediction_aligned),
-                                gt_bev_semantic=data["bev_semantic"], step=current_index,
-                                target_point=data["target_point"], pred_wp=np.squeeze(data_df.iloc[current_index]["pred"]),
-                                gt_wp=data["ego_waypoints"],parameters=copycat_information,
-                                detect_our=detection_ours, detect_kf=detection_keyframes,frame=current_index,
-                                prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
-                                ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
+                        if args.visualize_combined or args.visualize_without_rgb:
+                            visualize_model(args=args,config=config, save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", baseline), rgb=image_sequence, lidar_bev=data["lidar"],
+                                    pred_wp_prev=np.squeeze(previous_prediction_aligned),
+                                    gt_bev_semantic=data["bev_semantic"], step=current_index,
+                                    target_point=data["target_point"], pred_wp=np.squeeze(data_df.iloc[current_index]["pred"]),
+                                    gt_wp=data["ego_waypoints"],parameters=copycat_information,
+                                    detect_our=detection_ours, detect_kf=detection_keyframes,frame=current_index,
+                                    prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
+                                    ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
         for metric, count, pos in zip(["our", "kf"], [len(our_cc_positions), len(keyframes_cc_positions)], [our_cc_positions,keyframes_cc_positions]):
             results=results.append({"baseline":baseline, "metric":metric, "length": count, "positions": pos}, ignore_index=True)
 
