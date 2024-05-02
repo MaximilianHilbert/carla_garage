@@ -172,6 +172,8 @@ def main(args):
             if detection_ours:
                 our_cc_positions.append(data_loader_position)
             if detection_ours or detection_keyframes:
+                route_name=os.path.basename(os.path.dirname(os.path.dirname(str(image_path, encoding="utf-8"))))
+                cc_save_path=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", baseline,route_name )
                 # if not args.custom_validation:
                 #     paths.append(os.path.dirname(root))
                 for i in range(-5,6):
@@ -190,7 +192,7 @@ def main(args):
                         previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"].squeeze(), data["ego_matrix_previous"], data["ego_matrix_current"])
                         detection_ours, detection_keyframes, copycat_information=determine_copycat(False,args,data_df,data,previous_prediction_aligned,params["keyframes_correlations"][current_index],current_index,previous_index,params)
                         if args.visualize_combined or args.visualize_without_rgb:
-                            visualize_model(args=args,config=config, save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", baseline), rgb=image_sequence, lidar_bev=data["lidar"],
+                            visualize_model(args=args,config=config, save_path_root=cc_save_path, rgb=image_sequence, lidar_bev=data["lidar"],
                                     pred_wp_prev=np.squeeze(previous_prediction_aligned),
                                     gt_bev_semantic=data["bev_semantic"], step=current_index,
                                     target_point=data["target_point"], pred_wp=np.squeeze(data_df.iloc[current_index]["pred"]),
