@@ -13,6 +13,7 @@ from team_code.data import CARLA_Data
 import csv
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data.distributed import DistributedSampler
+from tools.visualize_copycat import align_previous_prediction
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 from torch.utils.data import Sampler
@@ -391,34 +392,36 @@ def main(args):
                         )
             torch.cuda.empty_cache()
         dist.destroy_process_group()
-        merged_config_object.number_previous_waypoints=7
-        merged_config_object.visualize_copycat=True
-        if args.custom_validation:
-            with open(os.path.join(os.environ.get("WORK_DIR"),
-                            "_logs",
-                            "detected_cc_dirs.csv"), "r", newline="") as file:
-                reader = csv.reader(file)
-                val_lst=[]
-                for row in reader:
-                    val_lst.append(row)
-            val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name, custom_validation_lst=val_lst[0])
-        else:
-            val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name)
-        sampler_val=SequentialSampler(val_set)
-        data_loader_val = torch.utils.data.DataLoader(
-            val_set,
-            batch_size=args.batch_size,
-            num_workers=args.number_of_workers,
-            pin_memory=True,
-            shuffle=False,  # because of DDP
-            drop_last=True,
-            sampler=sampler_val,
-        )
-
         if args.metric:
+            merged_config_object.number_previous_waypoints=1
+            #merged_config_object.number_previous_waypoints=7
+            merged_config_object.visualize_copycat=True
+            if args.custom_validation:
+                with open(os.path.join(os.environ.get("WORK_DIR"),
+                                "_logs",
+                                "detected_cc_dirs.csv"), "r", newline="") as file:
+                    reader = csv.reader(file)
+                    val_lst=[]
+                    for row in reader:
+                        val_lst.append(row)
+                val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name, custom_validation_lst=val_lst[0])
+            else:
+                val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name)
+            sampler_val=SequentialSampler(val_set)
+            data_loader_val = torch.utils.data.DataLoader(
+                val_set,
+                batch_size=args.batch_size,
+                num_workers=args.number_of_workers,
+                pin_memory=True,
+                shuffle=False,  # because of DDP
+                drop_last=True,
+                sampler=sampler_val,
+            )
+
+        
             print("Start of Evaluation")
-            wp_dict={}
-            for iteration, (data,image) in enumerate(zip(tqdm(data_loader_val), data_loader_val.dataset.images), start=7):
+            cc_lst=[]
+            for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
                 image=str(image, encoding="utf-8").replace("\x00", "")
                 current_image,current_speed,target_point,targets,previous_targets,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
                 
@@ -466,13 +469,30 @@ def main(args):
                     
                 loss, _ = criterion(loss_function_params)
                 #this is only a viable comparison, if the batch_size is set to 1, because it will be marginalized over the batch dimension before the loss is returned!
-                wp_dict.update({iteration:{"image": image,"pred":predictions[0].cpu().detach().numpy(), "gt":targets.cpu().detach().numpy(), "loss":loss.cpu().detach().numpy()}})
-            data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
-            criterion_dict=get_copycat_criteria(data_df, args.norm)
+                cc_lst.append({"image": image, "pred":predictions[0].squeeze().cpu().detach().numpy(),
+                                           "gt":targets.squeeze().cpu().detach().numpy(), "loss":loss.cpu().detach().numpy(),
+                                           "previous_matrix": data["ego_matrix_previous"].detach().cpu().numpy()[0],
+                                           "current_matrix": data["ego_matrix_current"].detach().cpu().numpy()[0]})
+            prev_predictions_aligned_lst=[]
+            prev_gt_aligned_lst=[]
+            for i in range(1,len(cc_lst)):
+                prev_predictions_aligned=align_previous_prediction(pred=cc_lst[i-1]["pred"], matrix_previous=cc_lst[i]["previous_matrix"],
+                                                                   matrix_current=cc_lst[i]["current_matrix"])
+                prev_gt_aligned=align_previous_prediction(pred=cc_lst[i-1]["gt"], matrix_previous=cc_lst[i]["previous_matrix"],
+                                                                   matrix_current=cc_lst[i]["current_matrix"])
+                prev_predictions_aligned_lst.append(prev_predictions_aligned)
+                prev_gt_aligned_lst.append(prev_gt_aligned)
+            #data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
+            criterion_dict=get_copycat_criteria(cc_lst, prev_predictions_aligned_lst,prev_gt_aligned_lst,args.norm)
            
             if not args.custom_validation:
                 with open(os.path.join(basepath,f"predictions_all.pkl"), "wb") as file:
-                        pickle.dump(wp_dict, file)
+                        pickle.dump(cc_lst, file)
+            
+                with open(os.path.join(basepath,f"aligned_predictions_all.pkl"), "wb") as file:
+                        pickle.dump(prev_predictions_aligned_lst, file)
+                with open(os.path.join(basepath,f"aligned_gt_all.pkl"), "wb") as file:
+                        pickle.dump(prev_gt_aligned_lst, file)
             else:
                 with open(os.path.join(basepath,"predictions_cc_routes_only.pkl"), "wb") as file:
                     pickle.dump(wp_dict, file)

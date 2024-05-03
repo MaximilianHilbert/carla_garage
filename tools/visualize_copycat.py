@@ -39,10 +39,10 @@ def align_previous_prediction(pred, matrix_previous, matrix_current):
         waypoints.append(waypoint_aligned_frame[:-1])
     return np.array(waypoints)
 
-def determine_copycat(gpu,args,data_df,data,previous_prediction_aligned,keyframe_correlation,current_index, previous_index,params):
+def determine_copycat(args,predictions_lst,current_waypoints_gt,previous_prediction_aligned,previous_gt_lst,keyframe_correlation,current_index, previous_index,params):
     detection_keyframes,detection_ours=False,False
-    pred_residual=norm(data_df.iloc[current_index]["pred"]-previous_prediction_aligned, ord=args.norm)
-    gt_residual=norm(data["ego_waypoints"][0].detach().cpu().numpy()-data["previous_ego_waypoints"][0].detach().cpu().numpy(), ord=args.norm) if gpu else norm(data["ego_waypoints"]-data["previous_ego_waypoints"], ord=args.norm)
+    pred_residual=norm(predictions_lst[current_index]["pred"]-previous_prediction_aligned, ord=args.norm)
+    gt_residual=norm(current_waypoints_gt-previous_gt_lst[previous_index], ord=args.norm)
     
     condition_value_1=params["avg_of_avg_baseline_predictions"]-params["avg_of_std_baseline_predictions"]*args.pred_tuning_parameter
     condition_1=pred_residual<condition_value_1
@@ -53,11 +53,10 @@ def determine_copycat(gpu,args,data_df,data,previous_prediction_aligned,keyframe
         condition_keyframes=keyframe_correlation>condition_value_keyframes
     if args.second_cc_condition=="loss":
         condition_value_2=params["loss_avg_of_avg"]+params["loss_avg_of_std"]*args.tuning_parameter_2
-        condition_2=data_df.iloc[current_index]["loss"]>condition_value_2
+        condition_2=predictions_lst[current_index]["loss"]>condition_value_2
     else:
         condition_value_2=params["avg_gt"]+params["std_gt"]*args.tuning_parameter_2
         condition_2=gt_residual>condition_value_2
-
     if condition_1 and condition_2:
         detection_ours=True
     if condition_keyframes:
@@ -102,9 +101,9 @@ def preprocess(args):
             "std_gt":criterion_dict["std_gt"], "avg_gt":criterion_dict["mean_gt"], "loss_avg_of_std":np.mean(np.array(loss_std_lst)), "loss_avg_of_avg":np.mean(np.array(loss_mean_lst)), "avg_of_kf":np.mean(keyframe_correlations),
     "std_of_kf":np.std(keyframe_correlations), "keyframes_correlations": keyframe_correlations}
 
-def load_image_sequence(config,df_data,current_iteration):
-    root=os.path.dirname(df_data.iloc[current_iteration]["image"])
-    index_in_dataset=int(os.path.basename(df_data.iloc[current_iteration]["image"]).replace(".jpg",""))
+def load_image_sequence(config,predictions_lst,current_iteration):
+    root=os.path.dirname(predictions_lst[current_iteration]["image"])
+    index_in_dataset=int(os.path.basename(predictions_lst[current_iteration]["image"]).replace(".jpg",""))
     return np.concatenate([Image.open(os.path.join(root, "0"*(4-len(str(index_in_dataset-i)))+f"{index_in_dataset-i}.jpg"))  for i in reversed(range(config.img_seq_len))],axis=0), root
 
 
@@ -127,12 +126,16 @@ def main(args):
         
         if not args.custom_validation:
             with open(os.path.join(basename,"predictions_all.pkl"), 'rb') as f:
-                wp_dict = pickle.load(f)
+                predictions_lst = pickle.load(f)
+            with open(os.path.join(basename,"aligned_gt_all.pkl"), 'rb') as f:
+                previous_gt_lst = pickle.load(f)
+            with open(os.path.join(basename,"aligned_predictions_all.pkl"), 'rb') as f:
+                previous_predictions_lst = pickle.load(f)
         else:
             with open(os.path.join(basename,"predictions_cc_routes_only.pkl"), 'rb') as f:
                 wp_dict = pickle.load(f)
 
-        data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
+        #data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
         if args.custom_validation:
             with open(os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
@@ -166,11 +169,14 @@ def main(args):
             data_image=str(image_path, encoding="utf-8").replace("\x00", "")
             current_index=data_loader_position
             previous_index=data_loader_position-1
-            pred_image=data_df.iloc[current_index]["image"]
+            pred_image=predictions_lst[current_index]["image"]
             if data_image!=pred_image:
                 assert("not aligned")
-            previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"][0], data["ego_matrix_previous"].detach().cpu().numpy()[0], data["ego_matrix_current"].detach().cpu().numpy()[0])
-            detection_ours, detection_keyframes,_=determine_copycat(True,args,data_df,data,previous_prediction_aligned,keyframe_correlation,current_index,previous_index,params)
+            # previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"][0],
+            #                                                       data["ego_matrix_previous"].detach().cpu().numpy()[0],
+            #                                                       data["ego_matrix_current"].detach().cpu().numpy()[0])
+            detection_ours, detection_keyframes,_=determine_copycat(args,predictions_lst,data["ego_waypoints"].squeeze().numpy(),previous_predictions_lst[previous_index],previous_gt_lst,
+                                                                    keyframe_correlation,current_index,previous_index,params)
             if detection_keyframes:
                 keyframes_cc_positions.append(data_loader_position)
             if detection_ours:
@@ -184,30 +190,31 @@ def main(args):
                     detection_ours, detection_keyframes=False, False
                     previous_index=data_loader_position+i-1
                     current_index=data_loader_position+i
-                    if current_index in already_saved_indices:
-                        continue
+                    # if current_index in already_saved_indices:
+                    #     continue
                     if previous_index>=0:
                         data=data_loader_val.dataset.__getitem__(data_loader_position+i)
                         if config.img_seq_len<7:
-                            empties=np.concatenate([np.zeros_like(Image.open(data_df.iloc[0]["image"]))]*(7-config.img_seq_len))
-                            image_sequence,root=load_image_sequence(config,data_df, data_loader_position+i)
+                            empties=np.concatenate([np.zeros_like(Image.open(predictions_lst[0]["image"]))]*(7-config.img_seq_len))
+                            image_sequence,root=load_image_sequence(config,predictions_lst, data_loader_position+i)
                             image_sequence=np.concatenate([empties, image_sequence], axis=0)
                         else:
-                            image_sequence,root=load_image_sequence(config,data_df, data_loader_position+i)
+                            image_sequence,root=load_image_sequence(config,predictions_lst, data_loader_position+i)
                        
-                        previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"].squeeze(), data["ego_matrix_previous"], data["ego_matrix_current"])
+                        # previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"].squeeze(), data["ego_matrix_previous"], data["ego_matrix_current"])
 
-                        detection_ours, detection_keyframes, copycat_information=determine_copycat(False,args,data_df,data,previous_prediction_aligned,params["keyframes_correlations"][current_index],current_index,previous_index,params)
+                        detection_ours, detection_keyframes, copycat_information=determine_copycat(args,predictions_lst,data["ego_waypoints"].squeeze(),previous_predictions_lst[previous_index],
+                                                                                                   previous_gt_lst,params["keyframes_correlations"][current_index],current_index,previous_index,params)
                         if args.visualize_combined or args.visualize_without_rgb:
                             visualize_model(args=args,config=config, save_path_root=cc_save_path, rgb=image_sequence, lidar_bev=data["lidar"],
-                                    pred_wp_prev=np.squeeze(previous_prediction_aligned),
+                                    pred_wp_prev=previous_predictions_lst[current_index],
                                     gt_bev_semantic=data["bev_semantic"], step=current_index,
-                                    target_point=data["target_point"], pred_wp=np.squeeze(data_df.iloc[current_index]["pred"]),
+                                    target_point=data["target_point"], pred_wp=predictions_lst[current_index]["pred"],
                                     gt_wp=data["ego_waypoints"],parameters=copycat_information,
                                     detect_our=detection_ours, detect_kf=detection_keyframes,frame=current_index,
-                                    prev_gt=data["previous_ego_waypoints"],loss=data_df.iloc[current_index]["loss"], condition=args.second_cc_condition,
+                                    prev_gt=previous_gt_lst[current_index],loss=predictions_lst[current_index]["loss"], condition=args.second_cc_condition,
                                     ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
-                            already_saved_indices.append(current_index)
+                            #already_saved_indices.append(current_index)
         for metric, count, pos in zip(["our", "kf"], [len(our_cc_positions), len(keyframes_cc_positions)], [our_cc_positions,keyframes_cc_positions]):
             results=results.append({"baseline":baseline, "experiment": experiment,"metric":metric, "length": count, "positions": pos}, ignore_index=True)
 
@@ -232,7 +239,7 @@ if __name__=="__main__":
     parser.add_argument(
         "--num-surrounding-frames",
         type=int,
-        default=3,
+        default=0,
     )
     parser.add_argument(
         "--keyframes-threshold",
@@ -268,7 +275,7 @@ if __name__=="__main__":
     parser.add_argument(
         "--second-cc-condition",
         type=str,
-        default="gt",
+        default="loss",
     )
     parser.add_argument(
         "--tuning-parameter_2",
