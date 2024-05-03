@@ -17,22 +17,29 @@ def norm(differences, ord):
     if ord==2:
         return np.sqrt(np.sum(np.absolute(differences)**2))
     
-def get_copycat_criteria(data_df, which_norm):
-    data_df['running_diff'] = data_df['pred'].diff()
-    data_df['running_diff']=data_df['running_diff'].apply(lambda x: norm(x,ord=which_norm))
-    data_df['running_diff_gt'] = data_df['gt'].diff()
-    data_df['running_diff_gt']=data_df['running_diff_gt'].apply(lambda x: norm(x,ord=which_norm))
+def get_copycat_criteria(data_lst,prev_predictions_aligned,prev_gt_aligned_lst, which_norm):
+    differences_pred=[]
+    differences_gt=[]
+    differences_loss=[]
+    for index,(current, previous_pred_aligned,prev_gt_aligned) in enumerate(zip(data_lst, prev_predictions_aligned,prev_gt_aligned_lst)):
+        differences_pred.append(norm(previous_pred_aligned-current["pred"], ord=which_norm))
+        differences_gt.append(norm(prev_gt_aligned-current["gt"], ord=which_norm))
+        differences_loss.append(norm(data_lst[index-1]["loss"]-current["loss"], ord=which_norm))
+    differences_pred=np.array(differences_pred)
+    differences_gt=np.array(differences_gt)
+    differences_loss=np.array(differences_loss)
 
-    std_value_gt=np.std(data_df["running_diff_gt"])
-    std_value_data=np.std(data_df["running_diff"])
+    std_value_gt=np.std(differences_gt)
+    std_value_pred=np.std(differences_pred)
 
-    mean_value_gt=np.mean(data_df["running_diff_gt"])
-    mean_value_data=np.mean(data_df["running_diff"])
+    mean_value_gt=np.mean(differences_gt)
+    mean_value_pred=np.mean(differences_pred)
 
-    mean_value_loss=np.mean(data_df["loss"])
-    std_value_loss=np.std(data_df["loss"])
+    mean_value_loss=np.mean(differences_loss)
+    std_value_loss=np.std(differences_loss)
 
-    return {"mean_pred": mean_value_data,"mean_gt": mean_value_gt, "std_pred":std_value_data, "std_gt":std_value_gt, "loss_mean": mean_value_loss, "loss_std": std_value_loss}
+    return {"mean_pred": mean_value_pred,"mean_gt": mean_value_gt, "std_pred":std_value_pred,
+            "std_gt":std_value_gt, "loss_mean": mean_value_loss, "loss_std": std_value_loss}
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -445,9 +452,12 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
             draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
             draw.text((distance_from_left,start+40*16), f"condition: {condition}", fill=firebrick, font=font)
-
+            if condition=="loss":
+                draw.text((distance_from_left,start+40*18), f"loss. th. > {parameters['condition_value_2']:.2f}", fill=firebrick, font=font)
+            else:
+                draw.text((distance_from_left,start+40*18), f"gt. res. th. > {parameters['condition_value_2']:.2f}", fill=firebrick, font=font)    
             draw.text((distance_from_left,start+40*17), f"pred. res. th. < {parameters['condition_value_1']:.2f}", fill=firebrick, font=font)
-            draw.text((distance_from_left,start+40*18), f"gt. res. th. > {parameters['condition_value_2']:.2f}", fill=firebrick, font=font)
+            
             draw.text((distance_from_left,start+40*19), f"kf. th. > {parameters['condition_value_keyframes']:.2f}", fill=firebrick, font=font)
 
             draw.text((distance_from_left,start+40*20), f"kf. score: {correlation_weight:.2f}", fill=firebrick, font=font)
