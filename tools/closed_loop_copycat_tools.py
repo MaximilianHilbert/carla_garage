@@ -9,6 +9,7 @@ def generate_cl_copycat_videos():
     main_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "closed_loop")
     residuals={}
     tuning_parameter_1=0.6
+    print("start of scanning...")
     for root, dirs, files in tqdm(os.walk(main_root)):
         for file in files:
             if file.endswith("predictions.pkl"):
@@ -24,8 +25,11 @@ def generate_cl_copycat_videos():
     mean=np.mean(residual_values)
     std=np.std(residual_values)
     data_dict={"residuals": residual_values, "mean": mean, "std": std}
+    
     with open(os.path.join(main_root, "results.pkl"),"wb") as datafile:
         pickle.dump(data_dict, datafile)
+    print("finished scanning...")
+    
     threshold=mean-std*tuning_parameter_1
     print(f"current threshold marked as copycat is: {threshold}")
     for index, (file, residual_value) in tqdm(enumerate(residuals.items())):
