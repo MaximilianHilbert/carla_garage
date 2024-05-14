@@ -410,15 +410,6 @@ def main(args):
             else:
                 val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name)
             sampler_val=SequentialSampler(val_set)
-            data_loader_val = torch.utils.data.DataLoader(
-                val_set,
-                batch_size=args.batch_size,
-                num_workers=args.number_of_workers,
-                pin_memory=True,
-                shuffle=False,  # because of DDP
-                drop_last=True,
-                sampler=sampler_val,
-            )
             if "keyframes" in args.experiment:
                 filename = os.path.join(
                     os.environ.get("WORK_DIR"),
@@ -430,6 +421,16 @@ def main(args):
                 action_predict_threshold = get_action_predict_loss_threshold(
                     val_set.get_correlation_weights(), merged_config_object.threshold_ratio
                 )
+            data_loader_val = torch.utils.data.DataLoader(
+                val_set,
+                batch_size=args.batch_size,
+                num_workers=args.number_of_workers,
+                pin_memory=True,
+                shuffle=False,  # because of DDP
+                drop_last=True,
+                sampler=sampler_val,
+            )
+            
             print("Start of Evaluation")
             cc_lst=[]
             for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
