@@ -5,20 +5,19 @@ from tqdm import tqdm
 import numpy as np
 def sort_key(s):
     s=s.strip(".jpg")
-    return int(s)
-def generate_video(path):
-
+    return float(s)
+def generate_video(path, save_path):
     images=sorted(os.listdir(path), key=sort_key)
-
     for i in tqdm(range(len(images))):
         image_object=np.array(Image.open(os.path.join(path,images[i])))
         image=Image.fromarray(image_object)
-
-        #image=np.array(image.resize((1920,1080)))
+        image=np.array(image)
         if i==0:
-            fps = 5
+            fps = 20
+            final_shape=((1920, 1080))
             h,w,_=image.shape
-            video_writer = cv2.VideoWriter(os.path.join(path, "collision.avi"), 0,fps, (w, h))
+            os.makedirs(os.path.dirname(save_path),exist_ok=True)
+            video_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'XVID'),fps, (w, h))
         video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
     video_writer.release()
 
