@@ -126,13 +126,6 @@ def main(args):
                         "keyframes",
                         "repetition_0",
                         "bcoh_weights_training_prev9_rep0_neurons300.npy")
-            else:
-                filename = os.path.join(
-                    os.environ.get("WORK_DIR"),
-                        "_logs",
-                        "keyframes",
-                        "repetition_0",
-                        "bcoh_weights_copycat_prev9_rep0_neurons300.npy")
                 # load the correlation weights and reshape them, that the last 3 elements that do not fit into the batch size dimension get dropped, because the dataloader of Carla_Dataset does the same, it should fit
                 dataset.set_correlation_weights(path=filename)
                 action_predict_threshold = get_action_predict_loss_threshold(
@@ -426,8 +419,17 @@ def main(args):
                 drop_last=True,
                 sampler=sampler_val,
             )
-
-        
+            if "keyframes" in args.experiment:
+                filename = os.path.join(
+                    os.environ.get("WORK_DIR"),
+                        "_logs",
+                        "keyframes",
+                        "repetition_0",
+                        "bcoh_weights_copycat_prev9_rep0_neurons300.npy")
+                val_set.set_correlation_weights(path=filename)
+                action_predict_threshold = get_action_predict_loss_threshold(
+                    val_set.get_correlation_weights(), merged_config_object.threshold_ratio
+                )
             print("Start of Evaluation")
             cc_lst=[]
             for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
@@ -449,7 +451,7 @@ def main(args):
     
                 
                     
-                if "bcoh" in args.experiment:
+                if "bcoh" in args.experiment or "keyframes" in args.experiment:
                     model.eval()
                     temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)    
                     predictions = model(x=temporal_and_current_images, a=current_speed, target_point=target_point)
@@ -461,7 +463,23 @@ def main(args):
                         "variable_weights": merged_config_object.variable_weight,
                         "config": merged_config_object,
                     }
-                    
+                if "keyframes" in args.experiment:
+                    reweight_params = {
+                        "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
+                        "importance_sampling_threshold": action_predict_threshold,
+                        "importance_sampling_method": merged_config_object.importance_sample_method,
+                        "importance_sampling_threshold_weight": merged_config_object.threshold_weight,
+                        "action_predict_loss": data["correlation_weight"].squeeze().to(device_id),
+                    }
+                    loss_function_params = {
+                    "branches": predictions,
+                    "targets": targets,
+                    "inputs": current_speed,
+                    **reweight_params,
+                    "branch_weights": merged_config_object.branch_loss_weight,
+                    "variable_weights": merged_config_object.variable_weight,
+                    "config": merged_config_object,
+                }
                     
                 if "bcso" in args.experiment:
                     model.eval()
