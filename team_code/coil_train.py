@@ -221,177 +221,178 @@ def main(args):
         else:
             from coil_network.loss import Loss
         criterion = Loss(merged_config_object.loss_function_baselines)
-        for epoch in tqdm(
-            range(1 + already_trained_epochs, merged_config_object.epochs_baselines + 1),
-            disable=rank != 0,
-        ):
-            for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
-                # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
-                #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
-                #     break
-                capture_time = time.time()
-                controls = get_controls_from_data(data, args.batch_size, device_id)
-                current_image, current_speed, target_point, targets, previous_targets, temporal_images = extract_and_normalize_data(args, device_id, merged_config_object, data)
+        if not args.metric:
+            for epoch in tqdm(
+                range(1 + already_trained_epochs, merged_config_object.epochs_baselines + 1),
+                disable=rank != 0,
+            ):
+                for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
+                    # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
+                    #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
+                    #     break
+                    capture_time = time.time()
+                    controls = get_controls_from_data(data, args.batch_size, device_id)
+                    current_image, current_speed, target_point, targets, previous_targets, temporal_images = extract_and_normalize_data(args, device_id, merged_config_object, data)
 
-                if "arp" in args.experiment:
-                    mem_extract.zero_grad()
-                    memory_branches, memory = mem_extract(temporal_images, target_point)
+                    if "arp" in args.experiment:
+                        mem_extract.zero_grad()
+                        memory_branches, memory = mem_extract(temporal_images, target_point)
 
-                    mem_extract_targets = targets - previous_targets
-                    loss_function_params_memory = {
-                        "branches": memory_branches,
-                        "targets": mem_extract_targets,
-                        "controls": controls,
-                        "inputs": current_speed,
-                        "branch_weights": merged_config_object.branch_loss_weight,
-                        "variable_weights": merged_config_object.variable_weight,
-                    }
-
-                    mem_extract_loss, _ = criterion(loss_function_params_memory)
-                    mem_extract_loss.backward()
-                    mem_extract_optimizer.step()
-                    policy.zero_grad()
-                    policy_branches = policy(current_image, current_speed, memory, target_point)
-                    loss_function_params_policy = {
-                        "branches": policy_branches,
-                        "targets": targets,
-                        "controls": controls,
-                        "inputs": current_speed,
-                        "branch_weights": merged_config_object.branch_loss_weight,
-                        "variable_weights": merged_config_object.variable_weight,
-                    }
-                    policy_loss, _ = criterion(loss_function_params_policy)
-                    policy_loss.backward()
-                    policy_optimizer.step()
-                    if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
-                        state = {
-                            "epoch": epoch,
-                            "policy_state_dict": policy.state_dict(),
-                            "mem_extract_state_dict": mem_extract.state_dict(),
-                            "best_loss": best_loss,
-                            "total_time": accumulated_time,
-                            "policy_optimizer": policy_optimizer.state_dict(),
-                            "mem_extract_optimizer": mem_extract_optimizer.state_dict(),
-                            "best_loss_epoch": best_loss_epoch,
+                        mem_extract_targets = targets - previous_targets
+                        loss_function_params_memory = {
+                            "branches": memory_branches,
+                            "targets": mem_extract_targets,
+                            "controls": controls,
+                            "inputs": current_speed,
+                            "branch_weights": merged_config_object.branch_loss_weight,
+                            "variable_weights": merged_config_object.variable_weight,
                         }
-                        torch.save(
-                            state,
-                            os.path.join(
-                                os.environ.get("WORK_DIR"),
-                                "_logs",
-                                merged_config_object.baseline_folder_name,
-                                merged_config_object.experiment,
-                                f"repetition_{str(args.training_repetition)}",
-                                args.setting,
-                                "checkpoints",
-                                str(epoch) + ".pth",
-                            ),
-                        )
-                    if rank == 0:
-                        logger.add_scalar(
-                            "Policy_Loss_Iterations",
-                            policy_loss.data,
-                            (epoch - 1) * len(data_loader) + iteration,
-                        )
-                        logger.add_scalar("Policy_Loss_Epochs", policy_loss.data, (epoch - 1))
-                        logger.add_scalar(
-                            "Mem_Extract_Loss_Iterations",
-                            mem_extract_loss.data,
-                            (epoch - 1) * len(data_loader) + iteration,
-                        )
-                        logger.add_scalar(
-                            "Mem_Extract_Loss_Epochs",
-                            mem_extract_loss.data,
-                            (epoch - 1),
-                        )
-                    if policy_loss.data < best_loss:
-                        best_loss = policy_loss.data.tolist()
-                        best_loss_epoch = epoch
-                    accumulated_time += time.time() - capture_time
-                    if iteration % args.printing_step == 0 and rank == 0:
-                        print(f"Epoch: {epoch} // Iteration: {iteration} // Policy_Loss: {policy_loss.data}\n")
-                        print(
-                            f"Epoch: {epoch} // Iteration: {iteration} // Mem_Extract_Loss: {mem_extract_loss.data}\n"
-                        )
-                    policy_scheduler.step()
-                    mem_extract_scheduler.step()
 
-                else:
-                    model.zero_grad()
-                    optimizer.zero_grad()
-                # TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
-                if "bcoh" in args.experiment or "keyframes" in args.experiment:
-                    temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
-                    branches = model(
-                        temporal_and_current_images,
-                        current_speed,
-                        target_point=target_point,
-                    )
-                if "bcso" in args.experiment:
-                    branches = model(x=current_image, a=current_speed, target_point=target_point)
-                if "keyframes" in args.experiment:
-                    reweight_params = {
-                        "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
-                        "importance_sampling_threshold": action_predict_threshold,
-                        "importance_sampling_method": merged_config_object.importance_sample_method,
-                        "importance_sampling_threshold_weight": merged_config_object.threshold_weight,
-                        "action_predict_loss": data["correlation_weight"].squeeze().to(device_id),
-                    }
-                else:
-                    reweight_params = {}
-                if "arp" not in args.experiment:
-                    loss_function_params = {
-                        "branches": branches,
-                        "targets": targets,
-                        **reweight_params,
-                        "controls": controls,
-                        "inputs": current_speed,
-                        "branch_weights": merged_config_object.branch_loss_weight,
-                        "variable_weights": merged_config_object.variable_weight,
-                        "config": merged_config_object,
-                    }
-                    if "keyframes" in args.experiment:
-                        loss, _ = criterion(loss_function_params)
+                        mem_extract_loss, _ = criterion(loss_function_params_memory)
+                        mem_extract_loss.backward()
+                        mem_extract_optimizer.step()
+                        policy.zero_grad()
+                        policy_branches = policy(current_image, current_speed, memory, target_point)
+                        loss_function_params_policy = {
+                            "branches": policy_branches,
+                            "targets": targets,
+                            "controls": controls,
+                            "inputs": current_speed,
+                            "branch_weights": merged_config_object.branch_loss_weight,
+                            "variable_weights": merged_config_object.variable_weight,
+                        }
+                        policy_loss, _ = criterion(loss_function_params_policy)
+                        policy_loss.backward()
+                        policy_optimizer.step()
+                        if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
+                            state = {
+                                "epoch": epoch,
+                                "policy_state_dict": policy.state_dict(),
+                                "mem_extract_state_dict": mem_extract.state_dict(),
+                                "best_loss": best_loss,
+                                "total_time": accumulated_time,
+                                "policy_optimizer": policy_optimizer.state_dict(),
+                                "mem_extract_optimizer": mem_extract_optimizer.state_dict(),
+                                "best_loss_epoch": best_loss_epoch,
+                            }
+                            torch.save(
+                                state,
+                                os.path.join(
+                                    os.environ.get("WORK_DIR"),
+                                    "_logs",
+                                    merged_config_object.baseline_folder_name,
+                                    merged_config_object.experiment,
+                                    f"repetition_{str(args.training_repetition)}",
+                                    args.setting,
+                                    "checkpoints",
+                                    str(epoch) + ".pth",
+                                ),
+                            )
+                        if rank == 0:
+                            logger.add_scalar(
+                                "Policy_Loss_Iterations",
+                                policy_loss.data,
+                                (epoch - 1) * len(data_loader) + iteration,
+                            )
+                            logger.add_scalar("Policy_Loss_Epochs", policy_loss.data, (epoch - 1))
+                            logger.add_scalar(
+                                "Mem_Extract_Loss_Iterations",
+                                mem_extract_loss.data,
+                                (epoch - 1) * len(data_loader) + iteration,
+                            )
+                            logger.add_scalar(
+                                "Mem_Extract_Loss_Epochs",
+                                mem_extract_loss.data,
+                                (epoch - 1),
+                            )
+                        if policy_loss.data < best_loss:
+                            best_loss = policy_loss.data.tolist()
+                            best_loss_epoch = epoch
+                        accumulated_time += time.time() - capture_time
+                        if iteration % args.printing_step == 0 and rank == 0:
+                            print(f"Epoch: {epoch} // Iteration: {iteration} // Policy_Loss: {policy_loss.data}\n")
+                            print(
+                                f"Epoch: {epoch} // Iteration: {iteration} // Mem_Extract_Loss: {mem_extract_loss.data}\n"
+                            )
+                        policy_scheduler.step()
+                        mem_extract_scheduler.step()
+
                     else:
-                        loss, _ = criterion(loss_function_params)
-                    loss.backward()
-                    optimizer.step()
-                    scheduler.step()
-                    if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
-                        state = {
-                            "epoch": epoch,
-                            "state_dict": model.state_dict(),
-                            "best_loss": best_loss,
-                            "total_time": accumulated_time,
-                            "optimizer": optimizer.state_dict(),
-                            "best_loss_epoch": best_loss_epoch,
+                        model.zero_grad()
+                        optimizer.zero_grad()
+                    # TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
+                    if "bcoh" in args.experiment or "keyframes" in args.experiment:
+                        temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
+                        branches = model(
+                            temporal_and_current_images,
+                            current_speed,
+                            target_point=target_point,
+                        )
+                    if "bcso" in args.experiment:
+                        branches = model(x=current_image, a=current_speed, target_point=target_point)
+                    if "keyframes" in args.experiment:
+                        reweight_params = {
+                            "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
+                            "importance_sampling_threshold": action_predict_threshold,
+                            "importance_sampling_method": merged_config_object.importance_sample_method,
+                            "importance_sampling_threshold_weight": merged_config_object.threshold_weight,
+                            "action_predict_loss": data["correlation_weight"].squeeze().to(device_id),
                         }
+                    else:
+                        reweight_params = {}
+                    if "arp" not in args.experiment:
+                        loss_function_params = {
+                            "branches": branches,
+                            "targets": targets,
+                            **reweight_params,
+                            "controls": controls,
+                            "inputs": current_speed,
+                            "branch_weights": merged_config_object.branch_loss_weight,
+                            "variable_weights": merged_config_object.variable_weight,
+                            "config": merged_config_object,
+                        }
+                        if "keyframes" in args.experiment:
+                            loss, _ = criterion(loss_function_params)
+                        else:
+                            loss, _ = criterion(loss_function_params)
+                        loss.backward()
+                        optimizer.step()
+                        scheduler.step()
+                        if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
+                            state = {
+                                "epoch": epoch,
+                                "state_dict": model.state_dict(),
+                                "best_loss": best_loss,
+                                "total_time": accumulated_time,
+                                "optimizer": optimizer.state_dict(),
+                                "best_loss_epoch": best_loss_epoch,
+                            }
 
-                        torch.save(
-                            state,
-                            os.path.join(basepath,
-                                "checkpoints",
-                                str(epoch) + ".pth",
-                            ),
-                        )
+                            torch.save(
+                                state,
+                                os.path.join(basepath,
+                                    "checkpoints",
+                                    str(epoch) + ".pth",
+                                ),
+                            )
 
-                    if loss.data < best_loss:
-                        best_loss = loss.data.tolist()
-                        best_loss_epoch = epoch
-                    accumulated_time += time.time() - capture_time
-                    if rank == 0:
-                        if iteration % args.printing_step == 0:
-                            print(f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}\n")
-                        logger.add_scalar(
-                            f"{merged_config_object.experiment}_loss",
-                            loss.data,
-                            (epoch - 1) * len(data_loader) + iteration,
-                        )
-                        logger.add_scalar(
-                            f"{merged_config_object.experiment}_loss_Epochs",
-                            loss.data,
-                            (epoch - 1),
-                        )
+                        if loss.data < best_loss:
+                            best_loss = loss.data.tolist()
+                            best_loss_epoch = epoch
+                        accumulated_time += time.time() - capture_time
+                        if rank == 0:
+                            if iteration % args.printing_step == 0:
+                                print(f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}\n")
+                            logger.add_scalar(
+                                f"{merged_config_object.experiment}_loss",
+                                loss.data,
+                                (epoch - 1) * len(data_loader) + iteration,
+                            )
+                            logger.add_scalar(
+                                f"{merged_config_object.experiment}_loss_Epochs",
+                                loss.data,
+                                (epoch - 1),
+                            )
             torch.cuda.empty_cache()
         dist.destroy_process_group()
         if args.metric:
