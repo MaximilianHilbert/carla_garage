@@ -480,9 +480,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         final_image=np.array(image)
         final_image_object = Image.fromarray(final_image.astype(np.uint8))
         if image_name=="combined":
-            store_path = os.path.join(save_path_root, "with_rgb", f"{step:.2f}.jpg")
+            store_path = os.path.join(save_path_root, "with_rgb", f"{step}.jpg")
         else:
-            store_path = os.path.join(save_path_root, "without_rgb", f"{step:.2f}.jpg")
+            store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
         Path(store_path).parent.mkdir(parents=True, exist_ok=True)
         final_image_object.save(store_path, quality=95)
 

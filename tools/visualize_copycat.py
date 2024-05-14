@@ -9,6 +9,7 @@ import os
 import csv
 import pickle
 from scipy.special import softmax
+from tools.video_generation import generate_video_stacked
 from team_code.data import CARLA_Data
 from coil_utils.baseline_helpers import get_action_predict_loss_threshold
 from torch.utils.data import Sampler
@@ -78,6 +79,7 @@ def preprocess(args):
             f"repetition_0",
             f"bcoh_weights_copycat_prev9_rep0_neurons300.npy",
         ))
+    
     if args.keyframes_threshold=="absolute":
         threshold_ratio=0.1
         importance_sampling_threshold_weight=5.0
@@ -148,6 +150,13 @@ def main(args):
         else:
             val_set = CARLA_Data(root=config.val_data, config=config, rank=0,baseline=baseline)
         sampler_val=SequentialSampler(val_set)
+        val_set.set_correlation_weights(path=os.path.join(
+            os.environ.get("WORK_DIR"),
+            "_logs",
+            "keyframes",
+            f"repetition_0",
+            f"bcoh_weights_copycat_prev9_rep0_neurons300.npy",
+        ))
         data_loader_val = torch.utils.data.DataLoader(
             val_set,
             batch_size=1,
@@ -163,6 +172,9 @@ def main(args):
         
         assert len(params["keyframes_correlations"])==len(data_loader_val.dataset) , "wrong correlation weights selected!"
         for data_loader_position, (data, image_path, keyframe_correlation) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images, params["keyframes_correlations"])):
+            
+            route_name=os.path.basename(os.path.dirname(os.path.dirname(str(image_path, encoding="utf-8"))))
+            cc_save_path=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", baseline,route_name)
             already_saved_indices=[]
             if data_loader_position==0:
                 continue
@@ -175,17 +187,31 @@ def main(args):
             # previous_prediction_aligned=align_previous_prediction(data_df.iloc[previous_index]["pred"][0],
             #                                                       data["ego_matrix_previous"].detach().cpu().numpy()[0],
             #                                                       data["ego_matrix_current"].detach().cpu().numpy()[0])
-            detection_ours, detection_keyframes,_=determine_copycat(args,predictions_lst,data["ego_waypoints"].squeeze().numpy(),previous_predictions_lst[previous_index],previous_gt_lst,
+            detection_ours, detection_keyframes,copycat_information=determine_copycat(args,predictions_lst,data["ego_waypoints"].squeeze().numpy(),previous_predictions_lst[previous_index],previous_gt_lst,
                                                                     keyframe_correlation,current_index,previous_index,params)
             if detection_keyframes:
                 keyframes_cc_positions.append(data_loader_position)
             if detection_ours:
                 our_cc_positions.append(data_loader_position)
+            if args.save_whole_scene and previous_index>=0:
+                if config.img_seq_len<7:
+                    empties=np.concatenate([np.zeros_like(Image.open(predictions_lst[0]["image"]))]*(7-config.img_seq_len))
+                    image_sequence,root=load_image_sequence(config,predictions_lst, data_loader_position)
+                    image_sequence=np.concatenate([empties, image_sequence], axis=0)
+                else:
+                    image_sequence,root=load_image_sequence(config,predictions_lst, data_loader_position)
+                visualize_model(args=args,config=config, save_path_root=cc_save_path, rgb=image_sequence, lidar_bev=torch.squeeze(data["lidar"], dim=0),
+                                    pred_wp_prev=previous_predictions_lst[previous_index],
+                                    gt_bev_semantic=torch.squeeze(data["bev_semantic"], dim=0), step=current_index,
+                                    target_point=torch.squeeze(data["target_point"], dim=0), pred_wp=predictions_lst[current_index]["pred"],
+                                    gt_wp=torch.squeeze(data["ego_waypoints"], dim=0),parameters=copycat_information,
+                                    detect_our=False, detect_kf=False,frame=current_index,
+                                    prev_gt=previous_gt_lst[previous_index],loss=predictions_lst[current_index]["loss"], condition=args.second_cc_condition,
+                                    ego_speed=data["speed"].numpy()[0], correlation_weight=params["keyframes_correlations"][current_index])
+            
             if detection_ours or detection_keyframes:
-                route_name=os.path.basename(os.path.dirname(os.path.dirname(str(image_path, encoding="utf-8"))))
-                cc_save_path=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", baseline,route_name )
-                # if not args.custom_validation:
-                #     paths.append(os.path.dirname(root))
+                
+               
                 for i in range(-args.num_surrounding_frames,args.num_surrounding_frames+1):
                     detection_ours, detection_keyframes=False, False
                     previous_index=data_loader_position+i-1
@@ -214,13 +240,14 @@ def main(args):
                                     detect_our=detection_ours, detect_kf=detection_keyframes,frame=current_index,
                                     prev_gt=previous_gt_lst[current_index],loss=predictions_lst[current_index]["loss"], condition=args.second_cc_condition,
                                     ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
-                            #already_saved_indices.append(current_index)
+        #                     already_saved_indices.append(current_index)
         for metric, count, pos in zip(["our", "kf"], [len(our_cc_positions), len(keyframes_cc_positions)], [our_cc_positions,keyframes_cc_positions]):
             results=results.append({"baseline":baseline, "experiment": experiment,"metric":metric, "length": count, "positions": pos}, ignore_index=True)
-
+    if args.save_whole_scene:
+        generate_video_stacked(args.baselines, os.path.join(os.environ.get("WORK_DIR"), "visualisation"))
 
     results.to_csv(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", "metric_results.csv"), index=False)
-        
+    
     if not args.custom_validation:
         with open(os.path.join(os.environ.get("WORK_DIR"),
                             "_logs",
@@ -231,6 +258,9 @@ if __name__=="__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--save-whole-scene",
+                        type=int,
+                        default=0)
     parser.add_argument(
         "--custom-validation",
         type=int,
