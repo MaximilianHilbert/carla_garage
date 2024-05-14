@@ -1,4 +1,4 @@
-from tools.video_generation import generate_video
+from video_generation import generate_video
 from coil_utils.baseline_helpers import norm
 import os
 import pickle
@@ -29,7 +29,7 @@ def generate_cl_copycat_videos():
     with open(os.path.join(main_root, "results.pkl"),"wb") as datafile:
         pickle.dump(data_dict, datafile)
     print("finished scanning...")
-    
+
     threshold=mean-std*tuning_parameter_1
     print(f"current threshold marked as copycat is: {threshold}")
     for index, (file, residual_value) in tqdm(enumerate(residuals.items())):
