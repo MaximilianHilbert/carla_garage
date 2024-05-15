@@ -61,7 +61,19 @@ class CoILICRA(nn.Module):
             )
 
             number_output_neurons = self.params["perception"]["res"]["num_classes"]
-
+        elif "res_plus_rnn" in self.params["perception"]:
+            number_first_layer_channels=3 #only a single image, no frame stacking
+            resnet_module = importlib.import_module("coil_network.models.building_blocks.resnet")
+            resnet_module = getattr(resnet_module, self.params["perception"]["res_plus_rnn"]["name"])
+            self.single_frame_resnet=resnet_module(
+                pretrained=config.pre_trained,
+                input_channels=number_first_layer_channels,
+                num_classes=self.params["perception"]["res_plus_rnn"]["num_classes"],
+            )
+            
+            self.rnn_single_module=nn.GRU(input_size=self.params["perception"]["res_plus_rnn"]["num_classes"], 
+                                              hidden_size=self.config.gru_encoding_hidden_size, num_layers=self.config.num_gru_encoding_layers)
+            number_output_neurons = self.config.gru_encoding_hidden_size
         else:
             raise ValueError("invalid convolution layer type")
         self.measurements = FC(
@@ -143,7 +155,18 @@ class CoILICRA(nn.Module):
 
     def forward(self, x, a, target_point=None, pa=None):
         """###### APPLY THE PERCEPTION MODULE"""
-        x, inter = self.perception(x)
+        if not self.config.rnn_encoding:
+            x, inter = self.perception(x)
+        else:
+            # in this case the input x is not stacked but of shape B, N, C, H, W
+            hidden_state= torch.zeros(self.config.num_gru_encoding_layers, x.size(0), self.config.gru_encoding_hidden_size).to(x.device)
+            encodings=[]
+            for image_index in range(self.config.img_seq_len):
+                single_frame_encoding,_=self.single_frame_resnet(x[:,image_index,...])
+                encodings.append(single_frame_encoding)
+            encodings=torch.stack(encodings, dim=0)
+            _, hidden_state=self.rnn_single_module(encodings, hidden_state)
+            x=hidden_state.squeeze(0)
         ## Not a variable, just to store intermediate layers for future vizualization
         # self.intermediate_layers = inter
         """ ###### APPLY THE MEASUREMENT MODULE """

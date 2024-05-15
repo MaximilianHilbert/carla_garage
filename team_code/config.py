@@ -70,6 +70,11 @@ class GlobalConfig:
         #originally only for dataloader but we use it in inference too
         self.carla_fps = 20  # Simulator Frames per second
         self.replay_seq_len=int(self.carla_fps*150) #saves last n sec. of simulation time to disk
+
+        #ablations for baselines
+        self.rnn_encoding=False
+        self.gru_encoding_hidden_size=512
+        self.num_gru_encoding_layers=1
         # -----------------------------------------------------------------------------
         # Autopilot
         # -----------------------------------------------------------------------------

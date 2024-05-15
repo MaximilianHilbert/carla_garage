@@ -120,7 +120,7 @@ def main(args):
 
         if "keyframes" in args.experiment:
             if not args.metric:
-                filename=filename = os.path.join(
+                filename = os.path.join(
                     os.environ.get("WORK_DIR"),
                         "_logs",
                         "keyframes",
@@ -252,7 +252,11 @@ def main(args):
                         mem_extract_loss.backward()
                         mem_extract_optimizer.step()
                         policy.zero_grad()
-                        policy_branches = policy(current_image, current_speed, memory, target_point)
+                        if merged_config_object.rnn_encoding:
+                            policy_branches = policy(current_image.unsqueeze(1), current_speed, memory, target_point)
+                        else:
+                           policy_branches = policy(current_image, current_speed, memory, target_point)
+                         
                         loss_function_params_policy = {
                             "branches": policy_branches,
                             "targets": targets,
@@ -320,16 +324,22 @@ def main(args):
                     else:
                         model.zero_grad()
                         optimizer.zero_grad()
-                    # TODO WHY ARE THE PREVIOUS ACTIONS INPUT TO THE BCOH BASELINE??????!!!!#######################################################
+                    
                     if "bcoh" in args.experiment or "keyframes" in args.experiment:
-                        temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
+                        if not merged_config_object.rnn_encoding:
+                            temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
+                        else:
+                            temporal_and_current_images = torch.concat([temporal_images, current_image.unsqueeze(1)], axis=1)
                         branches = model(
                             temporal_and_current_images,
                             current_speed,
                             target_point=target_point,
                         )
                     if "bcso" in args.experiment:
-                        branches = model(x=current_image, a=current_speed, target_point=target_point)
+                        if merged_config_object.rnn_encoding:
+                            branches = model(x=current_image.unsqueeze(1), a=current_speed, target_point=target_point)
+                        else:
+                            branches = model(x=current_image, a=current_speed, target_point=target_point)
                     if "keyframes" in args.experiment:
                         reweight_params = {
                             "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
@@ -455,7 +465,7 @@ def main(args):
                     
                 if "bcoh" in args.experiment or "keyframes" in args.experiment:
                     model.eval()
-                    temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)    
+                    temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
                     predictions = model(x=temporal_and_current_images, a=current_speed, target_point=target_point)
                     loss_function_params = {
                         "branches": predictions,
