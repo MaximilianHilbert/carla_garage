@@ -403,7 +403,7 @@ def main(args):
                                 loss.data,
                                 (epoch - 1),
                             )
-            torch.cuda.empty_cache()
+                torch.cuda.empty_cache()
         dist.destroy_process_group()
         if args.metric:
             merged_config_object.number_previous_waypoints=1
