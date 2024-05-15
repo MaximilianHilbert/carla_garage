@@ -33,4 +33,4 @@ export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 #seeds must match repetition number
 #72 cores means, 9 cores per dataloader, per GPU
 #when single process is set to one or multiple yaml files within a given baseline folder name, only one baseline folder name is allowed, if single-process is not set multiple folders are allowed and all will be executed in batch mode
-python $WORK_DIR/train_nocrash_baselines.py --repetitions 1 --seeds 10214 --baseline-folder-names arp --single-process arp_rnn --number-of-cpus 16 --use-disk-cache 0 --batch-sizes 15 --walltimes 72 --train-local 0 --dataset-repetition 3 --setting 02_withheld
+python $WORK_DIR/train_nocrash_baselines.py --repetitions 1 --seeds 10214 --baseline-folder-names arp --single-process arp_rnn --number-of-cpus 16 --number-of-gpus 4 --use-disk-cache 0 --batch-sizes 15 --walltimes 72 --train-local 0 --dataset-repetition 3 --setting 02_withheld
