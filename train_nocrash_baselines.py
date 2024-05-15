@@ -29,8 +29,8 @@ def generate_batch_script(
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --time=0-{walltime}:00
-##SBATCH --gres=gpu:4
-#SBATCH --gres=gpu:4
+##SBATCH --gres=gpu:{args.number_of_gpus}
+#SBATCH --gres=gpu:{args.number_of_gpus}
 ##SBATCH --partition=week
 #SBATCH --partition=a100-galvani
 #SBATCH --cpus-per-task={args.number_of_cpus}
@@ -72,7 +72,7 @@ source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS={args.number_of_cpus}  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --experiment {experiment} --number-of-workers {int(args.number_of_cpus/8)} --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
+torchrun --nnodes=1 --nproc_per_node={args.number_of_gpus} --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --experiment {experiment} --number-of-workers {int(args.number_of_cpus/args.number_of_gpus)} --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
         """
             f.write(command)
 
@@ -143,6 +143,11 @@ if __name__ == "__main__":
         nargs="+",
         type=int,
     )
+    parser.add_argument(
+        "--number-of-gpus",
+        type=int,
+    )
+
     parser.add_argument("--train-local", type=int, default=0)
     parser.add_argument("--dataset-repetition", type=int, default=1)
     parser.add_argument(
