@@ -404,6 +404,8 @@ def main(args):
                                 (epoch - 1),
                             )
                 torch.cuda.empty_cache()
+            with open(os.path.join(basepath,"config_training.pkl"), "wb") as file:
+                pickle.dump(merged_config_object, file)
         dist.destroy_process_group()
         if args.metric:
             merged_config_object.number_previous_waypoints=1
@@ -538,7 +540,7 @@ def main(args):
             if not args.custom_validation:
                 with open(os.path.join(basepath,"predictions_std_all.pkl"), "wb") as file:
                     pickle.dump(criterion_dict, file)
-        with open(os.path.join(basepath,"config.pkl"), "wb") as file:
+        with open(os.path.join(basepath,"config_cc.pkl"), "wb") as file:
                 pickle.dump(merged_config_object, file)
     except RuntimeError as e:
         traceback.print_exc()
