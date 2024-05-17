@@ -122,18 +122,12 @@ class CoILPolicy(nn.Module):
 
         branch_outputs = self.branches(j)
 
-        speed_branch_output = self.speed_branch(x)
-        if self.config.use_wp_gru:
-            waypoints = self.gru.forward(branch_outputs[0], target_point)
-        else:
-            waypoints = None
-        return [waypoints] + [speed_branch_output]
+        
+        return self.gru.forward(branch_outputs, target_point)
 
     def forward_branch(self, x, v, memory, target_point):
-        output = self.forward(x, v, memory, target_point)
-        self.predicted_speed = output[-1]
+        return self.forward(x, v, memory, target_point)
 
-        return output[:-1]
 
     def extract_predicted_speed(self):
         # return the speed predicted in forward_branch()
