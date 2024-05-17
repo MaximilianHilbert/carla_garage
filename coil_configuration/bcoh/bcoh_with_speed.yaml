@@ -4,7 +4,7 @@ augment: 0
 model_type: 'coil-icra' # the type of model. defines which modules the model has.
 model_configuration:  # based on the model_type, we specify the structure
   perception:  # the module that process the image input, it ouput the number of classes
-    res_plus_rnn:
+    res:
       name: 'resnet34'
       num_classes: 512
 
@@ -30,4 +30,3 @@ use_wp_gru: true
 branch_loss_weight: [1,0]
 speed_input: true
 num_repetitions: 3
-rnn_encoding: true
