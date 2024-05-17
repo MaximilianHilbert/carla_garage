@@ -7,7 +7,11 @@ from .building_blocks.conv import Conv
 from .building_blocks import Branching
 from .building_blocks import FC
 from .building_blocks import Join
-
+from team_code.transfuser import (
+    TransformerDecoderLayerWithAttention,
+    TransformerDecoderWithAttention,
+)
+from team_code.model import PositionEmbeddingSine
 
 class CoILICRA(nn.Module):
     def __init__(self, config):
@@ -97,38 +101,53 @@ class CoILICRA(nn.Module):
         else:
             self.use_previous_actions = False
             number_preaction_neurons = 0
-
-        self.join = Join(
-            params={
-                "after_process": FC(
-                    params={
-                        "neurons": [
-                            self.params["measurements"]["fc"]["neurons"][-1]
-                            + +number_preaction_neurons
-                            + number_output_neurons
-                        ]
-                        + self.params["join"]["fc"]["neurons"],
-                        "dropouts": self.params["join"]["fc"]["dropouts"],
-                        "end_layer": False,
-                    }
-                ),
-                "mode": "cat",
-            }
-        )
-
-        self.speed_branch = FC(
-            params={
-                "neurons": [number_output_neurons] + self.params["speed_branch"]["fc"]["neurons"] + [1],
-                "dropouts": self.params["speed_branch"]["fc"]["dropouts"] + [0.0],
-                "end_layer": True,
-            }
-        )
-
-        # Create the fc vector separatedely
-        branch_fc_vector = []
-        for i in range(self.params["branches"]["number_of_branches"]):
-            branch_fc_vector.append(
-                FC(
+        if self.config.transformer_decoder:
+            self.wp_query = nn.Parameter(
+                            torch.zeros(
+                                1,
+                                self.config.gru_input_size,
+                            )
+                        )
+            decoder_norm=nn.LayerNorm(self.config.gru_hidden_size)
+            decoder_layer = nn.TransformerDecoderLayer(
+                        self.config.gru_input_size,
+                        self.config.num_decoder_heads,
+                        activation=nn.GELU(),
+                        batch_first=True,
+                    )
+            self.join = torch.nn.TransformerDecoder(
+                        decoder_layer,
+                        num_layers=self.config.num_transformer_decoder_layers,
+                        norm=decoder_norm,
+                    )
+            self.encoder_pos_encoding = PositionEmbeddingSine(self.config.gru_input_size // 2, normalize=True)
+            self.extra_sensor_pos_embed = nn.Parameter(torch.zeros(1, self.config.gru_input_size))
+            #we use that to get down from 512 channels (resnet output) to 64 channels, used for waypoint gru and measurement encoding
+            self.change_channel = nn.Conv1d(
+                    self.params["perception"]["res"]["num_classes"],
+                    self.config.gru_input_size,
+                    kernel_size=1,
+                )
+        else:
+            self.join = Join(
+                params={
+                    "after_process": FC(
+                        params={
+                            "neurons": [
+                                self.params["measurements"]["fc"]["neurons"][-1]
+                                + +number_preaction_neurons
+                                + number_output_neurons
+                            ]
+                            + self.params["join"]["fc"]["neurons"],
+                            "dropouts": self.params["join"]["fc"]["dropouts"],
+                            "end_layer": False,
+                        }
+                    ),
+                    "mode": "cat",
+                }
+            )
+            # Create the fc vector separatedely
+            self.branch_fc_vector=FC(
                     params={
                         "neurons": [self.params["join"]["fc"]["neurons"][-1]]
                         + self.params["branches"]["fc"]["neurons"]
@@ -137,9 +156,9 @@ class CoILICRA(nn.Module):
                         "end_layer": False,
                     }
                 )
-            )
+                
 
-        self.branches = Branching(branch_fc_vector)  # Here we set branching automatically
+
         if config.use_wp_gru:
             self.gru = GRUWaypointsPredictorTransFuser(config, target_point_size=2)
         if "conv" in self.params["perception"]:
@@ -154,6 +173,7 @@ class CoILICRA(nn.Module):
                     nn.init.constant_(m.bias, 0.1)
 
     def forward(self, x, a, target_point=None, pa=None):
+        bs=x.shape[0] #batch size
         """###### APPLY THE PERCEPTION MODULE"""
         if not self.config.rnn_encoding:
             x, inter = self.perception(x)
@@ -174,24 +194,36 @@ class CoILICRA(nn.Module):
             m = self.measurements(a)
         else:
             m = None
-
+        # wir nehmen x (image branch) adden m als token (measurement encoding) -> gefused input -> positional encoding -> keys, values erzeugt über linear layers -> queries kommen von außen und werden gelernt -> attention -> output (länge über queries
+        #definiert) -> input zu GRU
         """ ###### APPLY THE PREVIOUS ACTIONS MODULE, IF THIS MODULE EXISTS"""
         if self.use_previous_actions and m is not None:
             n = self.previous_actions(pa)
             m = torch.cat((m, n), 1)
 
-        """ Join measurements and perception"""
-        if self.join is not None and m is not None:
-            j = self.join(x, m)
+        if self.config.transformer_decoder:
+            #now concat image features and measurement features (consisting of maybe velocity and prev wp predictions)
+            x=self.change_channel(x.unsqueeze(2))
+            x=x.reshape(bs,-1,int(self.config.gru_input_size**0.5), int(self.config.gru_input_size**0.5))
+            x=x.expand(-1, self.config.gru_input_size, -1 , -1)
+            pos_enc=self.encoder_pos_encoding(x)
+            x=x+pos_enc
+            x=torch.flatten(x, start_dim=2)
+            if m is not None:
+                m=m+self.extra_sensor_pos_embed.repeat(bs, 1)
+                m=m.unsqueeze(2)
+                x = torch.cat((x, m), axis=2)
+            x = torch.permute(x, (0, 2, 1))
+            branch_outputs = self.join(self.wp_query.repeat(bs, 1, 1), x)
         else:
-            j = x
-        branch_outputs = self.branches(j)
-        speed_branch_output = self.speed_branch(x)
-        # We concatenate speed with the rest.
-        waypoints_branched = []
-        for single_branch in branch_outputs:
-            waypoints_branched.append(self.gru.forward(single_branch, target_point))
-        return waypoints_branched + [speed_branch_output]
+            """ Join measurements and perception"""
+            if self.join is not None and m is not None:
+                j = self.join(x, m)
+            else:
+                j = x
+            branch_outputs = self.branch_fc_vector(j)
+        
+        return self.gru.forward(branch_outputs.squeeze(1), target_point)
 
     def forward_branch(self, x, a, target_point=None, pa=None):
         """
@@ -207,11 +239,8 @@ class CoILICRA(nn.Module):
             the forward operation on the selected branch
 
         """
-        # Convert to integer just in case .
-        # TODO: take four branches, this is hardcoded
-        output = self.forward(x, a, target_point, pa)
-        self.predicted_speed = output[-1]
-        return output
+       
+        return self.forward(x, a, target_point, pa)
 
     def get_perception_layers(self, x):
         return self.perception.get_layers_features(x)
