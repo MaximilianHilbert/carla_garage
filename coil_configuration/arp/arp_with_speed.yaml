@@ -6,7 +6,7 @@ model_type: 'coil-policy' # the type of model. defines which modules the model h
 model_configuration:  # based on the model_type, we specify the structure
   memory_dim: 512
   perception:  # the module that process the image input, it ouput the number of classes
-    res_plus_rnn:
+    res:
       name: 'resnet34'
       num_classes: 512
   measurements:  # the module the process the input float data, in this case speed_input
@@ -30,7 +30,7 @@ model_configuration:  # based on the model_type, we specify the structure
 mem_extract_model_type: 'coil-memory' # the type of model. defines which modules the model has.
 mem_extract_model_configuration:  # based on the model_type, we specify the structure
   perception:  # the module that process the image input, it ouput the number of classes
-    res_plus_rnn:
+    res:
       name: 'resnet34'
       num_classes: 512
   speed_branch:  # the prediction branch speed branch
@@ -48,4 +48,3 @@ use_wp_gru: true
 branch_loss_weight: [1,0]
 speed_input: true
 num_repetitions: 3
-rnn_encoding: true
