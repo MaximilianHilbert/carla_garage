@@ -231,7 +231,6 @@ def main(args):
                     #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                     #     break
                     capture_time = time.time()
-                    controls = get_controls_from_data(data, args.batch_size, device_id)
                     current_image, current_speed, target_point, targets, previous_targets, temporal_images = extract_and_normalize_data(args, device_id, merged_config_object, data)
 
                     if "arp" in args.experiment:
@@ -242,7 +241,6 @@ def main(args):
                         loss_function_params_memory = {
                             "branches": memory_branches,
                             "targets": mem_extract_targets,
-                            "controls": controls,
                             "inputs": current_speed,
                             "branch_weights": merged_config_object.branch_loss_weight,
                             "variable_weights": merged_config_object.variable_weight,
@@ -260,7 +258,6 @@ def main(args):
                         loss_function_params_policy = {
                             "branches": policy_branches,
                             "targets": targets,
-                            "controls": controls,
                             "inputs": current_speed,
                             "branch_weights": merged_config_object.branch_loss_weight,
                             "variable_weights": merged_config_object.variable_weight,
@@ -330,16 +327,16 @@ def main(args):
                             temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
                         else:
                             temporal_and_current_images = torch.concat([temporal_images, current_image.unsqueeze(1)], axis=1)
-                        branches = model(
+                        wp_pred = model(
                             temporal_and_current_images,
                             current_speed,
                             target_point=target_point,
                         )
                     if "bcso" in args.experiment:
                         if merged_config_object.rnn_encoding:
-                            branches = model(x=current_image.unsqueeze(1), a=current_speed, target_point=target_point)
+                            wp_pred = model(x=current_image.unsqueeze(1), a=current_speed, target_point=target_point)
                         else:
-                            branches = model(x=current_image, a=current_speed, target_point=target_point)
+                            wp_pred = model(x=current_image, a=current_speed, target_point=target_point)
                     if "keyframes" in args.experiment:
                         reweight_params = {
                             "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
@@ -352,19 +349,16 @@ def main(args):
                         reweight_params = {}
                     if "arp" not in args.experiment:
                         loss_function_params = {
-                            "branches": branches,
+                            "predictions": wp_pred,
                             "targets": targets,
                             **reweight_params,
-                            "controls": controls,
                             "inputs": current_speed,
-                            "branch_weights": merged_config_object.branch_loss_weight,
-                            "variable_weights": merged_config_object.variable_weight,
                             "config": merged_config_object,
                         }
                         if "keyframes" in args.experiment:
-                            loss, _ = criterion(loss_function_params)
+                            loss = criterion(loss_function_params)
                         else:
-                            loss, _ = criterion(loss_function_params)
+                            loss = criterion(loss_function_params)
                         loss.backward()
                         optimizer.step()
                         scheduler.step()
@@ -407,6 +401,7 @@ def main(args):
             with open(os.path.join(basepath,"config_training.pkl"), "wb") as file:
                 pickle.dump(merged_config_object, file)
         dist.destroy_process_group()
+        #TODO CHeck how changes in branch structure changed this
         if args.metric:
             merged_config_object.number_previous_waypoints=1
             #merged_config_object.number_previous_waypoints=7

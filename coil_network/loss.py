@@ -50,13 +50,9 @@ def branched_loss(loss_function, params):
         The computed loss function, but also a dictionary with plotable variables for tensorboard
     """
     # calculate loss for each branch with specific activation
-    loss_branches_vec, plotable_params = loss_function(params)
+    loss_batched = loss_function(params)
 
-    speed_loss = loss_branches_vec[-1]
-    return (
-        torch.mean(loss_branches_vec[0]) + torch.sum(speed_loss) / params["branches"][0].shape[0],
-        plotable_params,
-    )
+    return torch.mean(loss_batched)
 
 
 def Loss(loss_name):
