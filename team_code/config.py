@@ -72,6 +72,7 @@ class GlobalConfig:
         self.replay_seq_len=int(self.carla_fps*150) #saves last n sec. of simulation time to disk
 
         #ablations for baselines
+        self.transformer_decoder=False
         self.rnn_encoding=False
         self.gru_encoding_hidden_size=512
         self.num_gru_encoding_layers=1
