@@ -1,13 +1,9 @@
 import argparse
 import numpy as np
-import torch
 import os
 from action_correlation_model import train_ape_model
-from team_code.config import GlobalConfig
-from team_code.data import CARLA_Data
 from tqdm import tqdm
-from torch.utils.data import Dataset, DataLoader
-from coil_utils.baseline_helpers import merge_config_files
+from coil_utils.baseline_helpers import merge_config
 
 
 def get_prev_actions(index, img_path_list, prev_action_num, measurements_list):
@@ -51,9 +47,11 @@ def get_target_actions(index, img_path_list, target_action_num, measurements_lis
         target_actions_index += 3
     return np.array(target_actions_list).astype(np.float)
 
-
+def generate_experiment_name():
+    return f"keyframes_training"
 def main(args):
-    merged_config_object = merge_config_files(args)
+    experiment_name=generate_experiment_name()
+    merged_config_object = merge_config(args,experiment_name)
     checkpoint_path = os.path.join(
         os.environ.get("WORK_DIR"),
         "_logs",
@@ -90,12 +88,7 @@ if __name__ == "__main__":
         default="keyframes",
         help="name of the folder that gets created for the baseline",
     )
-    parser.add_argument(
-        "--experiment",
-        type=str,
-        default="keyframes_vanilla_weights",
-        help="name of the experiment/subfoldername that gets created for the baseline",
-    )
+
     parser.add_argument(
         "--use-disk-cache",
         dest="use_disk_cache",

@@ -29,16 +29,13 @@ class GlobalConfig:
         """base architecture configurations"""
         # COIL Baselines
         # Dataloader
-        self.number_previous_waypoints = 0
         self.number_future_waypoints = 1
         self.closed_loop_previous_waypoint_predictions=5
         self.keyframes = False
         self.epochs_baselines = 30
-        self.speed_input=False
         self.lidar_seq_len = 1
-        self.img_seq_len = 1
+
         self.max_img_seq_len_baselines=6 #history frames only
-        self.targets = ["steer", "throttle", "brake"]
         self.inputs = ["speed"]
         self.speed_factor = 12
         # Training
@@ -47,7 +44,8 @@ class GlobalConfig:
         self.mem_extract_model_type = None
         self.mem_extract_model_configuration = {}
         self.learning_rate = 0.0003
-
+        self.use_color_aug= 0
+        self.augment=0 
         self.branch_loss_weight = [0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.05]
         self.variable_weight = {"Steer": 0.5, "Gas": 0.45, "Brake": 0.05}
         self.train_with_actions_as_input = False
@@ -69,13 +67,35 @@ class GlobalConfig:
         self.collision_frame_length=400 # if there is a collision closed loop only 200 frames of the queue get saved, timeouts get the whole queue
         #originally only for dataloader but we use it in inference too
         self.carla_fps = 20  # Simulator Frames per second
-        self.replay_seq_len=int(self.carla_fps*150) #saves last n sec. of simulation time to disk
+        self.replay_seq_len=int(self.carla_fps*10) #saves last n sec. of simulation time to disk
+        # Waypoint GRU
+        self.gru_hidden_size = 64
+        self.gru_input_size = 64
 
+        #defaults for baselines
+        self.resnet_type="resnet34"
+        self.resnet_output_feat_dim=512
+        self.measurement_layers=[128]
+        self.measurement_dropouts=[0.0, 0.0]
+
+        self.previous_waypoints_layers=[128]
+        self.previous_waypoints_dropouts=[0.0, 0.0]
+        #fixed encoding length for additional input like previous waypoints or speed
+        self.additional_inputs_output_size=32 
+        
+        self.join_layers=[512]
+        self.join_layer_dropouts=[0.0]
+        
+        self.fc_layers=[256, 128]
+        self.fc_layer_dropouts=[0.0, 0.5]
+        #default configs for baselines arp
+        self.memory_dim=512 #output of the memory resnet/rnn
         #ablations for baselines
-        self.transformer_decoder=False
-        self.rnn_encoding=False
         self.gru_encoding_hidden_size=512
         self.num_gru_encoding_layers=1
+        self.target_point_size=2
+        self.embedding_size_transformer_decoder=64 
+        self.num_prev_wp=0
         # -----------------------------------------------------------------------------
         # Autopilot
         # -----------------------------------------------------------------------------
@@ -273,14 +293,13 @@ class GlobalConfig:
         self.sync_batch_norm = 0  # Whether batch norm was synchronized between GPUs
         # Whether zero_redundancy_optimizer was used during training
         self.zero_redundancy_optimizer = 1
-        self.use_disk_cache = 1  # Whether disc cache was used during training
+        self.use_disk_cache = 0  # Whether disc cache was used during training
         self.detect_boxes = 0  # Whether to use the bounding box auxiliary task
         self.train_sampling_rate = 1  # We train on every n th sample on the route
         # Number of route points we use for prediction in TF or input in planT
         self.num_route_points = 20
         self.augment_percentage = 0.5  # Probability of the augmented sample being used.
         self.learn_origin = 1  # Whether to learn the origin of the waypoints or use 0 / 0
-        self.augment = 1  # Whether to use rotation and translation augmentation
         # If this is true we convert the batch norms, to synced bach norms.
         self.sync_batch_norm = False
         # At which interval to save debug files to disk during training
@@ -335,7 +354,7 @@ class GlobalConfig:
         self.use_amp = 0
         self.use_grad_clip = 0  # Whether to clip the gradients
         self.grad_clip_max_norm = 1.0  # Max value for the gradients if gradient clipping is used.
-        self.use_color_aug = 1  # Whether to apply image color based augmentations
+        
         self.color_aug_prob = 0.5  # With which probability to apply the different image color augmentations.
         self.use_cutout = False  # Whether to use cutout as a data augmentation technique during training.
         self.lidar_aug_prob = 1.0  # Probability with which data augmentation is applied to the LiDAR image.
@@ -416,9 +435,7 @@ class GlobalConfig:
         # -----------------------------------------------------------------------------
         # TransFuser Model
         # -----------------------------------------------------------------------------
-        # Waypoint GRU
-        self.gru_hidden_size = 64
-        self.gru_input_size = 64
+
 
         # Conv Encoder
         self.img_vert_anchors = self.camera_height // 32
@@ -458,7 +475,6 @@ class GlobalConfig:
 
         # Whether to normalize the camera image by the imagenet distribution
         self.normalize_imagenet = True
-        self.use_wp_gru = False  # Whether to use the WP output GRU.
 
         # Semantic Segmentation
         self.use_semantic = False  # Whether to use semantic segmentation as auxiliary loss

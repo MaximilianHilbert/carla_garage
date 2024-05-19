@@ -48,6 +48,8 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 
+def generate_experiment_name(args):
+    return f"baseline-{args.baseline_folder_name}_speed-{args.speed_input}_td-{args.transformer_decoder}_prevnum-{args.num_prev_wp}_backbone-{args.backbone_type}"
 def find_free_port():
     """https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number"""
     import socket
@@ -76,14 +78,32 @@ def merge_with_command_line_args(config, args):
     for key, value in args_dict.items():
         setattr(config, key, value)
 
+def set_baseline_specific_args(config, experiment_name, args):
+    setattr(config, "experiment", experiment_name)
+    if "arp" not in config.experiment:
+        setattr(config, "number_previous_waypoints", 0)
+    if "bcoh" in config.experiment or "arp" in config.experiment or "keyframes" in config.experiment:
+        setattr(config, "img_seq_len", 7) # means a total of 7 frames get used (6 historical frames)
+    else: #only single observation model
+        setattr(config, "img_seq_len", 1)
+    if "arp" in config.experiment:
+        setattr(config, "number_previous_waypoints", 1) #means that we use the current-1 as first step for the sequence of arp (a_n-1-a_n)
+    if "keyframes" in config.experiment:
+        setattr(config, "img_seq_len", 0)
+        setattr(config, "lidar_seq_len", 0)
+        setattr(config, "number_previous_waypoints", 9)
+        setattr(config, "number_future_waypoints", 9)
+        setattr(config, "epochs_baselines", 300)
+        setattr(config, "keyframes", True)
+    return config
 
-def merge_config_files(args, training=True):
+def merge_config(args, experiment_name, training=True):
     # due to the baselines using the coiltraine framework, we merge our config file config.py with the .yaml files configuring the baseline models
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
     if training:
         shared_configuration.initialize(root_dir=shared_configuration.root_dir, setting=args.setting)
-    merge_with_yaml(shared_configuration, args.baseline_folder_name, args.experiment)
+    shared_configuration=set_baseline_specific_args(shared_configuration, experiment_name, args)
     merge_with_command_line_args(shared_configuration, args)
     return shared_configuration
 
