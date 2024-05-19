@@ -21,12 +21,13 @@ class Join(nn.Module):
         self.after_process = params["after_process"]
         self.mode = params["mode"]
 
-    def forward(self, x, m):
+    def forward(self, x, m=None):
         # get only the speeds from measurement labels
 
-        if self.mode == "cat":
+        if self.mode == "cat" and m is not None:
             j = torch.cat((x, m), 1)
-
+        elif m is None:
+            j=x
         else:
             raise ValueError("Mode to join networks not found")
 

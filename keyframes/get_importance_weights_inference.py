@@ -10,11 +10,13 @@ from action_correlation_model import ActionModel
 import re
 from torch.utils.data import SequentialSampler
 from tqdm import tqdm
-from coil_utils.baseline_helpers import merge_config_files
+from coil_utils.baseline_helpers import merge_config
 
-
+def generate_experiment_name():
+    return f"keyframes_inference"
 def main(args):
-    merged_config_object = merge_config_files(args)
+    experiment_name=generate_experiment_name()
+    merged_config_object = merge_config(args, experiment_name)
     checkpoint_path = os.path.join(
         os.environ.get("WORK_DIR"),
         "_logs",
@@ -51,7 +53,7 @@ def main(args):
         current_wp = data["ego_waypoints"].cuda().reshape(args.batch_size, -1)
 
         predict_curr_action = action_prediction_model(previous_wp)
-        test_loss = ((predict_curr_action - current_wp).pow(2)).sum().cpu().item()  # TODO whatch out with sum not mean!
+        test_loss = ((predict_curr_action - current_wp).pow(2)).mean().cpu().item()  # TODO whatch out with sum not mean!
         action_predict_losses.append(test_loss)
     os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "_logs", "keyframes"), exist_ok=True)
     np.save(
@@ -79,14 +81,6 @@ if __name__ == "__main__":
         type=str,
         default="training",
         choices=["training", "copycat"],
-    )
-
-    parser.add_argument(
-        "--baseline-name",
-        dest="baseline_name",
-        type=str,
-        default="keyframes_vanilla_weights.yaml",
-        help="name of the experiment/subfoldername that gets created for the baseline",
     )
     parser.add_argument(
         "--training-repetition",

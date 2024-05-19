@@ -5,10 +5,8 @@ import torch
 from tqdm import tqdm
 import torch.optim as optim
 from diskcache import Cache
-from coil_network.coil_model import CoILModel
-import numpy as np
-import pandas as pd
-from coil_utils.baseline_helpers import get_copycat_criteria
+from coil_network.coil_model import CoILICRA
+from coil_utils.baseline_helpers import get_copycat_criteria,generate_experiment_name
 from team_code.data import CARLA_Data
 import csv
 from torch.optim.lr_scheduler import MultiStepLR
@@ -26,22 +24,18 @@ class SequentialSampler(Sampler):
 
     def __len__(self):
         return len(self.data_source)
-from torch.distributed.optim import ZeroRedundancyOptimizer
 from coil_utils.baseline_logging import Logger
 import pickle
 from coil_utils.baseline_helpers import find_free_port
 import datetime
-from tools.visualize_copycat import norm
 from coil_utils.baseline_helpers import (
     set_seed,
-    get_controls_from_data,
-    merge_config_files,
+    merge_config,
     is_ready_to_save,
     get_latest_saved_checkpoint,
     get_action_predict_loss_threshold,
     
 )
-
 
 def main(args):
     torch.cuda.empty_cache()
@@ -58,8 +52,9 @@ def main(args):
     if rank == 0:
         print("Backend initialized")
     device_id = torch.device(f"cuda:{rank}")
-
-    merged_config_object = merge_config_files(args)
+    experiment_name=generate_experiment_name(args)
+    merged_config_object = merge_config(args, experiment_name)
+    
     basepath=os.path.join(os.environ.get("WORK_DIR"),
                     "_logs",
                     merged_config_object.baseline_folder_name,
@@ -74,7 +69,7 @@ def main(args):
     )
     if rank == 0:
         logger.create_tensorboard_logs()
-        print(f"Start of Training {args.baseline_folder_name}, {args.experiment}, {args.training_repetition}")
+        print(f"Start of Training {merged_config_object.baseline_folder_name}, {merged_config_object.experiment}, {merged_config_object.training_repetition}")
     logger.create_checkpoint_logs()
     try:
         set_seed(args.seed)
@@ -118,7 +113,7 @@ def main(args):
         )
     
 
-        if "keyframes" in args.experiment:
+        if "keyframes" in merged_config_object.experiment:
             if not args.metric:
                 filename = os.path.join(
                     os.environ.get("WORK_DIR"),
@@ -146,19 +141,20 @@ def main(args):
             drop_last=True,
             sampler=sampler,
         )
-        if "arp" in args.experiment:
-            policy = CoILModel(merged_config_object.model_type, merged_config_object)
+        if "arp" in merged_config_object.experiment:
+            policy = CoILICRA("coil-policy", merged_config_object)
             policy.to(device_id)
             policy = DDP(policy, device_ids=[device_id])
-            mem_extract = CoILModel(merged_config_object.mem_extract_model_type, merged_config_object)
+
+            mem_extract = CoILICRA("coil-memory", merged_config_object)
             mem_extract.to(device_id)
             mem_extract = DDP(mem_extract, device_ids=[device_id])
         else:
-            model = CoILModel(merged_config_object.model_type, merged_config_object)
+            model = CoILICRA("coil-icra", merged_config_object)
             model.to(device_id)
             model = DDP(model, device_ids=[device_id])
         if merged_config_object.optimizer_baselines == "Adam":
-            if "arp" in args.experiment:
+            if "arp" in merged_config_object.experiment:
                 policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
                 mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate)
 
@@ -172,7 +168,7 @@ def main(args):
                 optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate)
                 scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
         elif merged_config_object.optimizer == "SGD":
-            if "arp" in args.experiment:
+            if "arp" in merged_config_object.experiment:
                 policy_optimizer = optim.SGD(
                     policy.parameters(),
                     lr=merged_config_object.learning_rate,
@@ -202,7 +198,7 @@ def main(args):
         if checkpoint_file is not None:
             accumulated_time = checkpoint["total_time"]
             already_trained_epochs = checkpoint["epoch"]
-            if "arp" in args.experiment:
+            if "arp" in merged_config_object.experiment:
                 policy.load_state_dict(checkpoint["policy_state_dict"])
                 policy_optimizer.load_state_dict(checkpoint["policy_optimizer"])
                 mem_extract.load_state_dict(checkpoint["mem_extract_state_dict"])
@@ -216,7 +212,7 @@ def main(args):
             accumulated_time = 0
             already_trained_epochs = 0
         print("Before the loss")
-        if "keyframes" in args.experiment:
+        if "keyframes" in merged_config_object.experiment:
             from coil_network.keyframes_loss import Loss
         else:
             from coil_network.loss import Loss
@@ -231,38 +227,38 @@ def main(args):
                     #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                     #     break
                     capture_time = time.time()
-                    current_image, current_speed, target_point, targets, previous_targets, temporal_images = extract_and_normalize_data(args, device_id, merged_config_object, data)
+                    current_image, current_speed, target_point, targets, previous_targets, additional_previous_waypoints,temporal_images = extract_and_normalize_data(args, device_id, merged_config_object, data)
 
-                    if "arp" in args.experiment:
+                    if "arp" in merged_config_object.experiment:
                         mem_extract.zero_grad()
-                        memory_branches, memory = mem_extract(temporal_images, target_point)
+                        memory_predictions, memory = mem_extract(x=temporal_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
 
                         mem_extract_targets = targets - previous_targets
                         loss_function_params_memory = {
-                            "branches": memory_branches,
+                            "predictions": memory_predictions,
                             "targets": mem_extract_targets,
                             "inputs": current_speed,
                             "branch_weights": merged_config_object.branch_loss_weight,
                             "variable_weights": merged_config_object.variable_weight,
                         }
 
-                        mem_extract_loss, _ = criterion(loss_function_params_memory)
+                        mem_extract_loss= criterion(loss_function_params_memory)
                         mem_extract_loss.backward()
                         mem_extract_optimizer.step()
                         policy.zero_grad()
-                        if merged_config_object.rnn_encoding:
-                            policy_branches = policy(current_image.unsqueeze(1), current_speed, memory, target_point)
+                        if merged_config_object.backbone_type=="rnn":
+                            policy_predictions,_ = policy(x=current_image.unsqueeze(1), speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=memory.detach())
                         else:
-                           policy_branches = policy(current_image, current_speed, memory, target_point)
+                            policy_predictions,_ = policy(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=memory.detach())
                          
                         loss_function_params_policy = {
-                            "branches": policy_branches,
+                            "predictions": policy_predictions,
                             "targets": targets,
                             "inputs": current_speed,
                             "branch_weights": merged_config_object.branch_loss_weight,
                             "variable_weights": merged_config_object.variable_weight,
                         }
-                        policy_loss, _ = criterion(loss_function_params_policy)
+                        policy_loss= criterion(loss_function_params_policy)
                         policy_loss.backward()
                         policy_optimizer.step()
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
@@ -322,22 +318,20 @@ def main(args):
                         model.zero_grad()
                         optimizer.zero_grad()
                     
-                    if "bcoh" in args.experiment or "keyframes" in args.experiment:
-                        if not merged_config_object.rnn_encoding:
+                    if "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
+                        if merged_config_object.backbone_type=="stacking":
                             temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
                         else:
                             temporal_and_current_images = torch.concat([temporal_images, current_image.unsqueeze(1)], axis=1)
-                        wp_pred = model(
-                            temporal_and_current_images,
-                            current_speed,
-                            target_point=target_point,
+                        wp_pred,_ = model(
+                            x=temporal_and_current_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints
                         )
-                    if "bcso" in args.experiment:
-                        if merged_config_object.rnn_encoding:
-                            wp_pred = model(x=current_image.unsqueeze(1), a=current_speed, target_point=target_point)
+                    if "bcso" in merged_config_object.experiment:
+                        if merged_config_object.backbone_type=="stacking":
+                            wp_pred,_ = model(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
                         else:
-                            wp_pred = model(x=current_image, a=current_speed, target_point=target_point)
-                    if "keyframes" in args.experiment:
+                            wp_pred,_ = model(x=current_image.unsqueeze(1), speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
+                    if "keyframes" in merged_config_object.experiment:
                         reweight_params = {
                             "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
                             "importance_sampling_threshold": action_predict_threshold,
@@ -347,7 +341,7 @@ def main(args):
                         }
                     else:
                         reweight_params = {}
-                    if "arp" not in args.experiment:
+                    if "arp" not in merged_config_object.experiment:
                         loss_function_params = {
                             "predictions": wp_pred,
                             "targets": targets,
@@ -355,7 +349,7 @@ def main(args):
                             "inputs": current_speed,
                             "config": merged_config_object,
                         }
-                        if "keyframes" in args.experiment:
+                        if "keyframes" in merged_config_object.experiment:
                             loss = criterion(loss_function_params)
                         else:
                             loss = criterion(loss_function_params)
@@ -418,7 +412,7 @@ def main(args):
             else:
                 val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name)
             sampler_val=SequentialSampler(val_set)
-            if "keyframes" in args.experiment:
+            if "keyframes" in merged_config_object.experiment:
                 filename = os.path.join(
                     os.environ.get("WORK_DIR"),
                         "_logs",
@@ -443,13 +437,13 @@ def main(args):
             cc_lst=[]
             for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
                 image=str(image, encoding="utf-8").replace("\x00", "")
-                current_image,current_speed,target_point,targets,previous_targets,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
+                current_image,current_speed,target_point,targets,previous_targets,additional_previous_waypoints,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
                 
-                if "arp" in args.experiment:
+                if "arp" in merged_config_object.experiment:
                     policy.eval()
                     mem_extract.eval()
-                    _,mem=mem_extract(temporal_images,target_point)
-                    predictions = policy(current_image, current_speed, mem, target_point)
+                    _,mem=mem_extract(x=temporal_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
+                    predictions = policy(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=mem)
                     loss_function_params = {
                         "branches": predictions,
                         "targets": targets,
@@ -460,10 +454,10 @@ def main(args):
     
                 
                     
-                if "bcoh" in args.experiment or "keyframes" in args.experiment:
+                if "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
                     model.eval()
                     temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
-                    predictions = model(x=temporal_and_current_images, a=current_speed, target_point=target_point)
+                    predictions = model(x=temporal_and_current_images, a=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
                     loss_function_params = {
                         "branches": predictions,
                         "targets": targets,
@@ -472,7 +466,7 @@ def main(args):
                         "variable_weights": merged_config_object.variable_weight,
                         "config": merged_config_object,
                     }
-                if "keyframes" in args.experiment:
+                if "keyframes" in merged_config_object.experiment:
                     reweight_params = {
                         "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
                         "importance_sampling_threshold": action_predict_threshold,
@@ -490,9 +484,9 @@ def main(args):
                     "config": merged_config_object,
                 }
                     
-                if "bcso" in args.experiment:
+                if "bcso" in merged_config_object.experiment:
                     model.eval()
-                    predictions = model(x=current_image, a=current_speed, target_point=target_point)
+                    predictions = model(x=current_image, a=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
                     loss_function_params = {
                         "branches": predictions,
                         "targets": targets,
@@ -536,7 +530,7 @@ def main(args):
                 with open(os.path.join(basepath,"predictions_std_all.pkl"), "wb") as file:
                     pickle.dump(criterion_dict, file)
         with open(os.path.join(basepath,"config_cc.pkl"), "wb") as file:
-                pickle.dump(merged_config_object, file)
+            pickle.dump(merged_config_object, file)
     except RuntimeError as e:
         traceback.print_exc()
 
@@ -547,6 +541,7 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
     temporal_images=[]
     current_speed=[]
     previous_targets=[]
+    
     current_image = torch.reshape(
                     data["rgb"].to(device_id).to(torch.float32) / 255.0,
                     (
@@ -556,17 +551,27 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
                         merged_config_object.camera_width,
                     ),
                 )
-    current_speed = data["speed"].to(device_id).reshape(args.batch_size, 1)
-    if not merged_config_object.speed_input:
-        current_speed = torch.zeros_like(current_speed)
+    if merged_config_object.backbone_type=="rnn":
+        current_image=current_image.squeeze(1)
+    if merged_config_object.speed_input:
+        current_speed = data["speed"].to(device_id).reshape(args.batch_size, 1)
+    else:
+        current_speed = None
     target_point = data["target_point"].to(device_id)
     targets = data["ego_waypoints"].to(device_id)
     if merged_config_object.number_previous_waypoints>0:
         previous_targets = data["previous_ego_waypoints"].to(device_id)
-    if "arp" in args.experiment or "bcoh" in args.experiment or "keyframes" in args.experiment:
+    else:
+        previous_targets=None
+    if merged_config_object.num_prev_wp>0:
+        additional_previous_waypoints = torch.flatten(data["additional_waypoints_ego_system"].to(device_id), start_dim=1)
+    else:
+        additional_previous_waypoints=None
+    if "arp" in merged_config_object.experiment or "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
         temporal_images = data["temporal_rgb"].to(device_id) / 255.0
-    return current_image,current_speed,target_point,targets,previous_targets,temporal_images
-
+    else:
+        temporal_images=None
+    return current_image,current_speed,target_point,targets,previous_targets,additional_previous_waypoints,temporal_images
 
 if __name__ == "__main__":
     import argparse
@@ -588,13 +593,6 @@ if __name__ == "__main__":
         "--norm",
         default=2,
         type=int
-    )
-    
-    parser.add_argument(
-        "--experiment",
-        default=None,
-        required=True,
-        help="filename of experiment without .yaml",
     )
     parser.add_argument(
         "--number-of-workers",
@@ -629,7 +627,34 @@ if __name__ == "__main__":
         default=0,
         type=int
     )
+    parser.add_argument(
+        "--speed-input",
+        type=int,
+        choices=[0,1],
+        default=0
+    )
+    parser.add_argument(
+        "--transformer-decoder",
+        type=int,
+        choices=[0,1],
+        default=0
+    )
+    parser.add_argument(
+        "--num-prev-wp",
+        type=int,
+        default=0,
+        help="n-1 is considered"
+    )
+    parser.add_argument(
+        "--backbone-type",
+        type=str,
+        choices=["stacking","rnn"],
+        default="stacking"
+
+    )
+
     parser.add_argument("--dataset-repetition", type=int, default=1)
 
     arguments = parser.parse_args()
+
     main(arguments)

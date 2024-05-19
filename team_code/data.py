@@ -20,7 +20,6 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
-from pytictoc import TicToc
 
 
 # TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
@@ -65,6 +64,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         self.temporal_lidars = []
         self.temporal_measurements = []
+        self.additional_temporal_measurements=[]
         self.future_measurements = []
         self.temporal_images = []
         self.temporal_images_augmented = []
@@ -173,7 +173,15 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
                         self.angle_distribution.append(angle_index)
                         self.speed_distribution.append(target_speed_index)
-
+                    #if we want additional inputs from the past as ablation
+                    if self.config.num_prev_wp>0:
+                        additional_temporal_measurements=[]    
+                        for idx in reversed(range(1, self.config.num_prev_wp + 1 +1)):
+                            if seq - idx >= 0:
+                                if not self.config.use_plant:
+                                    additional_temporal_measurements.append(
+                                        route_dir + "/measurements" + (f"/{(seq - idx):04}.json.gz"))
+                        self.additional_temporal_measurements.append(additional_temporal_measurements)
                     if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0:
                         temporal_measurements = []
                         temporal_lidars = []
@@ -226,7 +234,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     self.future_boxes.append(future_box)
                     self.measurements.append(measurement)
                     self.sample_start.append(seq)
-
+                    
         if estimate_class_distributions:
             classes_target_speeds = np.unique(self.speed_distribution)
             target_speed_weights = compute_class_weight(
@@ -287,6 +295,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         self.temporal_measurements = np.array(
             [list(map(np.string_, sublist)) for sublist in self.temporal_measurements]
         )
+        self.additional_temporal_measurements=np.array(
+            [list(map(np.string_, sublist)) for sublist in self.additional_temporal_measurements])
         self.future_measurements = np.array([list(map(np.string_, sublist)) for sublist in self.future_measurements])
         self.sample_start = np.array(self.sample_start)
         if rank == 0:
@@ -334,6 +344,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         sample_start = self.sample_start[index]
         if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0:
             temporal_measurements = self.temporal_measurements[index]
+        if self.config.num_prev_wp>0:
+            additional_temporal_measurements=self.additional_temporal_measurements[index]
         if self.config.lidar_seq_len > 1:
             temporal_lidars = self.temporal_lidars[index]
         if self.config.img_seq_len > 1:
@@ -416,12 +428,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
             loaded_measurements.append(measurements_i)
 
-        if self.config.use_wp_gru:
-            end = self.config.pred_len + self.config.seq_len
-            start = self.config.seq_len
-        else:
-            end = 0
-            start = 0
+
+        end = self.config.pred_len + self.config.seq_len
+        start = self.config.seq_len
+
         for i in range(start, end, self.config.wp_dilation):
             measurement_file = str(measurements[0], encoding="utf-8") + (f"/{(sample_start + i):04}.json.gz")
             if (not self.data_cache is None) and (measurement_file in self.data_cache):
@@ -658,6 +668,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0:
             loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
+        if self.config.num_prev_wp>0:
+            additional_loaded_temporal_measurements= self.load_temporal_measurements(additional_temporal_measurements)
+
 
         assert len(loaded_temporal_images) == max(
             0, self.config.img_seq_len - 1
@@ -740,7 +753,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     data["rgb"] = np.array([transpose_image(image) for image in processed_images])
                     transposed_temporal_images = [transpose_image(image) for image in processed_temporal_images]
                     if transposed_temporal_images:
-                        if not self.config.rnn_encoding:
+                        if self.config.backbone_type=="stacking":
                             data["temporal_rgb"] = np.vstack([transpose_image(image) for image in processed_temporal_images])
                         else:
                             data["temporal_rgb"] = np.array([transpose_image(image) for image in processed_temporal_images])
@@ -850,35 +863,42 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             bounding_boxes_padded = None
             future_bounding_boxes_padded = None
 
-        if self.config.use_wp_gru:
-            indices = []
-            waypoints_per_step=[]
-            if self.config.use_plant_labels:
-                for i in range(0, self.config.pred_len, self.config.wp_dilation):
-                    indices.append(i)
-                if augment_sample:
-                    data["ego_waypoints"] = np.array(current_measurement["plant_wp_aug"])[indices]
-                else:
-                    data["ego_waypoints"] = np.array(current_measurement["plant_wp"])[indices]
+        indices = []
+        waypoints_per_step=[]
+        if self.config.use_plant_labels:
+            for i in range(0, self.config.pred_len, self.config.wp_dilation):
+                indices.append(i)
+            if augment_sample:
+                data["ego_waypoints"] = np.array(current_measurement["plant_wp_aug"])[indices]
             else:
-                current_waypoints, origin_current = self.get_waypoints(
-                    loaded_measurements[self.config.seq_len - 1 :],
+                data["ego_waypoints"] = np.array(current_measurement["plant_wp"])[indices]
+        else:
+            current_waypoints, origin_current = self.get_waypoints(
+                loaded_measurements[self.config.seq_len - 1 :],
+                y_augmentation=aug_translation,
+                yaw_augmentation=aug_rotation,
+            )
+            data["ego_waypoints"] = np.array(current_waypoints, dtype=np.float32)
+            if self.config.number_previous_waypoints>0:
+                waypoints_per_step,_= self.get_waypoints(
+                    loaded_temporal_measurements[self.config.seq_len - 1 :],
                     y_augmentation=aug_translation,
                     yaw_augmentation=aug_rotation,
+                    origin=origin_current
                 )
-                data["ego_waypoints"] = np.array(current_waypoints, dtype=np.float32)
-                if self.config.number_previous_waypoints>0:
-                    waypoints_per_step,_= self.get_waypoints(
-                        loaded_temporal_measurements[self.config.seq_len - 1 :],
-                        y_augmentation=aug_translation,
-                        yaw_augmentation=aug_rotation,
-                        origin=origin_current
-                    )
-                if loaded_temporal_measurements:
-                    data["ego_matrix_previous"]=np.array(loaded_temporal_measurements[0]["ego_matrix"])
-                data["ego_matrix_current"]=np.array(current_measurement["ego_matrix"])
-                if waypoints_per_step:
-                    data["previous_ego_waypoints"] = np.array(waypoints_per_step, dtype=np.float32)
+                data["previous_ego_waypoints"] = np.array(waypoints_per_step, dtype=np.float32)
+            if self.config.num_prev_wp>0:
+                additional_waypoints_per_step,_= self.get_waypoints(
+                    additional_loaded_temporal_measurements[self.config.seq_len - 1 :], #load additional waypoints that we use as additional input in ablations (more previous ones)
+                    y_augmentation=aug_translation,
+                    yaw_augmentation=aug_rotation,
+                    origin=origin_current
+                )
+                data["additional_waypoints_ego_system"] = np.array(additional_waypoints_per_step, dtype=np.float32)
+            if loaded_temporal_measurements:
+                data["ego_matrix_previous"]=np.array(loaded_temporal_measurements[0]["ego_matrix"])
+            data["ego_matrix_current"]=np.array(current_measurement["ego_matrix"])
+           
         # Convert target speed to indexes
         brake = np.float32(current_measurement["brake"])
 
@@ -999,7 +1019,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             loaded_temporal_images_augmented.reverse()
         return loaded_temporal_images, loaded_temporal_images_augmented
 
-    def load_temporal_measurements(self, temporal_measurements, future=False):
+    def load_temporal_measurements(self, temporal_measurements):
         loaded_temporal_measurements = []
         if not self.config.use_plant:
             # Temporal data just for LiDAR
@@ -1139,7 +1159,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         origin_rotation = origin_matrix[:, :3]
 
         waypoints = []
-        #if gt for previous wp, skip index==1, because this is the origin for the alignment
 
         for index in range(self.config.seq_len, len(measurements)):
             waypoint = np.array(measurements[index]["ego_matrix"])[:3, 3:4]

@@ -29,16 +29,14 @@ def branched_loss(loss_function, params):
         The computed loss function, but also a dictionary with plotable variables for tensorboard
     """
 
-    loss_branches_vec, plotable_params = loss_function(params)
+    loss_branches_vec = loss_function(params)
 
-    speed_loss = loss_branches_vec[-1]
 
     """ importance sampling """
     importance_sampling_method = params["importance_sampling_method"]
-    loss_function=torch.mean(loss_branches_vec[0])
+    loss_function=torch.mean(loss_branches_vec)
     if importance_sampling_method == "mean":
-        weighted_loss = loss_function + torch.sum(speed_loss) / params["branches"][0].shape[0]
-        #loss_info = {"unweighted_loss": loss_function}
+        weighted_loss = loss_function
     else:
         weight_importance_sampling = params["action_predict_loss"]
 
@@ -54,16 +52,8 @@ def branched_loss(loss_function, params):
             weighted_loss_function = loss_function * scaled_weight_importance
         else:
             raise ValueError
-        weighted_loss = torch.sum(weighted_loss_function) + torch.sum(speed_loss) / (params["branches"][0].shape[0])
-
-        # hard_samples_loss = loss_function[weight_importance_sampling > params["importance_sampling_threshold"]]
-        # easy_samples_loss = loss_function[weight_importance_sampling <= params["importance_sampling_threshold"]]
-        # loss_info = {
-        #     "unweighted_loss": loss_function,
-        #     "hard_samples_loss": hard_samples_loss,
-        #     "easy_samples_loss": easy_samples_loss,
-        # }
-    return weighted_loss, plotable_params
+        weighted_loss = torch.sum(weighted_loss_function)
+    return weighted_loss
 
 
 def Loss(loss_name):
