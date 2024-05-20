@@ -174,9 +174,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                         self.angle_distribution.append(angle_index)
                         self.speed_distribution.append(target_speed_index)
                     #if we want additional inputs from the past as ablation
-                    if self.config.num_prev_wp>0:
+                    if self.config.prevnum>0:
                         additional_temporal_measurements=[]    
-                        for idx in reversed(range(1, self.config.num_prev_wp + 1 +1)):
+                        for idx in reversed(range(1, self.config.prevnum + 1 +1)):
                             if seq - idx >= 0:
                                 if not self.config.use_plant:
                                     additional_temporal_measurements.append(
@@ -344,7 +344,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         sample_start = self.sample_start[index]
         if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0:
             temporal_measurements = self.temporal_measurements[index]
-        if self.config.num_prev_wp>0:
+        if self.config.prevnum>0:
             additional_temporal_measurements=self.additional_temporal_measurements[index]
         if self.config.lidar_seq_len > 1:
             temporal_lidars = self.temporal_lidars[index]
@@ -668,7 +668,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0:
             loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
-        if self.config.num_prev_wp>0:
+        if self.config.prevnum>0:
             additional_loaded_temporal_measurements= self.load_temporal_measurements(additional_temporal_measurements)
 
 
@@ -887,7 +887,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     origin=origin_current
                 )
                 data["previous_ego_waypoints"] = np.array(waypoints_per_step, dtype=np.float32)
-            if self.config.num_prev_wp>0:
+            if self.config.prevnum>0:
                 additional_waypoints_per_step,_= self.get_waypoints(
                     additional_loaded_temporal_measurements[self.config.seq_len - 1 :], #load additional waypoints that we use as additional input in ablations (more previous ones)
                     y_augmentation=aug_translation,

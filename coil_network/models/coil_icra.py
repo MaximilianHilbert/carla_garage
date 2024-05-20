@@ -51,11 +51,11 @@ class CoILICRA(nn.Module):
                     "end_layer": False,
                 }
             )
-        if self.config.num_prev_wp>0:
+        if self.config.prevnum>0:
             self.previous_wp = FC(
                 params={
                     #-1 because we define n-1 as previous wp in the dataloader
-                    "neurons": [self.config.target_point_size*self.config.num_prev_wp]
+                    "neurons": [self.config.target_point_size*self.config.prevnum]
                     + self.config.previous_waypoints_layers+[self.config.additional_inputs_output_size],
                     "dropouts": self.config.previous_waypoints_dropouts,
                     "end_layer": False,
@@ -64,7 +64,7 @@ class CoILICRA(nn.Module):
 
         if self.config.transformer_decoder:
             #we use that to determine the necessary token length, depending on additional inputs into the transformer
-            self.multiplier_for_embedding_length=sum([self.config.num_prev_wp>0, self.config.speed_input==1])
+            self.multiplier_for_embedding_length=sum([self.config.prevnum>0, self.config.speed_input==1])
             self.wp_query = nn.Parameter(
                             torch.zeros(
                                 1,
@@ -94,7 +94,7 @@ class CoILICRA(nn.Module):
             
         else:
             measurement_contribution=self.config.additional_inputs_output_size if self.config.speed_input else 0
-            previous_wp_contribution=self.config.additional_inputs_output_size if self.config.num_prev_wp>0 else 0
+            previous_wp_contribution=self.config.additional_inputs_output_size if self.config.prevnum>0 else 0
             memory_contribution=self.config.memory_dim if self.name=="coil-policy" else 0
             backbone_contribution=number_output_neurons
             self.join = Join(
@@ -165,7 +165,7 @@ class CoILICRA(nn.Module):
             measurement_enc = self.measurements(speed)
         else:
             measurement_enc = None
-        if self.config.num_prev_wp>0:
+        if self.config.prevnum>0:
             prev_wp_enc = self.previous_wp(prev_wp)
         else:
             prev_wp_enc=None
