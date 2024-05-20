@@ -325,7 +325,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         # Disable threading because the data loader will already split in threads.
         cv2.setNumThreads(0)
         data = {}
-        if not self.config.keyframes:
+        if not self.config.waypoint_weight_generation:
             images = self.images[index]
         if self.config.augment:
             images_augmented = self.images_augmented[index]
@@ -444,7 +444,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     self.data_cache[measurement_file] = measurements_i
 
             loaded_measurements.append(measurements_i)
-        if not self.config.keyframes:
+        if not self.config.waypoint_weight_generation:
             for i in range(self.config.seq_len):
                 if self.config.use_plant:
                     cache_key = str(boxes[i], encoding="utf-8")
@@ -527,7 +527,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             ) as f2:
                                 future_boxes_i = ujson.load(f2)
 
-                    if not self.config.use_plant or not self.config.keyframes:
+                    if not self.config.use_plant or not self.config.waypoint_weight_generation:
                         las_object = laspy.read(str(lidars[i], encoding="utf-8"))
                         lidars_i = las_object.xyz
                         images_i = cv2.imread(str(images[i], encoding="utf-8"), cv2.IMREAD_COLOR)
@@ -697,7 +697,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             return np.transpose(image, (2, 0, 1))
         try:
             if not self.config.use_plant:
-                if not self.config.keyframes:
+                if not self.config.waypoint_weight_generation:
                     if self.config.augment and augment_sample:
                         processed_images = self.augment_images(loaded_images)
                         processed_temporal_images = self.augment_images(loaded_temporal_images)
@@ -767,7 +767,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         # data["rgb"] is now of shape (N_seq, C, H, W)
         # need to concatenate seq data here and align to the same coordinate
         lidars = []
-        if not self.config.keyframes:
+        if not self.config.waypoint_weight_generation:
             if not self.config.use_plant:
                 for i in range(self.config.seq_len):
                     lidar = loaded_lidars[i]
@@ -921,7 +921,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             target_speed_index = F.softmax(torch.tensor(logits), dim=0).numpy()
 
         data["target_speed"] = target_speed_index
-        if not self.config.keyframes:
+        if not self.config.waypoint_weight_generation:
             if not self.config.use_plant:
                 lidar_bev = self.lidar_augmenter_func(image=np.transpose(lidar_bev, (1, 2, 0)))
                 data["lidar"] = np.transpose(lidar_bev, (2, 0, 1))
@@ -943,7 +943,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             data["theta"] = current_measurement["theta"]
             data["command"] = t_u.command_to_one_hot(current_measurement["command"])
             data["next_command"] = t_u.command_to_one_hot(current_measurement["next_command"])
-        if not self.config.keyframes:
+        if not self.config.waypoint_weight_generation:
             if self.config.use_plant_labels:
                 if augment_sample:
                     data["route"] = np.array(current_measurement["plant_route_aug"])
@@ -964,7 +964,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     data["route"] = self.smooth_path(route)
                 else:
                     data["route"] = route
-        if not self.config.keyframes:
+        if not self.config.waypoint_weight_generation:
             target_point = np.array(current_measurement["target_point"])
             target_point = self.augment_target_point(
                 target_point,

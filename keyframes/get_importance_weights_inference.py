@@ -13,14 +13,14 @@ from tqdm import tqdm
 from coil_utils.baseline_helpers import merge_config
 
 def generate_experiment_name():
-    return f"keyframes_inference"
+    return f"waypoint_weight_generation_inference"
 def main(args):
     experiment_name=generate_experiment_name()
     merged_config_object = merge_config(args, experiment_name)
     checkpoint_path = os.path.join(
         os.environ.get("WORK_DIR"),
         "_logs",
-        "keyframes",
+        "waypoint_weight_generation",
         f"repetition_{str(args.repetition)}",
         "checkpoints",
     )
@@ -53,14 +53,14 @@ def main(args):
         current_wp = data["ego_waypoints"].cuda().reshape(args.batch_size, -1)
 
         predict_curr_action = action_prediction_model(previous_wp)
-        test_loss = ((predict_curr_action - current_wp).pow(2)).mean().cpu().item()  # TODO whatch out with sum not mean!
+        test_loss = ((predict_curr_action - current_wp).pow(2)).mean().cpu().item()
         action_predict_losses.append(test_loss)
-    os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "_logs", "keyframes"), exist_ok=True)
+    os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "_logs", "waypoint_weight_generation"), exist_ok=True)
     np.save(
         os.path.join(
             os.environ.get("WORK_DIR"),
             "_logs",
-            "keyframes",
+            "waypoint_weight_generation",
             f"repetition_{str(args.repetition)}",
             f"bcoh_weights_{args.use_case}_prev{number_previous_actions}_rep{repetition}_neurons{neurons}.npy",
         ),

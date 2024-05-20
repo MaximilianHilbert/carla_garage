@@ -5,62 +5,20 @@ from action_correlation_model import train_ape_model
 from tqdm import tqdm
 from coil_utils.baseline_helpers import merge_config
 
-
-def get_prev_actions(index, img_path_list, prev_action_num, measurements_list):
-    previous_actions_list = []
-    previous_action_index = index
-    previous_action_index_buffer = index
-    while len(previous_actions_list) < prev_action_num * 3:
-        previous_action_index -= 3
-        if (previous_action_index < 0) or (
-            img_path_list[previous_action_index].split("/")[0] != img_path_list[index].split("/")[0]
-        ):
-            previous_actions_list.append(measurements_list[previous_action_index_buffer]["brake"])
-            previous_actions_list.append(measurements_list[previous_action_index_buffer]["throttle"])
-            previous_actions_list.append(measurements_list[previous_action_index_buffer]["steer"])
-        else:
-            previous_actions_list.append(measurements_list[previous_action_index]["brake"])
-            previous_actions_list.append(measurements_list[previous_action_index]["throttle"])
-            previous_actions_list.append(measurements_list[previous_action_index]["steer"])
-            previous_action_index_buffer = previous_action_index
-    previous_actions_list.reverse()
-    previous_action_stack = np.array(previous_actions_list).astype(np.float)
-    return previous_action_stack
-
-
-def get_target_actions(index, img_path_list, target_action_num, measurements_list):
-    target_actions_list = []
-    target_actions_index = index
-    target_actions_index_buff = index
-    while len(target_actions_list) < target_action_num * 3:
-        if (target_actions_index >= len(img_path_list)) or (
-            img_path_list[target_actions_index].split("/")[0] != img_path_list[index].split("/")[0]
-        ):
-            target_actions_list.append(measurements_list[target_actions_index_buff]["steer"])
-            target_actions_list.append(measurements_list[target_actions_index_buff]["throttle"])
-            target_actions_list.append(measurements_list[target_actions_index_buff]["brake"])
-        else:
-            target_actions_list.append(measurements_list[target_actions_index]["steer"])
-            target_actions_list.append(measurements_list[target_actions_index]["throttle"])
-            target_actions_list.append(measurements_list[target_actions_index]["brake"])
-            target_actions_index_buff = target_actions_index
-        target_actions_index += 3
-    return np.array(target_actions_list).astype(np.float)
-
 def generate_experiment_name():
-    return f"keyframes_training"
+    return f"waypoint_weight_generation_training"
 def main(args):
     experiment_name=generate_experiment_name()
     merged_config_object = merge_config(args,experiment_name)
     checkpoint_path = os.path.join(
         os.environ.get("WORK_DIR"),
         "_logs",
-        "keyframes",
+        "waypoint_weight_generation",
         f"repetition_{str(args.training_repetition)}",
         "checkpoints",
     )
     for repetition, seed in enumerate(tqdm(args.seeds)):
-        checkpoint_name = f"checkpoint_keyframes{merged_config_object.number_previous_waypoints}_rep{repetition}_neurons{args.neurons[0]}.npy"
+        checkpoint_name = f"checkpoint_waypoint_weight_generation{merged_config_object.number_previous_waypoints}_rep{repetition}_neurons{args.neurons[0]}.npy"
         checkpoint_full_path = os.path.join(checkpoint_path, checkpoint_name)
         train_ape_model(
             args,

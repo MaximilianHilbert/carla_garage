@@ -84,17 +84,20 @@ def set_baseline_specific_args(config, experiment_name, args):
         setattr(config, "number_previous_waypoints", 0)
     if "bcoh" in config.experiment or "arp" in config.experiment or "keyframes" in config.experiment:
         setattr(config, "img_seq_len", 7) # means a total of 7 frames get used (6 historical frames)
-    else: #only single observation model
+    if "keyframes" in config.experiment:
+        setattr(config, "correlation_weights", True)
+    if "bcso" in config.experiment: #only single observation model
         setattr(config, "img_seq_len", 1)
     if "arp" in config.experiment:
         setattr(config, "number_previous_waypoints", 1) #means that we use the current-1 as first step for the sequence of arp (a_n-1-a_n)
-    if "keyframes" in config.experiment:
+    if "waypoint_weight_generation" in config.experiment:
         setattr(config, "img_seq_len", 0)
         setattr(config, "lidar_seq_len", 0)
         setattr(config, "number_previous_waypoints", 9)
         setattr(config, "number_future_waypoints", 9)
         setattr(config, "epochs_baselines", 300)
-        setattr(config, "keyframes", True)
+        setattr(config, "waypoint_weight_generation", True)
+
     return config
 
 def merge_config(args, experiment_name, training=True):

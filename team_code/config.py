@@ -31,7 +31,7 @@ class GlobalConfig:
         # Dataloader
         self.number_future_waypoints = 1
         self.closed_loop_previous_waypoint_predictions=5
-        self.keyframes = False
+        self.waypoint_weight_generation = False
         self.epochs_baselines = 30
         self.lidar_seq_len = 1
 
@@ -53,7 +53,7 @@ class GlobalConfig:
         self.optimizer_baselines = "Adam"
         self.loss_function_baselines = "L1"
         # keyframes
-        self.importance_sample_method = "mean"
+        self.importance_sample_method = "threshold"
         self.softmax_temper = 1.0
         self.threshold_ratio = 0.1
         self.threshold_weight = 5.0
