@@ -70,7 +70,7 @@ eval "$(conda shell.bash hook)"
 conda activate garage
 export OMP_NUM_THREADS=24  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --speed-input {experiment["speed"] if "speed" in experiment.keys() else 0} --transformer-decoder {experiment["td"] if "td" in experiment.keys() else 0} --prevwp {experiment["prevwp"] if "prevwp" in experiment.keys() else 0} --backbone-type {experiment["backbone"] if "backbone" in experiment.keys() else "stacking"} --seed {seed} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --number-of-workers 6 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
+torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --speed-input {experiment["speed"] if "speed" in experiment.keys() else 0} --transformer-decoder {experiment["td"] if "td" in experiment.keys() else 0} --prevnum {experiment["prevnum"] if "prevnum" in experiment.keys() else 0} --backbone-type {experiment["backbone"] if "backbone" in experiment.keys() else "stacking"} --seed {seed} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --number-of-workers 6 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
 """
             else:
 
@@ -109,7 +109,7 @@ source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --speed-input {experiment["speed"] if "speed" in experiment.keys() else 0} --transformer-decoder {experiment["td"] if "td" in experiment.keys() else 0} --prevwp {experiment["prevwp"] if "prevwp" in experiment.keys() else 0} --backbone-type {experiment["backbone"] if "backbone" in experiment.keys() else "stacking"} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --experiment {experiment} --number-of-workers 8 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --speed-input {experiment["speed"] if "speed" in experiment.keys() else 0} --transformer-decoder {experiment["td"] if "td" in experiment.keys() else 0} --prevnum {experiment["prevnum"] if "prevnum" in experiment.keys() else 0} --backbone-type {experiment["backbone"] if "backbone" in experiment.keys() else "stacking"} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --experiment {experiment} --number-of-workers 8 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
 """
             f.write(command)
 
@@ -154,7 +154,7 @@ def main(args):
                         experiment["speed"]=0
                     if "td" not in experiment.keys():
                         experiment["td"]=0
-                    # in case we want to ablate prevwp we set it to the past 6 waypoints, because our baselines consider 6 previous frames
+                    # in case we want to ablate prevnum we set it to the past 6 waypoints, because our baselines consider 6 previous frames
                     if "prevnum" in experiment.keys():
                         if experiment["prevnum"]==1:
                             experiment["prevnum"]=max_img_previous_frames
