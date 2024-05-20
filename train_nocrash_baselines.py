@@ -2,6 +2,7 @@ import os
 import subprocess
 import numpy as np
 import itertools
+max_img_previous_frames=6
 def generate_ablation_combinations(args):
     combinations=list(itertools.product([0, 1], repeat=len(args.ablations)))
     comb_lst=[]
@@ -146,6 +147,9 @@ def main(args):
                         experiment["backbone"]="stacking"
                     else:
                         experiment["backbone"]="rnn"
+                    # in case we want to ablate prevwp we set it to the past 6 waypoints, because our baselines consider 6 previous frames
+                    if experiment["prevwp"]==1:
+                        experiment["prevwp"]=max_img_previous_frames
                     experiment_string="_".join([f"{key}-{value}" for key, value in experiment.items()])
                     complete_string=f"{baseline_folder_name}_{experiment_string}_tr-{str(training_repetition)}"
                     final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, complete_string,f"repetition_{training_repetition}", args.setting, "checkpoints")
