@@ -1,6 +1,7 @@
 import os
 import subprocess
 import numpy as np
+from coil_utils.baseline_helpers import get_latest_saved_checkpoint
 import itertools
 max_img_previous_frames=6
 def generate_ablation_combinations(args):
@@ -162,9 +163,11 @@ def main(args):
                         experiment["prevnum"]=0
                     experiment_string=f'baseline-{baseline_folder_name}_speed-{experiment["speed"]}_td-{experiment["td"]}_prevnum-{experiment["prevnum"]}_backbone-{experiment["backbone"]}'
                     complete_string=f"{experiment_string}_tr-{str(training_repetition)}"
-                    final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, complete_string,f"repetition_{training_repetition}", args.setting, "checkpoints")
+                    final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, complete_string,f"repetition_{training_repetition}", args.setting)
                     if os.path.isdir(final_log_dir):
-                        continue
+                        checkpoint=get_latest_saved_checkpoint(final_log_dir)
+                        if checkpoint==30:
+                            continue
                     generate_batch_script(
                         args,
                         seed,
