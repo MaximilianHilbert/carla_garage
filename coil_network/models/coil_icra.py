@@ -90,7 +90,8 @@ class CoILICRA(nn.Module):
                         norm=decoder_norm,
                     )
             self.encoder_pos_encoding = PositionEmbeddingSine(self.config.embedding_size_transformer_decoder//2, normalize=True) #first argument is embedding size
-            self.extra_sensor_pos_embed = nn.Parameter(torch.zeros(1, self.config.additional_inputs_output_size*self.multiplier_for_embedding_length))
+            if self.config.prevnum>0 or self.config.speed_input:
+                self.extra_sensor_pos_embed = nn.Parameter(torch.zeros(1, self.config.additional_inputs_output_size*self.multiplier_for_embedding_length))
             
         else:
             measurement_contribution=self.config.additional_inputs_output_size if self.config.speed_input else 0
