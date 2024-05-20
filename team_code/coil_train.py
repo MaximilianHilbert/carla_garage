@@ -5,7 +5,7 @@ import torch
 from tqdm import tqdm
 import torch.optim as optim
 from diskcache import Cache
-from coil_network.coil_model import CoILICRA
+from coil_network.models.coil_icra import CoILICRA
 from coil_utils.baseline_helpers import get_copycat_criteria,generate_experiment_name
 from team_code.data import CARLA_Data
 import csv
