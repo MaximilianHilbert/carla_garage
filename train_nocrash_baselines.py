@@ -148,6 +148,8 @@ def main(args):
                             experiment["backbone"]="stacking"
                         else:
                             experiment["backbone"]="rnn"
+                    else:
+                        experiment["backbone"]="stacking"
                     if "speed" not in experiment.keys():
                         experiment["speed"]=0
                     if "td" not in experiment.keys():
@@ -156,8 +158,10 @@ def main(args):
                     if "prevnum" in experiment.keys():
                         if experiment["prevnum"]==1:
                             experiment["prevnum"]=max_img_previous_frames
-                    experiment_string="_".join([f"{key}-{value}" for key, value in experiment.items()])
-                    complete_string=f"{baseline_folder_name}_{experiment_string}_tr-{str(training_repetition)}"
+                    else:
+                        experiment["prevnum"]=0
+                    experiment_string=f'baseline-{baseline_folder_name}_speed-{experiment["speed"]}_td-{experiment["td"]}_prevnum-{experiment["prevnum"]}_backbone-{experiment["backbone"]}'
+                    complete_string=f"{experiment_string}_tr-{str(training_repetition)}"
                     final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, complete_string,f"repetition_{training_repetition}", args.setting, "checkpoints")
                     if os.path.isdir(final_log_dir):
                         continue
