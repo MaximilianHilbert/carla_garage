@@ -3,14 +3,9 @@ import torch
 import importlib
 
 from .building_blocks.gru import GRUWaypointsPredictorTransFuser
-from .building_blocks.conv import Conv
-from .building_blocks import Branching
 from .building_blocks import FC
 from .building_blocks import Join
-from team_code.transfuser import (
-    TransformerDecoderLayerWithAttention,
-    TransformerDecoderWithAttention,
-)
+
 from team_code.model import PositionEmbeddingSine
 
 class CoILICRA(nn.Module):
