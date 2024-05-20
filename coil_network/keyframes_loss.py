@@ -29,14 +29,13 @@ def branched_loss(loss_function, params):
         The computed loss function, but also a dictionary with plotable variables for tensorboard
     """
 
-    loss_branches_vec = loss_function(params)
+    loss = loss_function(params)
 
 
     """ importance sampling """
     importance_sampling_method = params["importance_sampling_method"]
-    loss_function=torch.mean(loss_branches_vec)
     if importance_sampling_method == "mean":
-        weighted_loss = loss_function
+        weighted_loss = torch.mean(loss)
     else:
         weight_importance_sampling = params["action_predict_loss"]
 
@@ -49,10 +48,10 @@ def branched_loss(loss_function, params):
             scaled_weight_importance = (weight_importance_sampling > params["importance_sampling_threshold"]).type(
                 torch.float
             ) * (params["importance_sampling_threshold_weight"] - 1) + 1
-            weighted_loss_function = loss_function * scaled_weight_importance
+            weighted_loss_function = loss * scaled_weight_importance
         else:
             raise ValueError
-        weighted_loss = torch.sum(weighted_loss_function)
+        weighted_loss = torch.mean(weighted_loss_function)
     return weighted_loss
 
 

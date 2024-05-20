@@ -138,7 +138,7 @@ def train_ape_model(args, seed, repetition, merged_config_object, checkpoint_ful
     result_dir = os.path.join(
         os.environ.get("WORK_DIR"),
         "_logs",
-        "keyframes",
+        "waypoint_weight_generation",
         f"repetition_{str(repetition)}",
         "results",
         f"prev{merged_config_object.number_previous_waypoints}-repetition-{repetition}-{identifier}",
@@ -171,7 +171,7 @@ def train_ape_model(args, seed, repetition, merged_config_object, checkpoint_ful
             os.path.join(
                 os.environ.get("WORK_DIR"),
                 "_logs",
-                "keyframes",
+                "waypoint_weight_generation",
                 f"repetition_{str(repetition)}",
                 "checkpoints",
             ),

@@ -118,7 +118,7 @@ def main(args):
                 filename = os.path.join(
                     os.environ.get("WORK_DIR"),
                         "_logs",
-                        "keyframes",
+                        "waypoint_weight_generation",
                         "repetition_0",
                         "bcoh_weights_training_prev9_rep0_neurons300.npy")
                 # load the correlation weights and reshape them, that the last 3 elements that do not fit into the batch size dimension get dropped, because the dataloader of Carla_Dataset does the same, it should fit
