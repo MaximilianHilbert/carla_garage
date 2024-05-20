@@ -1,7 +1,14 @@
 import os
 import subprocess
 import numpy as np
-
+import itertools
+def generate_ablation_combinations(args):
+    combinations=list(itertools.product([0, 1], repeat=len(args.ablations)))
+    comb_lst=[]
+    for combination in combinations:
+        combinations_dict=dict(zip(args.ablations, combination))
+        comb_lst.append(combinations_dict)
+    return comb_lst
 def generate_batch_script(
     args,
     seed,
@@ -19,14 +26,15 @@ def generate_batch_script(
     else:
         job_path = os.path.join(os.environ.get("WORK_DIR"), "job_files")
         os.makedirs(job_path, exist_ok=True)
+        experiment_string="_".join([f"{key}-{value}" for key, value in experiment.items()])
+        complete_string=f"{baseline_folder_name}_{experiment_string}_tr-{str(training_repetition)}"
         job_full_path = os.path.join(
             job_path,
-            f"{baseline_folder_name}_{experiment}_{str(training_repetition)}.sh",
-        )
+            f"{complete_string}.sh")
         with open(job_full_path, "w", encoding="utf-8") as f:
             if args.cluster=="tcml":
                  command = f"""#!/bin/sh
-#SBATCH --job-name={baseline_folder_name}_{experiment}_{training_repetition}
+#SBATCH --job-name={complete_string}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --time=0-{walltime}:00
@@ -34,8 +42,8 @@ def generate_batch_script(
 #SBATCH --partition=week
 #SBATCH --cpus-per-task=24
 #SBATCH --mem-per-cpu=9G
-#SBATCH --output="/home/hilbert/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.out"
-#SBATCH --error="/home/hilbert/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.err"
+#SBATCH --output="/home/hilbert/slurmlogs/{complete_string}.out"
+#SBATCH --error="/home/hilbert/slurmlogs/{complete_string}.err"
 
 
 export WORK_DIR=/home/hilbert/carla_garage
@@ -62,21 +70,21 @@ eval "$(conda shell.bash hook)"
 conda activate garage
 export OMP_NUM_THREADS=24  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --experiment {experiment} --number-of-workers 6 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
+torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --speed-input {experiment["speed"]} --transformer-decoder {experiment["td"]} --num-prev-wp {experiment["prevwp"]} --backbone-type {experiment["backbone"]} --seed {seed} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --number-of-workers 6 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
 """
             else:
 
 
                 command = f"""#!/bin/sh
-#SBATCH --job-name={baseline_folder_name}_{experiment}_{training_repetition}
+#SBATCH --job-name={complete_string}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --time=0-{walltime}:00
 #SBATCH --gres=gpu:8
 #SBATCH --partition=2080-galvani
 #SBATCH --cpus-per-task=64
-#SBATCH --output="/mnt/qb/work/geiger/gwb629/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.out"
-#SBATCH --error="/mnt/qb/work/geiger/gwb629/slurmlogs/{baseline_folder_name}_{experiment}_{training_repetition}.err"
+#SBATCH --output="/mnt/qb/work/geiger/gwb629/slurmlogs/{complete_string}.out"
+#SBATCH --error="/mnt/qb/work/geiger/gwb629/slurmlogs/{complete_string}.err"
 
 
 export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
@@ -101,7 +109,7 @@ source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --experiment {experiment} --number-of-workers 8 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --speed-input {experiment["speed"]} --transformer-decoder {experiment["td"]} --num-prev-wp {experiment["prevwp"]} --backbone-type {experiment["backbone"]} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --experiment {experiment} --number-of-workers 8 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
 """
             f.write(command)
 
@@ -133,13 +141,14 @@ def main(args):
 
                 )
             else:
-                for experiment in os.listdir(os.path.join(os.environ.get("CONFIG_ROOT"), baseline_folder_name)):
+                combinations=generate_ablation_combinations(args)
+                for experiment in combinations:
                     generate_batch_script(
                         args,
                         seed,
                         training_repetition,
                         baseline_folder_name,
-                        experiment.replace(".yaml", ""),
+                        experiment,
                         batch_size,
                         walltime,
                     )
@@ -180,6 +189,11 @@ if __name__ == "__main__":
         "--walltimes",
         nargs="+",
         type=int,
+    )
+    parser.add_argument(
+        "--ablations",
+        nargs="+",
+        type=str,
     )
     parser.add_argument(
         "--setting",
