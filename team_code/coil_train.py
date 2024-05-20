@@ -563,7 +563,7 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
         previous_targets = data["previous_ego_waypoints"].to(device_id)
     else:
         previous_targets=None
-    if merged_config_object.num_prev_wp>0:
+    if merged_config_object.prevnum>0:
         additional_previous_waypoints = torch.flatten(data["additional_waypoints_ego_system"].to(device_id), start_dim=1)
     else:
         additional_previous_waypoints=None
@@ -640,7 +640,7 @@ if __name__ == "__main__":
         default=0
     )
     parser.add_argument(
-        "--num-prev-wp",
+        "--prevnum",
         type=int,
         default=0,
         help="n-1 is considered"

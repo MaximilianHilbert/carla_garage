@@ -95,7 +95,7 @@ class GlobalConfig:
         self.num_gru_encoding_layers=1
         self.target_point_size=2
         self.embedding_size_transformer_decoder=64 
-        self.num_prev_wp=0
+        self.prevnum=0
         # -----------------------------------------------------------------------------
         # Autopilot
         # -----------------------------------------------------------------------------
