@@ -17,6 +17,7 @@ def generate_batch_script(
     experiment,
     batch_size,
     walltime,
+    complete_string
 ):
     if args.train_local:
         subprocess.check_output(
@@ -26,8 +27,6 @@ def generate_batch_script(
     else:
         job_path = os.path.join(os.environ.get("WORK_DIR"), "job_files")
         os.makedirs(job_path, exist_ok=True)
-        experiment_string="_".join([f"{key}-{value}" for key, value in experiment.items()])
-        complete_string=f"{baseline_folder_name}_{experiment_string}_tr-{str(training_repetition)}"
         job_full_path = os.path.join(
             job_path,
             f"{complete_string}.sh")
@@ -143,6 +142,15 @@ def main(args):
             else:
                 combinations=generate_ablation_combinations(args)
                 for experiment in combinations:
+                    if experiment["backbone"]==0:
+                        experiment["backbone"]="stacking"
+                    else:
+                        experiment["backbone"]="rnn"
+                    experiment_string="_".join([f"{key}-{value}" for key, value in experiment.items()])
+                    complete_string=f"{baseline_folder_name}_{experiment_string}_tr-{str(training_repetition)}"
+                    final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, complete_string,f"repetition_{training_repetition}", args.setting, "checkpoints")
+                    if os.path.isdir(final_log_dir):
+                        continue
                     generate_batch_script(
                         args,
                         seed,
@@ -151,6 +159,7 @@ def main(args):
                         experiment,
                         batch_size,
                         walltime,
+                        complete_string
                     )
     if not args.train_local:
         place_batch_scripts()
