@@ -43,6 +43,7 @@ class GlobalConfig:
         self.model_type = None
         self.mem_extract_model_type = None
         self.mem_extract_model_configuration = {}
+        #use self.learning_rate = 0.0001 for debugging with batchsize 10 on one_curve_mini
         self.learning_rate = 0.0003
         self.use_color_aug= 0
         self.augment=0 
@@ -81,15 +82,16 @@ class GlobalConfig:
         self.previous_waypoints_layers=[128]
         self.previous_waypoints_dropouts=[0.0, 0.0]
         #fixed encoding length for additional input like previous waypoints or speed
-        self.additional_inputs_output_size=32 
-        
+        self.additional_inputs_memory_output_size=64
+
+        self.positional_embedding_dim=64
+        self.backbone_dim=512
         self.join_layers=[512]
         self.join_layer_dropouts=[0.0]
         
         self.fc_layers=[256, 128]
         self.fc_layer_dropouts=[0.0, 0.5]
         #default configs for baselines arp
-        self.memory_dim=512 #output of the memory resnet/rnn
         #ablations for baselines
         self.gru_encoding_hidden_size=512
         self.num_gru_encoding_layers=1

@@ -1174,3 +1174,23 @@ class PositionEmbeddingSine(nn.Module):
         pos_y = torch.stack((pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()), dim=4).flatten(3)
         pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
         return pos
+class PositionalEncoding_one_dim(torch.nn.Module):
+    def __init__(self, d_model=64, max_len=5000):
+        super(PositionalEncoding_one_dim, self).__init__()
+        
+        # Create a long enough `position` tensor of shape [max_len, 1]
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        
+        # Create a tensor of shape [max_len, d_model] to hold the position encodings
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, d_model)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        
+        # Register buffer so that it gets moved to the appropriate device
+        self.register_buffer('pe', pe.unsqueeze(0))  # Shape: [1, max_len, d_model]
+    
+    def forward(self, x):
+        # Add positional encoding to input
+        x = x.unsqueeze(2) + self.pe[:, :x.size(1)]
+        return x

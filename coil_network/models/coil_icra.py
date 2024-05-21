@@ -6,7 +6,7 @@ from .building_blocks.gru import GRUWaypointsPredictorTransFuser
 from .building_blocks import FC
 from .building_blocks import Join
 
-from team_code.model import PositionEmbeddingSine
+from team_code.model import PositionEmbeddingSine,PositionalEncoding_one_dim
 
 class CoILICRA(nn.Module):
     def __init__(self, name, config):
@@ -14,6 +14,11 @@ class CoILICRA(nn.Module):
         self.params = config.model_configuration
         self.config = config
         self.name=name
+        measurement_contribution=self.config.additional_inputs_memory_output_size if self.config.speed_input else 0
+        previous_wp_contribution=self.config.additional_inputs_memory_output_size if self.config.prevnum>0 else 0
+        memory_contribution=self.config.additional_inputs_memory_output_size if self.name=="coil-policy" else 0
+        self.extra_sensor_memory_contribution=sum([measurement_contribution, previous_wp_contribution,memory_contribution])
+
         if self.config.backbone_type=="rnn" or self.name=="coil-policy":
             number_first_layer_channels=3 #only one frame per rnn input
         elif self.name=="coil-memory":
@@ -46,7 +51,7 @@ class CoILICRA(nn.Module):
         if self.config.speed_input:
             self.measurements = FC(
                 params={
-                    "neurons": [len(config.inputs)] + self.config.measurement_layers+[self.config.additional_inputs_output_size],
+                    "neurons": [len(config.inputs)] + self.config.measurement_layers+[self.config.additional_inputs_memory_output_size],
                     "dropouts": self.config.measurement_dropouts,
                     "end_layer": False,
                 }
@@ -56,30 +61,30 @@ class CoILICRA(nn.Module):
                 params={
                     #-1 because we define n-1 as previous wp in the dataloader
                     "neurons": [self.config.target_point_size*self.config.prevnum]
-                    + self.config.previous_waypoints_layers+[self.config.additional_inputs_output_size],
+                    + self.config.previous_waypoints_layers+[self.config.additional_inputs_memory_output_size],
                     "dropouts": self.config.previous_waypoints_dropouts,
                     "end_layer": False,
                 }
             )
-
+        #we use that to get down from 512 channels (resnet output) to 64 channels, used for measurement encoding
+        if self.name=="coil-policy":
+            self.change_channel_memory = nn.Conv1d(
+                    self.config.resnet_output_feat_dim,
+                    self.config.additional_inputs_memory_output_size,
+                    kernel_size=1,
+                )
         if self.config.transformer_decoder:
             #we use that to determine the necessary token length, depending on additional inputs into the transformer
-            self.multiplier_for_embedding_length=sum([self.config.prevnum>0, self.config.speed_input==1])
+            
             self.wp_query = nn.Parameter(
                             torch.zeros(
                                 1,
                                 self.config.gru_input_size,
                             )
                         )
-            #we use that to get down from 512 channels (resnet output) to 64 channels, used for waypoint gru and measurement encoding
-            self.change_channel = nn.Conv1d(
-                    self.config.resnet_output_feat_dim,
-                    self.config.gru_input_size,
-                    kernel_size=1,
-                )
             decoder_norm=nn.LayerNorm(self.config.gru_hidden_size)
             decoder_layer = nn.TransformerDecoderLayer(
-                        self.config.gru_input_size,
+                        self.config.positional_embedding_dim,
                         self.config.num_decoder_heads,
                         activation=nn.GELU(),
                         batch_first=True,
@@ -89,30 +94,23 @@ class CoILICRA(nn.Module):
                         num_layers=self.config.num_transformer_decoder_layers,
                         norm=decoder_norm,
                     )
-            self.encoder_pos_encoding = PositionEmbeddingSine(self.config.embedding_size_transformer_decoder//2, normalize=True) #first argument is embedding size
-            if self.config.prevnum>0 or self.config.speed_input:
-                self.extra_sensor_pos_embed = nn.Parameter(torch.zeros(1, self.config.additional_inputs_output_size*self.multiplier_for_embedding_length))
+            
+            self.encoder_pos_encoding_one_dim=PositionalEncoding_one_dim(self.config.positional_embedding_dim)
+            if self.extra_sensor_memory_contribution>0:
+                self.extra_sensor_pos_embed = nn.Parameter(torch.zeros(1, self.extra_sensor_memory_contribution))
+
             
         else:
-            measurement_contribution=self.config.additional_inputs_output_size if self.config.speed_input else 0
-            previous_wp_contribution=self.config.additional_inputs_output_size if self.config.prevnum>0 else 0
-            memory_contribution=self.config.memory_dim if self.name=="coil-policy" else 0
-            backbone_contribution=number_output_neurons
-            self.join = Join(
-                params={
-                    "after_process": FC(
+            self.join =  FC(
                         params={
                             "neurons": [
-                                measurement_contribution+previous_wp_contribution+backbone_contribution+memory_contribution
+                               self.extra_sensor_memory_contribution+self.config.backbone_dim
                             ]
                             + self.config.join_layers,
                             "dropouts": self.config.join_layer_dropouts,
                             "end_layer": False,
                         }
-                    ),
-                    "mode": "cat",
-                }
-            )
+                    )
             # Create the fc vector separatedely
             self.fc_vector=FC(
                     params={
@@ -170,6 +168,8 @@ class CoILICRA(nn.Module):
             prev_wp_enc = self.previous_wp(prev_wp)
         else:
             prev_wp_enc=None
+        if self.name=="coil-policy":
+            memory_to_fuse=self.change_channel_memory(memory_to_fuse.unsqueeze(2)).squeeze(2)
         additional_inputs=[input for input in [memory_to_fuse, measurement_enc, prev_wp_enc] if input is not None]
         if additional_inputs:
             additional_inputs=torch.cat(additional_inputs, dim=1)
@@ -179,23 +179,25 @@ class CoILICRA(nn.Module):
 
         #eventually decode via transformer decoder
         if self.config.transformer_decoder:
-            x=self.change_channel(x.unsqueeze(2))
-            x=x.reshape(bs,-1,int(self.config.gru_input_size**0.5), int(self.config.gru_input_size**0.5))
+            #x=self.change_channel(x.unsqueeze(2))
+            #x=x.reshape(bs,-1,int(self.config.gru_input_size**0.5), int(self.config.gru_input_size**0.5))
             #changes to 128 features
-            pos_enc=self.encoder_pos_encoding(x)
-            x=x.expand(-1, self.config.gru_input_size, -1 , -1)
-            x=x+pos_enc
-            x=torch.flatten(x, start_dim=2)
+            x=self.encoder_pos_encoding_one_dim(x)
+            #x=x.expand(-1, self.config.gru_input_size, -1 , -1)
+            #x=x+pos_enc
+            #x=torch.flatten(x, start_dim=2)
             if additional_inputs.numel()>0:
                 additional_inputs=additional_inputs+self.extra_sensor_pos_embed.repeat(bs, 1)
                 additional_inputs=additional_inputs.unsqueeze(2)
-                x = torch.cat((x, additional_inputs), axis=2)
-            x = torch.permute(x, (0, 2, 1))
+                additional_inputs=additional_inputs.expand(-1, -1, self.config.positional_embedding_dim)
+                x = torch.cat((x, additional_inputs), axis=1)
+            #x = torch.permute(x, (0, 2, 1))
             output = self.join(self.wp_query.repeat(bs, 1, 1), x)
         else:
             #use fc layer for joining encoding or default to backbone outputs only
             if additional_inputs.numel()>0:
-                joined_encoding = self.join(x, additional_inputs)
+                x=torch.cat((x, additional_inputs), axis=1)
+                joined_encoding = self.join(x)
             else:
                 joined_encoding = self.join(x)
             output = self.fc_vector(joined_encoding)
