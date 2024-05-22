@@ -49,7 +49,7 @@ def set_seed(seed):
 
 
 def generate_experiment_name(args):
-    return f"baseline-{args.baseline_folder_name}_speed-{args.speed_input}_td-{args.transformer_decoder}_prevnum-{args.prevnum}_backbone-{args.backbone_type}_tr-{args.training_repetition}"
+    return f"baseline-{args.baseline_folder_name}_speed-{args.speed_input}_td-{args.td}_prevnum-{args.prevnum}_backbone-{args.backbone}_tr-{args.training_repetition}"
 def find_free_port():
     """https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number"""
     import socket
@@ -80,8 +80,11 @@ def merge_with_command_line_args(config, args):
 
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
+    if config.prevnum==1:
+        setattr(config, "prevnum", config.max_img_seq_len_baselines)
     if "arp" not in config.experiment:
         setattr(config, "number_previous_waypoints", 0)
+        
     if "bcoh" in config.experiment or "arp" in config.experiment or "keyframes" in config.experiment:
         setattr(config, "img_seq_len", 7) # means a total of 7 frames get used (6 historical frames)
     if "keyframes" in config.experiment:
@@ -97,7 +100,13 @@ def set_baseline_specific_args(config, experiment_name, args):
         setattr(config, "number_future_waypoints", 9)
         setattr(config, "epochs_baselines", 300)
         setattr(config, "waypoint_weight_generation", True)
-
+    #take ablation args from experiment name
+    for arg in experiment_name.split("_"):
+        arg_name, arg_value=arg.split("-")
+        try:
+            setattr(config, arg_name, int(arg_value))
+        except ValueError:
+            setattr(config, arg_name, arg_value)
     return config
 
 def merge_config(args, experiment_name, training=True):
@@ -106,8 +115,9 @@ def merge_config(args, experiment_name, training=True):
     shared_configuration = GlobalConfig()
     if training:
         shared_configuration.initialize(root_dir=shared_configuration.root_dir, setting=args.setting)
-    shared_configuration=set_baseline_specific_args(shared_configuration, experiment_name, args)
+    
     merge_with_command_line_args(shared_configuration, args)
+    shared_configuration=set_baseline_specific_args(shared_configuration, experiment_name, args)
     return shared_configuration
 
 

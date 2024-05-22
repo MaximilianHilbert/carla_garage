@@ -3,7 +3,7 @@ import subprocess
 import numpy as np
 from coil_utils.baseline_helpers import get_latest_saved_checkpoint
 import itertools
-max_img_previous_frames=6
+max_img_seq_len_baselines=6
 def generate_ablation_combinations(args):
     combinations=list(itertools.product([0, 1], repeat=len(args.ablations)))
     comb_lst=[]
@@ -136,7 +136,6 @@ def main(args):
                     seed,
                     training_repetition,
                     baseline_folder_name,
-                    experiment.replace(".yaml", ""),
                     batch_size,
                     walltime,
 
@@ -158,7 +157,7 @@ def main(args):
                     # in case we want to ablate prevnum we set it to the past 6 waypoints, because our baselines consider 6 previous frames
                     if "prevnum" in experiment.keys():
                         if experiment["prevnum"]==1:
-                            experiment["prevnum"]=max_img_previous_frames
+                            experiment["prevnum"]=max_img_seq_len_baselines
                     else:
                         experiment["prevnum"]=0
                     experiment_string=f'baseline-{baseline_folder_name}_speed-{experiment["speed"]}_td-{experiment["td"]}_prevnum-{experiment["prevnum"]}_backbone-{experiment["backbone"]}'
