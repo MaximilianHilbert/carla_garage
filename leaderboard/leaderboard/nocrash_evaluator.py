@@ -29,7 +29,7 @@ import carla
 import signal
 from coil_utils.baseline_helpers import find_free_port
 import torch
-from coil_utils.baseline_helpers import merge_config_files
+from coil_utils.baseline_helpers import merge_config
 from srunner.scenariomanager.carla_data_provider import *
 from srunner.scenariomanager.timer import GameTime
 from srunner.scenariomanager.watchdog import Watchdog
@@ -96,7 +96,7 @@ class NoCrashEvaluator(object):
         self.statistics_manager = statistics_manager
         self.sensors = None
         self.sensor_icons = []
-        self.config = merge_config_files(args, training=False)
+        self.config = merge_config(args, experiment_name=args.eval_id, training=False)
         # First of all, we need to create the client that will send the requests
         # to the simulator. Here we'll assume the simulator is accepting
         # requests in the localhost at port 2000.
@@ -395,10 +395,11 @@ class NoCrashEvaluator(object):
                 params={"prev": prev_pred[0], "curr": curr_pred[0]}
                 with open(os.path.join(root, "predictions.pkl"), "wb") as file:
                     pickle.dump(params, file)
+                
             self.statistics_manager.log(
                 self.town,
                 args.baseline_folder_name,
-                args.experiment,
+                args.eval_id,
                 args.setting,
                 traffic_idx,
                 weather_idx,
