@@ -246,7 +246,7 @@ def main(args):
                         mem_extract_loss.backward()
                         mem_extract_optimizer.step()
                         policy.zero_grad()
-                        if merged_config_object.backbone_type=="rnn":
+                        if merged_config_object.backbone=="rnn":
                             policy_predictions,_ = policy(x=current_image.unsqueeze(1), speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=memory.detach())
                         else:
                             policy_predictions,_ = policy(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=memory.detach())
@@ -319,7 +319,7 @@ def main(args):
                         optimizer.zero_grad()
                     
                     if "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
-                        if merged_config_object.backbone_type=="stacking":
+                        if merged_config_object.backbone=="stacking":
                             temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
                         else:
                             temporal_and_current_images = torch.concat([temporal_images, current_image.unsqueeze(1)], axis=1)
@@ -327,7 +327,7 @@ def main(args):
                             x=temporal_and_current_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints
                         )
                     if "bcso" in merged_config_object.experiment:
-                        if merged_config_object.backbone_type=="stacking":
+                        if merged_config_object.backbone=="stacking":
                             wp_pred,_ = model(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
                         else:
                             wp_pred,_ = model(x=current_image.unsqueeze(1), speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
@@ -551,9 +551,9 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
                         merged_config_object.camera_width,
                     ),
                 )
-    if merged_config_object.backbone_type=="rnn":
+    if merged_config_object.backbone=="rnn":
         current_image=current_image.squeeze(1)
-    if merged_config_object.speed_input:
+    if merged_config_object.speed:
         current_speed = data["speed"].to(device_id).reshape(args.batch_size, 1)
     else:
         current_speed = None

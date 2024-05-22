@@ -14,12 +14,12 @@ class CoILICRA(nn.Module):
         self.params = config.model_configuration
         self.config = config
         self.name=name
-        measurement_contribution=self.config.additional_inputs_memory_output_size if self.config.speed_input else 0
+        measurement_contribution=self.config.additional_inputs_memory_output_size if self.config.speed else 0
         previous_wp_contribution=self.config.additional_inputs_memory_output_size if self.config.prevnum>0 else 0
         memory_contribution=self.config.additional_inputs_memory_output_size if self.name=="coil-policy" else 0
         self.extra_sensor_memory_contribution=sum([measurement_contribution, previous_wp_contribution,memory_contribution])
 
-        if self.config.backbone_type=="rnn" or self.name=="coil-policy":
+        if self.config.backbone=="rnn" or self.name=="coil-policy":
             number_first_layer_channels=3 #only one frame per rnn input
         elif self.name=="coil-memory":
             #-1 because we encode current frame and history differently
@@ -32,7 +32,7 @@ class CoILICRA(nn.Module):
 
 
         number_output_neurons = self.config.resnet_output_feat_dim
-        if self.config.backbone_type=="rnn":
+        if self.config.backbone=="rnn":
             self.single_frame_resnet=resnet_module(
                 pretrained=config.pre_trained,
                 input_channels=number_first_layer_channels,
@@ -48,7 +48,7 @@ class CoILICRA(nn.Module):
                 input_channels=number_first_layer_channels,
                 num_classes=number_output_neurons,
             )
-        if self.config.speed_input:
+        if self.config.speed:
             self.measurements = FC(
                 params={
                     "neurons": [len(config.inputs)] + self.config.measurement_layers+[self.config.additional_inputs_memory_output_size],
@@ -73,7 +73,7 @@ class CoILICRA(nn.Module):
                     self.config.additional_inputs_memory_output_size,
                     kernel_size=1,
                 )
-        if self.config.transformer_decoder:
+        if self.config.td:
             #we use that to determine the necessary token length, depending on additional inputs into the transformer
             
             self.wp_query = nn.Parameter(
@@ -91,7 +91,7 @@ class CoILICRA(nn.Module):
                     )
             self.join = torch.nn.TransformerDecoder(
                         decoder_layer,
-                        num_layers=self.config.num_transformer_decoder_layers,
+                        num_layers=self.config.num_td_layers,
                         norm=decoder_norm,
                     )
             
@@ -131,7 +131,7 @@ class CoILICRA(nn.Module):
 
     def forward(self, x, speed=None, target_point=None, prev_wp=None, memory_to_fuse=None):
         bs=x.shape[0] #batch size
-        if self.config.backbone_type=="stacking":
+        if self.config.backbone=="stacking":
             x, _ = self.perception(x)
         else:
             # in this case the input x is not stacked but of shape B, N, C, H, W
@@ -160,7 +160,7 @@ class CoILICRA(nn.Module):
             generated_memory=x
         else:
             generated_memory=None
-        if self.config.speed_input:
+        if self.config.speed:
             measurement_enc = self.measurements(speed)
         else:
             measurement_enc = None
@@ -178,7 +178,7 @@ class CoILICRA(nn.Module):
 
 
         #eventually decode via transformer decoder
-        if self.config.transformer_decoder:
+        if self.config.td:
             #x=self.change_channel(x.unsqueeze(2))
             #x=x.reshape(bs,-1,int(self.config.gru_input_size**0.5), int(self.config.gru_input_size**0.5))
             #changes to 128 features
