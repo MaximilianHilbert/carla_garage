@@ -72,7 +72,6 @@ class GlobalConfig:
         # Waypoint GRU
         self.gru_hidden_size = 64
         self.gru_input_size = 64
-
         #defaults for baselines
         self.resnet_type="resnet34"
         self.resnet_output_feat_dim=512

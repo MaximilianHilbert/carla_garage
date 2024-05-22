@@ -27,7 +27,6 @@ import pandas as pd
 def create_run_eval_bash(
     work_dir,
     route,
-    yaml_path,
     town,
     weather,
     setting,
@@ -74,11 +73,9 @@ echo 'World Port:' $PORT
 export TM_PORT=`comm -23 <(seq {carla_tm_port_start} {carla_tm_port_start+49} | sort) <(ss -Htan | awk '{{print $4}}' | cut -d':' -f2 | sort -u) | shuf | head -n 1`
 echo 'TM Port:' $TM_PORT
 export SCENARIOS=leaderboard/data/scenarios/eval_scenarios.json
-export AGENT_YAML={yaml_path}
-export EXPERIMENT={experiment}
 export BASELINE={baseline}
 export COIL_CHECKPOINT={model_dir}
-export EVAL_ID={eval_id}
+export EVAL_ID={experiment}
 export ADDITIONAL_LOG_PATH={results_save_dir}
 export TOWN={town}
 export WEATHER={weather}
@@ -99,8 +96,6 @@ conda activate garage
         rsh.write(
             """
 python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
---agent-yaml=${AGENT_YAML} \
---experiment=${EXPERIMENT} \
 --baseline=${BASELINE} \
 --coil_checkpoint=${COIL_CHECKPOINT} \
 --eval_id=${EVAL_ID} \
@@ -172,14 +167,19 @@ def main():
     training_reps_to_be_tested = ["repetition_2"]  # only set when single test is True
 
     towns = ["Town01", "Town02"]
+    ablations=True
     weathers = {"train": [1, 6, 10, 14], "test": [3,8]}
     traffics_len = 3
-    weathers_conditions = ["train", "test"]
+    if ablations:
+        weathers_conditions = ["test"]
+    else:
+        weathers_conditions = ["train", "test"]
     partition = "day"
     username = "hilbert"
     epochs = ["30"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3
+    baselines_to_run=["bcso", "bcoh", "keyframes","arp"]
     code_root="/home/hilbert/carla_garage"
     benchmark = "nocrash"
     model_dir = os.path.join(code_root, "_logs")
@@ -189,11 +189,10 @@ def main():
     already_placed_files = {}
     meta_jobs = {}
     experiment_name_stem = f"{benchmark}"
-    for baseline in tqdm(os.listdir(model_dir)):
+    for baseline in baselines_to_run:
         for experiment in tqdm(os.listdir(os.path.join(model_dir, baseline))):
             if not os.path.isdir(os.path.join(model_dir, baseline, experiment)):
                 continue
-            yaml_path = f'{os.path.join(code_root, "coil_configuration", baseline, experiment+".yaml")}'
             for repetition in (
                 tqdm(os.listdir(os.path.join(model_dir, baseline, experiment)))
                 if not single_test
@@ -215,9 +214,11 @@ def main():
                         )
                     )
                     for epoch in epochs:
-                      checkpoint_file = f"{epoch}.pth"
-                      if checkpoint_file in checkpoints:
-                          for weather in weathers_conditions:
+                        checkpoint_file = f"{epoch}.pth"
+                        if checkpoint_file not in checkpoints:
+                            print(f"Not finisehd checkpoint file for experiment {experiment}")
+                        else:
+                            for weather in weathers_conditions:
                               for town in towns:
                                   for evaluation_repetition, seed in zip(
                                       range(1, num_repetitions + 1), seeds
@@ -306,7 +307,7 @@ def main():
                                               
                                             eval_filename = (
                                             experiment_name_stem
-                                          + f"_b-{baseline}_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}_t-{repetition}_s-{setting}_o-{route_stem}")
+                                          + f"_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}_t-{repetition}_s-{setting}_o-{route_stem}")
                                           
                                             bash_save_dir = Path(
                                                 os.path.join(
@@ -373,7 +374,6 @@ def main():
                                             create_run_eval_bash(
                                                 code_root,
                                                 route,
-                                                yaml_path,
                                                 town,
                                                 weather,
                                                 setting,

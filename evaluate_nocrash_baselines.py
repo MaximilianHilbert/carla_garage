@@ -21,8 +21,6 @@ if __name__ == "__main__":
         "--agent",
         default=f"{os.path.join(os.environ.get('TEAM_CODE'), 'coil_agent.py')}",
     )
-    parser.add_argument("--agent-config", default=f"{os.environ.get('CONFIG_ROOT')}, 'coil_config.py")
-    parser.add_argument("--agent-yaml", dest="agent_yaml", default="experiments/config_nocrash.yaml")
     parser.add_argument("--visualize-combined",type=int,default=0)
     parser.add_argument("--visualize-without-rgb",type=int,default=0)
     parser.add_argument("--norm",default=2, type=int)
@@ -70,7 +68,6 @@ if __name__ == "__main__":
         "--coil_checkpoint",
         help="Set this to be your path to the previously recorded checkpoint file of the coiltraine framework",
     )
-    parser.add_argument("--experiment", help="either arp bcoh bcso keyframes")
     parser.add_argument("--baseline-folder-name", help="either arp bcoh bcso keyframes")
     parser.add_argument("--setting", help="coil or all")
     parser.add_argument("--debug", type=int, help="Run with debug output", default=0)
