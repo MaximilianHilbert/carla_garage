@@ -4,6 +4,12 @@ import traceback
 import torch
 from tqdm import tqdm
 import torch.optim as optim
+from pathlib import Path
+import cv2
+import transfuser_utils as t_u
+import numpy as np
+from PIL import Image
+from copy import deepcopy
 from diskcache import Cache
 from coil_network.models.coil_icra import CoILICRA
 from coil_utils.baseline_helpers import get_copycat_criteria,generate_experiment_name
@@ -144,15 +150,15 @@ def main(args):
         if "arp" in merged_config_object.experiment:
             policy = CoILICRA("coil-policy", merged_config_object)
             policy.to(device_id)
-            policy = DDP(policy, device_ids=[device_id])
+            policy = DDP(policy, device_ids=[device_id],find_unused_parameters=True)
 
             mem_extract = CoILICRA("coil-memory", merged_config_object)
             mem_extract.to(device_id)
-            mem_extract = DDP(mem_extract, device_ids=[device_id])
+            mem_extract = DDP(mem_extract, device_ids=[device_id],find_unused_parameters=True)
         else:
             model = CoILICRA("coil-icra", merged_config_object)
             model.to(device_id)
-            model = DDP(model, device_ids=[device_id])
+            model = DDP(model, device_ids=[device_id],find_unused_parameters=True)
         if merged_config_object.optimizer_baselines == "Adam":
             if "arp" in merged_config_object.experiment:
                 policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
@@ -227,19 +233,22 @@ def main(args):
                     #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                     #     break
                     capture_time = time.time()
-                    current_image, current_speed, target_point, targets, previous_targets, additional_previous_waypoints,temporal_images = extract_and_normalize_data(args, device_id, merged_config_object, data)
+                    current_image, current_speed, target_point, targets, previous_targets, additional_previous_waypoints,temporal_images, bev_semantic_labels = extract_and_normalize_data(args, device_id, merged_config_object, data)
 
                     if "arp" in merged_config_object.experiment:
                         mem_extract.zero_grad()
-                        memory_predictions, memory = mem_extract(x=temporal_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
+                        pred_bev_semantic, pred_wp, memory = mem_extract(x=temporal_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
 
                         mem_extract_targets = targets - previous_targets
                         loss_function_params_memory = {
-                            "predictions": memory_predictions,
+                            "pred_wp": pred_wp,
                             "targets": mem_extract_targets,
-                            "inputs": current_speed,
-                            "branch_weights": merged_config_object.branch_loss_weight,
-                            "variable_weights": merged_config_object.variable_weight,
+                            "bev_targets": bev_semantic_labels,
+                            "pred_bev_semantic": pred_bev_semantic,
+                            "speed": current_speed,
+                            "config": merged_config_object,
+                            "device_id": device_id,
+                            "valid_bev_pixels":mem_extract.module.valid_bev_pixels if merged_config_object.bev else None
                         }
 
                         mem_extract_loss= criterion(loss_function_params_memory)
@@ -247,16 +256,19 @@ def main(args):
                         mem_extract_optimizer.step()
                         policy.zero_grad()
                         if merged_config_object.backbone=="rnn":
-                            policy_predictions,_ = policy(x=current_image.unsqueeze(1), speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=memory.detach())
+                            pred_bev_semantic, pred_wp, _= policy(x=current_image.unsqueeze(1), speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=memory.detach())
                         else:
-                            policy_predictions,_ = policy(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=memory.detach())
+                            pred_bev_semantic, pred_wp, _ = policy(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=memory.detach())
                          
                         loss_function_params_policy = {
-                            "predictions": policy_predictions,
+                            "pred_wp": pred_wp,
                             "targets": targets,
-                            "inputs": current_speed,
-                            "branch_weights": merged_config_object.branch_loss_weight,
-                            "variable_weights": merged_config_object.variable_weight,
+                            "bev_targets": bev_semantic_labels,
+                            "pred_bev_semantic": pred_bev_semantic,
+                            "config": merged_config_object,
+                            "device_id": device_id,
+                            "valid_bev_pixels":mem_extract.module.valid_bev_pixels if merged_config_object.bev else None,
+                            "speed": current_speed,
                         }
                         policy_loss= criterion(loss_function_params_policy)
                         policy_loss.backward()
@@ -323,14 +335,14 @@ def main(args):
                             temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
                         else:
                             temporal_and_current_images = torch.concat([temporal_images, current_image.unsqueeze(1)], axis=1)
-                        wp_pred,_ = model(
+                        pred_bev_semantic, pred_wp, _ = model(
                             x=temporal_and_current_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints
                         )
                     if "bcso" in merged_config_object.experiment:
                         if merged_config_object.backbone=="stacking":
-                            wp_pred,_ = model(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
+                            pred_bev_semantic, pred_wp, _= model(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
                         else:
-                            wp_pred,_ = model(x=current_image.unsqueeze(1), speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
+                            pred_bev_semantic, pred_wp, _= model(x=current_image.unsqueeze(1), speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
                     if "keyframes" in merged_config_object.experiment:
                         reweight_params = {
                             "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
@@ -343,10 +355,14 @@ def main(args):
                         reweight_params = {}
                     if "arp" not in merged_config_object.experiment:
                         loss_function_params = {
-                            "predictions": wp_pred,
+                            "pred_wp": pred_wp,
+                            "pred_bev_semantic": pred_bev_semantic,
+                            "bev_targets": bev_semantic_labels,
                             "targets": targets,
                             **reweight_params,
-                            "inputs": current_speed,
+                            "device_id": device_id,
+                            "valid_bev_pixels": model.module.valid_bev_pixels if merged_config_object.bev else None,
+                            "speed": current_speed,
                             "config": merged_config_object,
                         }
                         if "keyframes" in merged_config_object.experiment:
@@ -356,6 +372,8 @@ def main(args):
                         loss.backward()
                         optimizer.step()
                         scheduler.step()
+                        visualize_model(rgb=torch.squeeze(data["rgb"],1),config=merged_config_object, save_path="/home/maximilian/test", gt_bev_semantic=bev_semantic_labels,lidar_bev=data["lidar"], target_point=
+                                        data["target_point"], pred_wp=pred_wp,step=iteration,pred_bev_semantic=pred_bev_semantic)
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                             state = {
                                 "epoch": epoch,
@@ -437,19 +455,18 @@ def main(args):
             cc_lst=[]
             for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
                 image=str(image, encoding="utf-8").replace("\x00", "")
-                current_image,current_speed,target_point,targets,previous_targets,additional_previous_waypoints,temporal_images=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
+                current_image,current_speed,target_point,targets,previous_targets,additional_previous_waypoints,temporal_images, bev_semantic_labels=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
                 
                 if "arp" in merged_config_object.experiment:
                     policy.eval()
                     mem_extract.eval()
-                    _,mem=mem_extract(x=temporal_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
-                    predictions = policy(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=mem)
+                    predictions_dict_memory=mem_extract(x=temporal_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints,bev_semantic_labels=bev_semantic_labels)
+                    predictions_dict_policy = policy(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=predictions_dict_memory["memory"])
                     loss_function_params = {
                         "branches": predictions,
                         "targets": targets,
-                        "inputs": current_speed,
-                        "branch_weights": merged_config_object.branch_loss_weight,
-                        "variable_weights": merged_config_object.variable_weight,
+                        "speed": current_speed,
+                        "config": merged_config_object
                     }
     
                 
@@ -461,9 +478,7 @@ def main(args):
                     loss_function_params = {
                         "branches": predictions,
                         "targets": targets,
-                        "inputs": current_speed,
-                        "branch_weights": merged_config_object.branch_loss_weight,
-                        "variable_weights": merged_config_object.variable_weight,
+                        "speed": current_speed,
                         "config": merged_config_object,
                     }
                 if "keyframes" in merged_config_object.experiment:
@@ -536,12 +551,258 @@ def main(args):
 
     except:
         traceback.print_exc()
+@torch.no_grad()
+def visualize_model(  # pylint: disable=locally-disabled, unused-argument
+    config,
+    save_path,
+    step,
+    rgb,
+    lidar_bev,
+    target_point,
+    pred_wp,
+    pred_semantic=None,
+    pred_bev_semantic=None,
+    pred_depth=None,
+    pred_checkpoint=None,
+    pred_speed=None,
+    pred_bb=None,
+    gt_wp=None,
+    gt_bbs=None,
+    gt_speed=None,
+    gt_bev_semantic=None,
+    wp_selected=None,
+):
+    # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
+    color_classes = [
+        np.array([255, 165, 0]),
+        np.array([0, 255, 0]),
+        np.array([255, 0, 0]),
+        np.array([250, 160, 160]),
+    ]
 
+    size_width = int((config.max_y - config.min_y) * config.pixels_per_meter)
+    size_height = int((config.max_x - config.min_x) * config.pixels_per_meter)
+
+    scale_factor = 4
+    origin = ((size_width * scale_factor) // 2, (size_height * scale_factor) // 2)
+    loc_pixels_per_meter = config.pixels_per_meter * scale_factor
+
+    ## add rgb image and lidar
+    if config.use_ground_plane:
+        images_lidar = np.concatenate(list(lidar_bev.detach().cpu().numpy()[0][:1]), axis=1)
+    else:
+        images_lidar = np.concatenate(list(lidar_bev.detach().cpu().numpy()[0][:1]), axis=1)
+
+    images_lidar = 255 - (images_lidar * 255).astype(np.uint8)
+    images_lidar = np.stack([images_lidar, images_lidar, images_lidar], axis=-1)
+
+    images_lidar = cv2.resize(
+        images_lidar,
+        dsize=(
+            images_lidar.shape[1] * scale_factor,
+            images_lidar.shape[0] * scale_factor,
+        ),
+        interpolation=cv2.INTER_NEAREST,
+    )
+    # # Render road over image
+    # road = self.ss_bev_manager.get_road()
+    # # Alpha blending the road over the LiDAR
+    # images_lidar = road[:, :, 3:4] * road[:, :, :3] + (1 - road[:, :, 3:4]) * images_lidar
+
+    if pred_bev_semantic is not None:
+        bev_semantic_indices = np.argmax(pred_bev_semantic[0].detach().cpu().numpy(), axis=0)
+        converter = np.array(config.bev_classes_list)
+        converter[1][0:3] = 40
+        bev_semantic_image = converter[bev_semantic_indices, ...].astype("uint8")
+        alpha = np.ones_like(bev_semantic_indices) * 0.33
+        alpha = alpha.astype(float)
+        alpha[bev_semantic_indices == 0] = 0.0
+        alpha[bev_semantic_indices == 1] = 0.1
+
+        alpha = cv2.resize(
+            alpha,
+            dsize=(alpha.shape[1] * 4, alpha.shape[0] * 4),
+            interpolation=cv2.INTER_NEAREST,
+        )
+        alpha = np.expand_dims(alpha, 2)
+        bev_semantic_image = cv2.resize(
+            bev_semantic_image,
+            dsize=(
+                bev_semantic_image.shape[1] * 4,
+                bev_semantic_image.shape[0] * 4,
+            ),
+            interpolation=cv2.INTER_NEAREST,
+        )
+
+        images_lidar = bev_semantic_image * alpha + (1 - alpha) * images_lidar
+
+    if gt_bev_semantic is not None:
+        bev_semantic_indices = gt_bev_semantic[0].detach().cpu().numpy()
+        converter = np.array(config.bev_classes_list)
+        converter[1][0:3] = 40
+        bev_semantic_image = converter[bev_semantic_indices, ...].astype("uint8")
+        alpha = np.ones_like(bev_semantic_indices) * 0.33
+        alpha = alpha.astype(np.float)
+        alpha[bev_semantic_indices == 0] = 0.0
+        alpha[bev_semantic_indices == 1] = 0.1
+
+        alpha = cv2.resize(
+            alpha,
+            dsize=(alpha.shape[1] * 4, alpha.shape[0] * 4),
+            interpolation=cv2.INTER_NEAREST,
+        )
+        alpha = np.expand_dims(alpha, 2)
+        bev_semantic_image = cv2.resize(
+            bev_semantic_image,
+            dsize=(
+                bev_semantic_image.shape[1] * 4,
+                bev_semantic_image.shape[0] * 4,
+            ),
+            interpolation=cv2.INTER_NEAREST,
+        )
+        images_lidar = bev_semantic_image * alpha + (1 - alpha) * images_lidar
+
+        images_lidar = np.ascontiguousarray(images_lidar, dtype=np.uint8)
+
+    # Draw wps
+    # Red ground truth
+    if gt_wp is not None:
+        gt_wp_color = (255, 255, 0)
+        for wp in gt_wp.detach().cpu().numpy()[0]:
+            wp_x = wp[0] * loc_pixels_per_meter + origin[0]
+            wp_y = wp[1] * loc_pixels_per_meter + origin[1]
+            cv2.circle(
+                images_lidar,
+                (int(wp_x), int(wp_y)),
+                radius=10,
+                color=gt_wp_color,
+                thickness=-1,
+            )
+
+    # Green predicted checkpoint
+    if pred_checkpoint is not None:
+        for wp in pred_checkpoint.detach().cpu().numpy()[0]:
+            wp_x = wp[0] * loc_pixels_per_meter + origin[0]
+            wp_y = wp[1] * loc_pixels_per_meter + origin[1]
+            cv2.circle(
+                images_lidar,
+                (int(wp_x), int(wp_y)),
+                radius=8,
+                lineType=cv2.LINE_AA,
+                color=(0, 128, 255),
+                thickness=-1,
+            )
+
+    # Blue predicted wp
+    if pred_wp is not None:
+        pred_wps = pred_wp.detach().cpu().numpy()[0]
+        num_wp = len(pred_wps)
+        for idx, wp in enumerate(pred_wps):
+            color_weight = 0.5 + 0.5 * float(idx) / num_wp
+            wp_x = wp[0] * loc_pixels_per_meter + origin[0]
+            wp_y = wp[1] * loc_pixels_per_meter + origin[1]
+            cv2.circle(
+                images_lidar,
+                (int(wp_x), int(wp_y)),
+                radius=8,
+                lineType=cv2.LINE_AA,
+                color=(0, 0, int(color_weight * 255)),
+                thickness=-1,
+            )
+
+    # Draw target points
+    if config.use_tp:
+        x_tp = target_point[0][0] * loc_pixels_per_meter + origin[0]
+        y_tp = target_point[0][1] * loc_pixels_per_meter + origin[1]
+        cv2.circle(
+            images_lidar,
+            (int(x_tp), int(y_tp)),
+            radius=12,
+            lineType=cv2.LINE_AA,
+            color=(255, 0, 0),
+            thickness=-1,
+        )
+
+    # Visualize Ego vehicle
+    sample_box = np.array(
+        [
+            int(images_lidar.shape[0] / 2),
+            int(images_lidar.shape[1] / 2),
+            config.ego_extent_x * loc_pixels_per_meter,
+            config.ego_extent_y * loc_pixels_per_meter,
+            np.deg2rad(90.0),
+            0.0,
+        ]
+    )
+    images_lidar = t_u.draw_box(images_lidar, sample_box, color=(0, 200, 0), pixel_per_meter=16, thickness=4)
+
+    if pred_bb is not None:
+        for box in pred_bb:
+            inv_brake = 1.0 - box[6]
+            color_box = deepcopy(color_classes[int(box[7])])
+            color_box[1] = color_box[1] * inv_brake
+            box = t_u.bb_vehicle_to_image_system(box, loc_pixels_per_meter, config.min_x, config.min_y)
+            images_lidar = t_u.draw_box(
+                images_lidar,
+                box,
+                color=color_box,
+                pixel_per_meter=loc_pixels_per_meter,
+            )
+
+    if gt_bbs is not None:
+        gt_bbs = gt_bbs.detach().cpu().numpy()[0]
+        real_boxes = gt_bbs.sum(axis=-1) != 0.0
+        gt_bbs = gt_bbs[real_boxes]
+        for box in gt_bbs:
+            box[:4] = box[:4] * scale_factor
+            images_lidar = t_u.draw_box(
+                images_lidar,
+                box,
+                color=(0, 255, 255),
+                pixel_per_meter=loc_pixels_per_meter,
+            )
+
+    images_lidar = np.rot90(images_lidar, k=1)
+
+    rgb_image = rgb[0].permute(1, 2, 0).detach().cpu().numpy()
+
+    if wp_selected is not None:
+        colors_name = ["blue", "yellow"]
+        colors_idx = [(0, 0, 255), (255, 255, 0)]
+        images_lidar = np.ascontiguousarray(images_lidar, dtype=np.uint8)
+        cv2.putText(
+            images_lidar,
+            "Selected: ",
+            (700, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.0,
+            (0, 0, 0),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            images_lidar,
+            f"{colors_name[wp_selected]}",
+            (850, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.0,
+            colors_idx[wp_selected],
+            2,
+            cv2.LINE_AA,
+        )
+
+    if pred_speed is not None:
+        pred_speed = pred_speed.detach().cpu().numpy()[0]
+        images_lidar = np.ascontiguousarray(images_lidar, dtype=np.uint8)
+        t_u.draw_probability_boxes(images_lidar, pred_speed, config.target_speeds)
+
+    all_images = np.concatenate((rgb_image, images_lidar), axis=0)
+    all_images = Image.fromarray(all_images.astype(np.uint8))
+
+    store_path = str(str(save_path) + (f"/{step:04}.png"))
+    Path(store_path).parent.mkdir(parents=True, exist_ok=True)
+    all_images.save(store_path)
 def extract_and_normalize_data(args, device_id, merged_config_object, data):
-    temporal_images=[]
-    current_speed=[]
-    previous_targets=[]
-    
     current_image = torch.reshape(
                     data["rgb"].to(device_id).to(torch.float32) / 255.0,
                     (
@@ -558,20 +819,22 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
     else:
         current_speed = None
     target_point = data["target_point"].to(device_id)
-    targets = data["ego_waypoints"].to(device_id)
+    wp_targets = data["ego_waypoints"].to(device_id)
     if merged_config_object.number_previous_waypoints>0:
-        previous_targets = data["previous_ego_waypoints"].to(device_id)
+        previous_wp_targets = data["previous_ego_waypoints"].to(device_id)
     else:
-        previous_targets=None
+        previous_wp_targets=None
     if merged_config_object.prevnum>0:
-        additional_previous_waypoints = torch.flatten(data["additional_waypoints_ego_system"].to(device_id), start_dim=1)
+        additional_previous_wp_targets = torch.flatten(data["additional_waypoints_ego_system"].to(device_id), start_dim=1)
     else:
-        additional_previous_waypoints=None
+        additional_previous_wp_targets=None
     if "arp" in merged_config_object.experiment or "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
         temporal_images = data["temporal_rgb"].to(device_id) / 255.0
     else:
         temporal_images=None
-    return current_image,current_speed,target_point,targets,previous_targets,additional_previous_waypoints,temporal_images
+
+    bev_semantic_labels=data["bev_semantic"].to(torch.long).to(device_id)
+    return current_image,current_speed,target_point,wp_targets,previous_wp_targets,additional_previous_wp_targets,temporal_images,bev_semantic_labels
 
 if __name__ == "__main__":
     import argparse
@@ -628,31 +891,45 @@ if __name__ == "__main__":
         type=int
     )
     parser.add_argument(
-        "--speed-input",
+        "--speed",
         type=int,
         choices=[0,1],
-        default=0
+        required=True
     )
     parser.add_argument(
-        "--transformer-decoder",
+        "--td",
         type=int,
         choices=[0,1],
-        default=0
+        required=True
     )
     parser.add_argument(
         "--prevnum",
         type=int,
-        default=0,
+        choices=[0,1],
+        required=True,
         help="n-1 is considered"
     )
     parser.add_argument(
-        "--backbone-type",
+        "--backbone",
         type=str,
         choices=["stacking","rnn"],
-        default="stacking"
+        required=True
 
     )
+    parser.add_argument(
+        "--bev",
+        type=int,
+        choices=[0,1],
+        required=True
 
+    )
+    parser.add_argument(
+        "--lossweights",
+        nargs="+",
+        type=float,
+        required=True
+
+    )
     parser.add_argument("--dataset-repetition", type=int, default=1)
 
     arguments = parser.parse_args()

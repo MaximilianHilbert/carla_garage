@@ -5,7 +5,7 @@ import importlib
 from .building_blocks.gru import GRUWaypointsPredictorTransFuser
 from .building_blocks import FC
 from .building_blocks import Join
-
+import team_code.transfuser_utils as t_u
 from team_code.model import PositionEmbeddingSine,PositionalEncoding_one_dim
 
 class CoILICRA(nn.Module):
@@ -73,6 +73,71 @@ class CoILICRA(nn.Module):
                     self.config.additional_inputs_memory_output_size,
                     kernel_size=1,
                 )
+        if self.config.bev:
+            # Computes which pixels are visible in the camera. We mask the others.
+            _, valid_voxels = t_u.create_projection_grid(self.config)
+            valid_bev_pixels = torch.max(valid_voxels, dim=3, keepdim=False)[0].unsqueeze(1)
+            # Conversion from CARLA coordinates x depth, y width to image coordinates x width, y depth.
+            # Analogous to transpose after the LiDAR histogram
+            valid_bev_pixels = torch.transpose(valid_bev_pixels, 2, 3).contiguous()
+            #valid_bev_pixels_inv = 1.0 - valid_bev_pixels
+            # Register as parameter so that it will automatically be moved to the correct GPU with the rest of the network
+            self.valid_bev_pixels = nn.Parameter(valid_bev_pixels, requires_grad=False)
+            #self.valid_bev_pixels_inv = nn.Parameter(valid_bev_pixels_inv, requires_grad=False)
+            decoder_norm=nn.LayerNorm(self.config.bev_features_channels)
+            self.bev_query = nn.Parameter(
+                            torch.zeros(
+                                1,
+                                self.config.bev_features_channels,
+                                
+                            )
+                        )
+            bev_token_decoder= nn.TransformerDecoderLayer(
+                        self.config.bev_positional_encoding_dim,
+                        self.config.num_decoder_heads_bev,
+                        activation=nn.GELU(),
+                        batch_first=True,
+                    )
+            self.bev_token_decoder = torch.nn.TransformerDecoder(
+                        bev_token_decoder,
+                        num_layers=self.config.bev_decoder_layer,
+                        norm=decoder_norm,
+                    )
+            self.bev_semantic_decoder = nn.Sequential(
+                nn.Conv2d(
+                    self.config.bev_features_channels,
+                    self.config.bev_features_channels,
+                    kernel_size=(3, 3),
+                    stride=1,
+                    padding=(1, 1),
+                    bias=True,
+                ),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(
+                    self.config.bev_features_channels,
+                    self.config.num_bev_semantic_classes,
+                    kernel_size=(1, 1),
+                    stride=1,
+                    padding=0,
+                    bias=True,
+                ),
+                nn.Upsample(
+                    size=(
+                        self.config.bev_height,
+                        self.config.bev_width,
+                    ),
+                    mode="bilinear",
+                    align_corners=False,
+                ),
+            )
+
+        if self.config.td or self.config.bev:
+            self.encoder_pos_encoding_one_dim=PositionalEncoding_one_dim(self.config.positional_embedding_dim)
+        
+        if self.config.bev:
+            self.encoder_pos_encoding_two_dim=PositionEmbeddingSine(self.config.positional_embedding_dim//2, normalize=True)
+        if self.extra_sensor_memory_contribution>0:
+            self.extra_sensor_pos_embed = nn.Parameter(torch.zeros(1, self.extra_sensor_memory_contribution))
         if self.config.td:
             #we use that to determine the necessary token length, depending on additional inputs into the transformer
             
@@ -94,12 +159,7 @@ class CoILICRA(nn.Module):
                         num_layers=self.config.num_td_layers,
                         norm=decoder_norm,
                     )
-            
-            self.encoder_pos_encoding_one_dim=PositionalEncoding_one_dim(self.config.positional_embedding_dim)
-            if self.extra_sensor_memory_contribution>0:
-                self.extra_sensor_pos_embed = nn.Parameter(torch.zeros(1, self.extra_sensor_memory_contribution))
-
-            
+ 
         else:
             self.join =  FC(
                         params={
@@ -176,30 +236,30 @@ class CoILICRA(nn.Module):
         else:
             additional_inputs=torch.empty(0)
 
-
-        #eventually decode via transformer decoder
+        #eventually decode to wp tokens via transformer decoder, later use gru to unroll to actual waypoints
+        if self.config.bev:
+            encoding_positional=self.encoder_pos_encoding_two_dim(x.reshape(-1, 1, 16,32))
+            encoding_positional=x.reshape(-1, 1, 16,32)+encoding_positional.repeat(bs, 1,1,1)
         if self.config.td:
-            #x=self.change_channel(x.unsqueeze(2))
-            #x=x.reshape(bs,-1,int(self.config.gru_input_size**0.5), int(self.config.gru_input_size**0.5))
-            #changes to 128 features
-            x=self.encoder_pos_encoding_one_dim(x)
-            #x=x.expand(-1, self.config.gru_input_size, -1 , -1)
-            #x=x+pos_enc
-            #x=torch.flatten(x, start_dim=2)
+            encoding_positional=self.encoder_pos_encoding_one_dim(x)
             if additional_inputs.numel()>0:
-                additional_inputs=additional_inputs+self.extra_sensor_pos_embed.repeat(bs, 1)
-                additional_inputs=additional_inputs.unsqueeze(2)
-                additional_inputs=additional_inputs.expand(-1, -1, self.config.positional_embedding_dim)
-                x = torch.cat((x, additional_inputs), axis=1)
-            #x = torch.permute(x, (0, 2, 1))
-            output = self.join(self.wp_query.repeat(bs, 1, 1), x)
-        else:
+                additional_inputs_with_pos_embedding=additional_inputs+self.extra_sensor_pos_embed.repeat(bs, 1)
+                additional_inputs_with_pos_embedding=additional_inputs_with_pos_embedding.unsqueeze(2)
+                additional_inputs_with_pos_embedding=additional_inputs_with_pos_embedding.expand(-1, -1, self.config.positional_embedding_dim)
+                encoding_positional = torch.cat((encoding_positional, additional_inputs_with_pos_embedding), axis=1) #64 per additional input, so in case of memory input, speed, prev_wp we have 512 (resnet), 64 (memory), 64 (speed), 64 (prev_wp)
+                output = self.join(self.wp_query.repeat(bs, 1, 1), encoding_positional)
+        if not self.config.td:
             #use fc layer for joining encoding or default to backbone outputs only
             if additional_inputs.numel()>0:
-                x=torch.cat((x, additional_inputs), axis=1)
-                joined_encoding = self.join(x)
+                joined_encoding=torch.cat((x, additional_inputs), axis=1)
+                joined_encoding = self.join(joined_encoding)
             else:
                 joined_encoding = self.join(x)
             output = self.fc_vector(joined_encoding)
-        
-        return self.wp_gru.forward(output.squeeze(1), target_point), generated_memory
+        if self.config.bev:
+            bev_tokens=self.bev_token_decoder(self.bev_query.repeat(bs, 1, 1), encoding_positional).squeeze(1)
+            pred_bev_grid=self.bev_semantic_decoder(bev_tokens.unsqueeze(2).unsqueeze(2))
+            pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
+        else:
+            pred_bev_semantic=None
+        return pred_bev_semantic, self.wp_gru.forward(output.squeeze(1), target_point), generated_memory

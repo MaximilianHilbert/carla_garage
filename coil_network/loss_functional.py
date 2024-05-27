@@ -143,7 +143,7 @@ def l2_loss(params):
     """
     """ It is a vec for each branch"""
     
-    return (params["predictions"] - params["targets"]) ** 2
+    return (params["pred_wp"] - params["targets"]) ** 2
     
 
 def l1_loss(params):
@@ -162,4 +162,4 @@ def l1_loss(params):
 
     """
     """ It is a vec for each branch"""
-    return torch.abs((params["predictions"] - params["targets"]))
+    return torch.abs((params["pred_wp"] - params["targets"]))
