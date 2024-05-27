@@ -49,7 +49,7 @@ def set_seed(seed):
 
 
 def generate_experiment_name(args):
-    return f"baseline-{args.baseline_folder_name}_speed-{args.speed_input}_td-{args.td}_prevnum-{args.prevnum}_backbone-{args.backbone}_tr-{args.training_repetition}"
+    return f"baseline-{args.baseline_folder_name}_speed-{args.speed}_td-{args.td}_prevnum-{args.prevnum}_backbone-{args.backbone}_tr-{args.training_repetition}"
 def find_free_port():
     """https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number"""
     import socket

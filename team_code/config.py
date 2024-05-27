@@ -77,7 +77,7 @@ class GlobalConfig:
         self.resnet_output_feat_dim=512
         self.measurement_layers=[128]
         self.measurement_dropouts=[0.0, 0.0]
-
+        self.num_td_layers=1
         self.previous_waypoints_layers=[128]
         self.previous_waypoints_dropouts=[0.0, 0.0]
         #fixed encoding length for additional input like previous waypoints or speed
@@ -97,6 +97,13 @@ class GlobalConfig:
         self.target_point_size=2
         self.embedding_size_transformer_decoder=64 
         self.prevnum=0
+
+        self.bev_decoder_layer=1
+        self.bev_positional_encoding_dim=64
+        self.num_decoder_heads_bev=8
+        
+        self.bev_width = 256
+        self.bev_height = 256
         # -----------------------------------------------------------------------------
         # Autopilot
         # -----------------------------------------------------------------------------
@@ -451,7 +458,7 @@ class GlobalConfig:
         # Resolution at which the perspective auxiliary tasks are predicted
         self.perspective_downsample_factor = 1
 
-        self.bev_features_chanels = 64  # Number of channels for the BEV feature pyramid
+        self.bev_features_channels = 64  # Number of channels for the BEV feature pyramid
         # Resolution at which the BEV auxiliary tasks are predicted
         self.bev_down_sample_factor = 4
         self.bev_upsample_factor = 2

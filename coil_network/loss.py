@@ -1,58 +1,36 @@
-from . import loss_functional as LF
+from torch.nn.functional import l1_loss, mse_loss
+from torch.nn import CrossEntropyLoss
 import torch
-
+import numpy as np
 
 def l1(params):
-    return branched_loss(LF.l1_loss, params)
+    return branched_loss(l1_loss, params)
 
 
 def l2(params):
-    return branched_loss(LF.l2_loss, params)
-
-
-def l1_steer_weak_supervise(params, alpha=1):
-    l1_loss, plotable_params = branched_loss(LF.l1_loss, params)
-    steer_weak_supervise_loss = alpha * (
-        torch.max(
-            params["branches"][3][:, 0] - params["branches"][2][:, 0],
-            torch.zeros_like(params["branches"][0][:, 0]),
-        )
-        + torch.max(
-            params["branches"][1][:, 0] - params["branches"][3][:, 0],
-            torch.zeros_like(params["branches"][0][:, 0]),
-        )
-    )
-
-    steer_weak_supervise_loss = torch.sum(steer_weak_supervise_loss) / (2 * params["branches"][0].shape[0])
-
-    return l1_loss + steer_weak_supervise_loss, plotable_params
-
-
-def l1_attention(params):
-    return branched_loss(LF.l1_attention_loss, params)
+    return branched_loss(mse_loss, params)
 
 
 def branched_loss(loss_function, params):
-    """
-    Args
-        loss_function: The loss functional that is actually computing the loss
-        params: all the parameters, including
-                branches: The tensor containing all the branches branches output from the network
-                targets: The ground truth targets that the network should produce
-                controls: the controls used for each point
-                branches weights: the weigths that each branch will have on the loss function
-                speed_gt: the ground truth speed for these data points
-                variable_weights: The weights for each of the variables used
-
-                For other losses it could contain more parameters
-
-    Returns
-        The computed loss function, but also a dictionary with plotable variables for tensorboard
-    """
-    # calculate loss for each branch with specific activation
-    loss_batched = loss_function(params)
-
-    return torch.mean(loss_batched)
+    losses=[]
+    main_loss = loss_function(params["pred_wp"], params["targets"])
+    losses.append(main_loss)
+    if params["config"].bev:
+        if params["config"].use_label_smoothing:
+            label_smoothing = params["config"].label_smoothing_alpha
+        else:
+            label_smoothing = 0.0
+        loss_bev_semantic = CrossEntropyLoss(
+                weight=torch.tensor(params["config"].bev_semantic_weights, dtype=torch.float32),
+                label_smoothing=label_smoothing,
+                ignore_index=-1,
+            ).to(device=params["device_id"])
+        visible_bev_semantic_label = params["valid_bev_pixels"].squeeze(1).int() * params["bev_targets"]
+            # Set 0 class to ignore index -1
+        visible_bev_semantic_label = (params["valid_bev_pixels"].squeeze(1).int() - 1) + visible_bev_semantic_label
+        loss_bev=loss_bev_semantic(params["pred_bev_semantic"], visible_bev_semantic_label)
+        losses.append(loss_bev)
+    return torch.sum(torch.stack(losses)*torch.tensor(params["config"].lossweights).to(device=params["device_id"]))
 
 
 def Loss(loss_name):
@@ -67,9 +45,6 @@ def Loss(loss_name):
 
     elif loss_name == "L2":
         return l2
-
-    elif loss_name == "l1_steer_weak_supervise":
-        return l1_steer_weak_supervise
 
     else:
         raise ValueError(" Not found Loss name")
