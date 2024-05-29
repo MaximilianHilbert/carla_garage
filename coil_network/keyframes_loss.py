@@ -1,14 +1,14 @@
-from . import loss_functional as LF
+from torch.nn.functional import l1_loss, mse_loss
 import torch
 import torch.nn as nn
 
 
 def l1(params):
-    return branched_loss(LF.l1_loss, params)
+    return branched_loss(l1_loss, params)
 
 
 def l2(params):
-    return branched_loss(LF.l2_loss, params)
+    return branched_loss(mse_loss, params)
 
 
 def branched_loss(loss_function, params):
@@ -29,7 +29,7 @@ def branched_loss(loss_function, params):
         The computed loss function, but also a dictionary with plotable variables for tensorboard
     """
 
-    loss = loss_function(params)
+    loss = loss_function(params["pred_wp"], params["targets"])
 
 
     """ importance sampling """

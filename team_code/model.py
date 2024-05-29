@@ -1110,26 +1110,24 @@ class GRUWaypointsPredictorTransFuser(nn.Module):
 
         # initial input variable to GRU
         if self.config.learn_origin:
-            x = z[:, self.config.gru_hidden_size : (self.config.gru_hidden_size + 2)]  # Origin of the waypoints
-            z = z[:, : self.config.gru_hidden_size]
+            x = z[:, :,self.config.gru_hidden_size : (self.config.gru_hidden_size + 2)]  # Origin of the waypoints
+            z = z[:,:,: self.config.gru_hidden_size]
         else:
             x = torch.zeros(size=(z.shape[0], 2), dtype=z.dtype).to(z.device)
 
         target_point = target_point.clone()
-
+        z=z[:,0,...]
         # autoregressive generation of output waypoints
-        for _ in range(self.prediction_len):
+        for i in range(self.prediction_len):
             if self.config.use_tp:
-                x_in = torch.cat([x, target_point], dim=1)
+                x_in = torch.cat([x[:,i,...], target_point], dim=1)
             else:
                 x_in = x
 
             z = self.wp_decoder(x_in, z)
             dx = self.output(z)
 
-            x = dx + x
-
-            output_wp.append(x)
+            output_wp.append(dx + x[:,i,...])
 
         pred_wp = torch.stack(output_wp, dim=1)
 
@@ -1174,23 +1172,3 @@ class PositionEmbeddingSine(nn.Module):
         pos_y = torch.stack((pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()), dim=4).flatten(3)
         pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
         return pos
-class PositionalEncoding_one_dim(torch.nn.Module):
-    def __init__(self, d_model=64, max_len=5000):
-        super(PositionalEncoding_one_dim, self).__init__()
-        
-        # Create a long enough `position` tensor of shape [max_len, 1]
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        
-        # Create a tensor of shape [max_len, d_model] to hold the position encodings
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        pe = torch.zeros(max_len, d_model)
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        
-        # Register buffer so that it gets moved to the appropriate device
-        self.register_buffer('pe', pe.unsqueeze(0))  # Shape: [1, max_len, d_model]
-    
-    def forward(self, x):
-        # Add positional encoding to input
-        x = x.unsqueeze(2) + self.pe[:, :x.size(1)]
-        return x

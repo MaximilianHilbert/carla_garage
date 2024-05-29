@@ -4,7 +4,6 @@ from team_code.config import GlobalConfig
 from PIL import Image, ImageDraw, ImageFont
 import os
 import heapq
-from coil_network.loss_functional import compute_branches_masks
 import numpy as np
 from PIL import Image
 import cv2
@@ -49,7 +48,7 @@ def set_seed(seed):
 
 
 def generate_experiment_name(args):
-    return f"baseline-{args.baseline_folder_name}_speed-{args.speed}_td-{args.td}_prevnum-{args.prevnum}_backbone-{args.backbone}_tr-{args.training_repetition}"
+    return f"baseline-{args.baseline_folder_name}_speed-{args.speed}_prevnum-{args.prevnum}_backbone-{args.backbone}_tr-{args.training_repetition}"
 def find_free_port():
     """https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number"""
     import socket
@@ -101,12 +100,13 @@ def set_baseline_specific_args(config, experiment_name, args):
         setattr(config, "epochs_baselines", 300)
         setattr(config, "waypoint_weight_generation", True)
     #take ablation args from experiment name
-    for arg in experiment_name.split("_"):
-        arg_name, arg_value=arg.split("-")
-        try:
-            setattr(config, arg_name, int(arg_value))
-        except ValueError:
-            setattr(config, arg_name, arg_value)
+    if experiment_name in "waypoint_weight_generation_training":
+        for arg in experiment_name.split("_"):
+            arg_name, arg_value=arg.split("-")
+            try:
+                setattr(config, arg_name, int(arg_value))
+            except ValueError:
+                setattr(config, arg_name, arg_value)
     return config
 
 def merge_config(args, experiment_name, training=True):
@@ -120,13 +120,6 @@ def merge_config(args, experiment_name, training=True):
     shared_configuration=set_baseline_specific_args(shared_configuration, experiment_name, args)
     return shared_configuration
 
-
-def get_predictions(controls, branches):
-    controls_mask = compute_branches_masks(controls, branches[0].shape[1])
-    loss_branches_vec = []
-    for i in range(len(branches) - 1):
-        loss_branches_vec.append(branches[i] * controls_mask[i])
-    return loss_branches_vec, branches[-1]
 
 
 

@@ -29,29 +29,30 @@ class GlobalConfig:
         """base architecture configurations"""
         # COIL Baselines
         # Dataloader
+        self.target_point_size=2
         self.number_future_waypoints = 1
         self.closed_loop_previous_waypoint_predictions=5
         self.waypoint_weight_generation = False
         self.epochs_baselines = 30
         self.lidar_seq_len = 1
-
+        self.rgb_input_channels=3
+        self.width_rgb=1024
+        self.height_rgb=256
         self.max_img_seq_len_baselines=6 #history frames only
-        self.inputs = ["speed"]
         self.speed_factor = 12
         # Training
-        self.model_configuration = {}
-        self.model_type = None
-        self.mem_extract_model_type = None
-        self.mem_extract_model_configuration = {}
-        #use self.learning_rate = 0.0001 for debugging with batchsize 10 on one_curve_mini
-        self.learning_rate = 0.0003
+        #TimeFuser
+        self.img_encoding_remaining_spatial_dim=(2,8)
+        self.lower_channel_dimension=32 #change to 64
+        self.transformer_heads=8
+        self.num_transformer_layers=6
+        self.num_bev_query=8
+
+        #use self.learning_rate = 0.001 for debugging with batchsize 10 on one_sample
+        self.learning_rate = 0.0001
         self.use_color_aug= 0
         self.augment=0 
-        self.branch_loss_weight = [0.95, 0.95, 0.95, 0.95, 0.95, 0.95, 0.05]
-        self.variable_weight = {"Steer": 0.5, "Gas": 0.45, "Brake": 0.05}
-        self.train_with_actions_as_input = False
         self.every_epoch = 2
-        self.optimizer_baselines = "Adam"
         self.loss_function_baselines = "L1"
         # keyframes
         self.importance_sample_method = "threshold"
@@ -72,38 +73,7 @@ class GlobalConfig:
         # Waypoint GRU
         self.gru_hidden_size = 64
         self.gru_input_size = 64
-        #defaults for baselines
-        self.resnet_type="resnet34"
-        self.resnet_output_feat_dim=512
-        self.measurement_layers=[128]
-        self.measurement_dropouts=[0.0, 0.0]
-        self.num_td_layers=1
-        self.previous_waypoints_layers=[128]
-        self.previous_waypoints_dropouts=[0.0, 0.0]
-        #fixed encoding length for additional input like previous waypoints or speed
-        self.additional_inputs_memory_output_size=64
 
-        self.positional_embedding_dim=64
-        self.backbone_dim=512
-        self.join_layers=[512]
-        self.join_layer_dropouts=[0.0]
-        
-        self.fc_layers=[256, 128]
-        self.fc_layer_dropouts=[0.0, 0.5]
-        #default configs for baselines arp
-        #ablations for baselines
-        self.gru_encoding_hidden_size=512
-        self.num_gru_encoding_layers=1
-        self.target_point_size=2
-        self.embedding_size_transformer_decoder=64 
-        self.prevnum=0
-
-        self.bev_decoder_layer=1
-        self.bev_positional_encoding_dim=64
-        self.num_decoder_heads_bev=8
-        
-        self.bev_width = 256
-        self.bev_height = 256
         # -----------------------------------------------------------------------------
         # Autopilot
         # -----------------------------------------------------------------------------

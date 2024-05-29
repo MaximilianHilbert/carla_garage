@@ -18,7 +18,7 @@ class AIMBackbone(nn.Module):
 
         self.image_encoder = timm.create_model(config.image_architecture, pretrained=True, features_only=True)
 
-        self.global_pool_img = nn.AdaptiveAvgPool2d(output_size=1)
+        self.global_pool_img = nn.AdaptiveAvgPool2d(output_size=self.config.img_encoding_remaining_spatial_dim)
         start_index = 0
         # Some networks have a stem layer
         if len(self.image_encoder.return_layers) > 4:
@@ -46,17 +46,9 @@ class AIMBackbone(nn.Module):
         for _ in range(4):
             image_features = self.forward_layer_block(image_layers, self.image_encoder.return_layers, image_features)
 
-        image_feature_grid = None
-        if self.config.use_semantic or self.config.use_depth:
-            image_feature_grid = image_features
+        image_features = self.global_pool_img(image_features)
 
-        if self.config.transformer_decoder_join:
-            fused_features = image_features
-        else:
-            image_features = self.global_pool_img(image_features)
-            fused_features = torch.flatten(image_features, 1)
-
-        return fused_features, image_feature_grid
+        return image_features
 
     def forward_layer_block(self, layers, return_layers, features):
         """

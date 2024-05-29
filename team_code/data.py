@@ -750,15 +750,13 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             ),
                             interpolation=cv2.INTER_LINEAR,
                         )
-                    data["rgb"] = np.array([transpose_image(image) for image in processed_images])
-                    transposed_temporal_images = [transpose_image(image) for image in processed_temporal_images]
-                    if transposed_temporal_images:
-                        if self.config.backbone=="stacking":
-                            data["temporal_rgb"] = np.vstack([transpose_image(image) for image in processed_temporal_images])
-                        else:
-                            data["temporal_rgb"] = np.array([transpose_image(image) for image in processed_temporal_images])
+                    single_image = np.array([transpose_image(image) for image in processed_images])
+                    transposed_temporal_images = np.array([transpose_image(image) for image in processed_temporal_images])
+                    if transposed_temporal_images.size==0:
+                        data["rgb"]=single_image
                     else:
-                        data["temporal_rgb"] = []
+                        data["rgb"] = np.concatenate((single_image, transposed_temporal_images), axis=0)
+                    
         except TypeError:
             print("Tried to work on None Type images")
 
