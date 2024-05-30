@@ -3,6 +3,7 @@ import torch
 from team_code.aim import AIMBackbone
 import team_code.transfuser_utils as t_u
 from team_code.model import PositionEmbeddingSine, GRUWaypointsPredictorTransFuser
+import random
 class TimeFuser(nn.Module):
     def __init__(self, name,config):
         super().__init__()
@@ -35,9 +36,16 @@ class TimeFuser(nn.Module):
         self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
 
         if self.config.speed:
-            self.speed_layer = nn.Linear(in_features=1, out_features=self.flattened_channel_dimension)
-
-        if self.config.prevnum>0:
+            if self.name=="arp-policy":
+                # 1 time the velocity (current timestep only)
+                self.speed_layer = nn.Linear(in_features=self.total_steps_considered-self.config.max_img_seq_len_baselines, out_features=self.flattened_channel_dimension)
+            elif self.name=="arp-memory":
+                # 6 times the velocity (of previous timesteps only)
+                self.speed_layer = nn.Linear(in_features=self.config.max_img_seq_len_baselines, out_features=self.flattened_channel_dimension)
+            else:
+                self.speed_layer = nn.Linear(in_features=self.total_steps_considered, out_features=self.flattened_channel_dimension)
+        if self.config.prevnum>0 and self.name!="arp-policy":
+            #we input the previous waypoints in our ablations only in the memory stream of arp
             self.previous_wp_layer = nn.Linear(in_features=self.config.target_point_size*self.config.prevnum, out_features=self.flattened_channel_dimension)
         transformer_encoder_layer=nn.TransformerEncoderLayer(d_model=self.flattened_channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
         self.transformer_encoder=nn.TransformerEncoder(encoder_layer=transformer_encoder_layer,num_layers=self.config.num_transformer_layers)
@@ -140,7 +148,7 @@ class TimeFuser(nn.Module):
             encodings=[]
             for image_index in range(self.img_token_len):
                 #this is done to save gpu memory for gradients
-                if image_index!=0:
+                if image_index!=self.img_token_len-1:
                     with torch.no_grad():
                         single_frame_encoding=self.image_encoder(x[:,image_index,...])
                         single_frame_encoding=self.change_channel(single_frame_encoding)
@@ -154,7 +162,7 @@ class TimeFuser(nn.Module):
             measurement_enc = self.speed_layer(speed).unsqueeze(1) #we add the token dimension here
         else:
             measurement_enc = None
-        if self.config.prevnum>0:
+        if self.config.prevnum>0 and self.name!="arp-policy":
             prev_wp_enc = self.previous_wp_layer(prev_wp).unsqueeze(1)
         else:
             prev_wp_enc=None
@@ -209,7 +217,6 @@ class TimeFuser(nn.Module):
         return pred_bev_semantic, x, generated_memory
 
     def create_resnet_backbone(self, config, number_first_layer_channels):
-        #self.image_encoder= timm.create_model(config.image_architecture, pretrained=True, features_only=True)
         self.image_encoder=AIMBackbone(config)
         old_conv_1=self.image_encoder.image_encoder.stem.conv
         new_conv_1=nn.Conv2d(in_channels=number_first_layer_channels, out_channels=old_conv_1.out_channels, kernel_size=old_conv_1.kernel_size, stride=old_conv_1.stride, padding=old_conv_1.padding, bias=old_conv_1.bias)
@@ -222,6 +229,7 @@ class TimeFuser(nn.Module):
         self.image_encoder.image_encoder.stem.conv = new_conv_1
 
     def set_img_token_len(self):
+        self.total_steps_considered=self.config.max_img_seq_len_baselines+1
         if self.config.backbone=="stacking":
             self.img_token_len=1
         else:

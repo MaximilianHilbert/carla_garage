@@ -1,14 +1,14 @@
 #!/bin/sh
-#SBATCH --job-name=arp_coil
+#SBATCH --job-name=arp_test
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --partition=gpu-2080ti,gpu-v100
+#SBATCH --partition=week
 #SBATCH --time=00-12:00
-#SBATCH --gres=gpu:8
-#SBATCH --mem=300GB
-#SBATCH --cpus-per-task=64
-#SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
-#SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
+#SBATCH --gres=gpu:4
+#SBATCH --cpus-per-task=24
+#SBATCH --mem-per-cpu=9G
+#SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
+#SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
 
 #local
 # export WORK_DIR=/home/maximilian/Master/carla_garage
@@ -18,21 +18,21 @@
 # export COIL_NETWORK=${WORK_DIR}/coil_network
 # export DATASET_ROOT=/home/maximilian/training_data_split
 #cluster tcml
-# export WORK_DIR=/home/hilbert/carla_garage
-# export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-# export TEAM_CODE=$WORK_DIR/team_code
-# export CARLA_ROOT=${WORK_DIR}/carla
-# export DATASET_ROOT=/home/hilbert/dataset_v08
-# export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
+export WORK_DIR=/home/hilbert/carla_garage
+export CONFIG_ROOT=${WORK_DIR}/coil_configuration
+export TEAM_CODE=$WORK_DIR/team_code
+export CARLA_ROOT=${WORK_DIR}/carla
+export DATASET_ROOT=/home/hilbert/dataset_v08
+export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
 
 #uni pc
-export WORK_DIR=/home/maximilian-hilbert/carla_garage
-export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-export CARLA_ROOT=${WORK_DIR}/carla
-export DATASET_ROOT=/home/maximilian-hilbert/datasets/tf_dataset
-export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
-export TEAM_CODE=$WORK_DIR/team_code
-export COIL_NETWORK=${WORK_DIR}/coil_network
+# export WORK_DIR=/home/maximilian-hilbert/carla_garage
+# export CONFIG_ROOT=${WORK_DIR}/coil_configuration
+# export CARLA_ROOT=${WORK_DIR}/carla
+# export DATASET_ROOT=/home/maximilian-hilbert/datasets/tf_dataset
+# export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+# export TEAM_CODE=$WORK_DIR/team_code
+# export COIL_NETWORK=${WORK_DIR}/coil_network
 #mlcloud
 # export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
 # export CONFIG_ROOT=${WORK_DIR}/coil_configuration
@@ -56,9 +56,9 @@ export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 # source ~/.bashrc
 # conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 #tcml
-# source /home/hilbert/.bashrc
-# eval "$(conda shell.bash hook)"
-# conda activate garage
-export OMP_NUM_THREADS=12  # Limits pytorch to spawn at most num cpus cores threads
+source /home/hilbert/.bashrc
+eval "$(conda shell.bash hook)"
+conda activate garage
+export OMP_NUM_THREADS=24  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=1 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --metric 1 --baseline-folder-name arp --experiment arp_nospeed_data_rep_1 --number-of-workers 12 --training-repetition 0 --use-disk-cache 0 --batch-size 1 --setting 02_withheld --dataset-repetition 1
+torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline-folder-name arp --number-of-workers 24 --training-repetition 0 --use-disk-cache 1 --batch-size 10 --setting 02_withheld --dataset-repetition 3 --speed 0 --prevnum 0 --bev 0 --lossweights 1 0 --backbone stacking

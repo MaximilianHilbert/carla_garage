@@ -210,11 +210,12 @@ def main(args):
                     #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                     #     break
                     capture_time = time.time()
-                    all_images, current_speed, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels = extract_and_normalize_data(args, device_id, merged_config_object, data)
+                    all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels = extract_and_normalize_data(args, device_id, merged_config_object, data)
 
                     if "arp" in merged_config_object.experiment:
                         mem_extract.zero_grad()
-                        pred_bev_semantic, pred_wp, memory = mem_extract(x=all_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
+                        #the baseline is defined as getting everything except the last (current) frame into the memory stream, same for speed input
+                        pred_bev_semantic, pred_wp, memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
 
                         mem_extract_targets = targets - previous_targets
                         loss_function_params_memory = {
@@ -222,7 +223,6 @@ def main(args):
                             "targets": mem_extract_targets,
                             "bev_targets": bev_semantic_labels,
                             "pred_bev_semantic": pred_bev_semantic,
-                            "speed": current_speed,
                             "config": merged_config_object,
                             "device_id": device_id,
                             "valid_bev_pixels":mem_extract.module.valid_bev_pixels if merged_config_object.bev else None
@@ -232,8 +232,8 @@ def main(args):
                         mem_extract_loss.backward()
                         mem_extract_optimizer.step()
                         policy.zero_grad()
-
-                        pred_bev_semantic, pred_wp, _ = policy(x=all_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=memory.detach())
+                        #the baseline is defined as getting the last (current) frame in the policy stream only, same for speed input
+                        pred_bev_semantic, pred_wp, _ = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1:,...] if all_speeds is not None else None, target_point=target_point, prev_wp=None, memory_to_fuse=memory.detach())
                          
                         loss_function_params_policy = {
                             "pred_wp": pred_wp,
@@ -243,7 +243,6 @@ def main(args):
                             "config": merged_config_object,
                             "device_id": device_id,
                             "valid_bev_pixels":mem_extract.module.valid_bev_pixels if merged_config_object.bev else None,
-                            "speed": current_speed,
                         }
                         policy_loss= criterion(loss_function_params_policy)
                         policy_loss.backward()
@@ -300,7 +299,7 @@ def main(args):
                         optimizer.zero_grad()
                     
                     if "bcso" in merged_config_object.experiment or "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
-                        pred_bev_semantic, pred_wp, _= model(x=all_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
+                        pred_bev_semantic, pred_wp, _= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
     
                     if "keyframes" in merged_config_object.experiment:
                         reweight_params = {
@@ -321,7 +320,6 @@ def main(args):
                             **reweight_params,
                             "device_id": device_id,
                             "valid_bev_pixels": model.module.valid_bev_pixels if merged_config_object.bev else None,
-                            "speed": current_speed,
                             "config": merged_config_object,
                         }
                         if "keyframes" in merged_config_object.experiment:
@@ -767,9 +765,9 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
                    
     
     if merged_config_object.speed:
-        current_speed = data["speed"].to(device_id).reshape(args.batch_size, 1)
+        all_speeds = data["speed"].to(device_id)
     else:
-        current_speed = None
+        all_speeds = None
     target_point = data["target_point"].to(device_id)
     wp_targets = data["ego_waypoints"].to(device_id)
     if merged_config_object.number_previous_waypoints>0:
@@ -782,7 +780,7 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
         additional_previous_wp_targets=None
 
     bev_semantic_labels=data["bev_semantic"].to(torch.long).to(device_id)
-    return all_images,current_speed,target_point,wp_targets,previous_wp_targets,additional_previous_wp_targets,bev_semantic_labels
+    return all_images,all_speeds,target_point,wp_targets,previous_wp_targets,additional_previous_wp_targets,bev_semantic_labels
 
 if __name__ == "__main__":
     import argparse
