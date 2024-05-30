@@ -860,14 +860,14 @@ if __name__ == "__main__":
         "--bev",
         type=int,
         choices=[0,1],
-        required=True
+        default=0
 
     )
     parser.add_argument(
         "--lossweights",
         nargs="+",
         type=float,
-        required=True
+        default=[1, 0]
 
     )
     parser.add_argument("--dataset-repetition", type=int, default=1)
