@@ -61,4 +61,4 @@ eval "$(conda shell.bash hook)"
 conda activate garage
 export OMP_NUM_THREADS=24  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline-folder-name arp --number-of-workers 24 --training-repetition 0 --use-disk-cache 1 --batch-size 10 --setting 02_withheld --dataset-repetition 3 --speed 0 --prevnum 0 --bev 0 --lossweights 1 0 --backbone stacking
+torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline-folder-name arp --number-of-workers 24 --training-repetition 0 --use-disk-cache 1 --batch-size 5 --setting 02_withheld --dataset-repetition 3 --speed 0 --prevnum 0 --bev 0 --lossweights 1 0 --backbone stacking
