@@ -173,21 +173,13 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
                         self.angle_distribution.append(angle_index)
                         self.speed_distribution.append(target_speed_index)
-                    #if we want additional inputs from the past as ablation
-                    if self.config.prevnum>0:
-                        additional_temporal_measurements=[]    
-                        for idx in reversed(range(1, self.config.prevnum + 1 +1)):
-                            if seq - idx >= 0:
-                                if not self.config.use_plant:
-                                    additional_temporal_measurements.append(
-                                        route_dir + "/measurements" + (f"/{(seq - idx):04}.json.gz"))
-                        self.additional_temporal_measurements.append(additional_temporal_measurements)
-                    if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0:
+                    if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0:
                         temporal_measurements = []
                         temporal_lidars = []
                         number_of_required_measurements = max(
                             self.config.lidar_seq_len,
                             self.config.number_previous_waypoints,
+                            self.config.max_img_seq_len_baselines+1 if bool(self.config.speed) or self.config.prevnum>0 else 0
                         )
                         #if we have arp as baseline we want to go one timestep into the past
                         for idx in reversed(range(1, number_of_required_measurements + 1)):
@@ -295,8 +287,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         self.temporal_measurements = np.array(
             [list(map(np.string_, sublist)) for sublist in self.temporal_measurements]
         )
-        self.additional_temporal_measurements=np.array(
-            [list(map(np.string_, sublist)) for sublist in self.additional_temporal_measurements])
         self.future_measurements = np.array([list(map(np.string_, sublist)) for sublist in self.future_measurements])
         self.sample_start = np.array(self.sample_start)
         if rank == 0:
@@ -342,10 +332,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         future_boxes = self.future_boxes[index]
         measurements = self.measurements[index]
         sample_start = self.sample_start[index]
-        if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0:
+        if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0:
             temporal_measurements = self.temporal_measurements[index]
-        if self.config.prevnum>0:
-            additional_temporal_measurements=self.additional_temporal_measurements[index]
         if self.config.lidar_seq_len > 1:
             temporal_lidars = self.temporal_lidars[index]
         if self.config.img_seq_len > 1:
@@ -666,11 +654,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             loaded_boxes.append(boxes_i)
             loaded_future_boxes.append(future_boxes_i)
 
-        if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0:
+        if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0:
             loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
-        if self.config.prevnum>0:
-            additional_loaded_temporal_measurements= self.load_temporal_measurements(additional_temporal_measurements)
-
 
         assert len(loaded_temporal_images) == max(
             0, self.config.img_seq_len - 1
@@ -879,19 +864,27 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             data["ego_waypoints"] = np.array(current_waypoints, dtype=np.float32)
             if self.config.number_previous_waypoints>0:
                 waypoints_per_step,_= self.get_waypoints(
-                    loaded_temporal_measurements[self.config.seq_len - 1 :],
+                    loaded_temporal_measurements[self.config.seq_len - 1 -self.config.pred_len-1:],
                     y_augmentation=aug_translation,
                     yaw_augmentation=aug_rotation,
                     origin=origin_current
                 )
                 data["previous_ego_waypoints"] = np.array(waypoints_per_step, dtype=np.float32)
             if self.config.prevnum>0:
-                additional_waypoints_per_step,_= self.get_waypoints(
-                    additional_loaded_temporal_measurements[self.config.seq_len - 1 :], #load additional waypoints that we use as additional input in ablations (more previous ones)
-                    y_augmentation=aug_translation,
-                    yaw_augmentation=aug_rotation,
-                    origin=origin_current
-                )
+                if "arp" in self.config.baseline_folder_name:
+                    additional_waypoints_per_step,_= self.get_waypoints(
+                        loaded_temporal_measurements[self.config.seq_len - 1 :-self.config.pred_len],
+                        y_augmentation=aug_translation,
+                        yaw_augmentation=aug_rotation,
+                        origin=origin_current
+                    )
+                else:
+                    additional_waypoints_per_step,_= self.get_waypoints(
+                        loaded_temporal_measurements[self.config.seq_len - 1:],
+                        y_augmentation=aug_translation,
+                        yaw_augmentation=aug_rotation,
+                        origin=origin_current
+                    )
                 data["additional_waypoints_ego_system"] = np.array(additional_waypoints_per_step, dtype=np.float32)
             if loaded_temporal_measurements:
                 data["ego_matrix_previous"]=np.array(loaded_temporal_measurements[0]["ego_matrix"])
@@ -937,7 +930,15 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             data["light"] = current_measurement["light_hazard"]
             data["stop_sign"] = current_measurement["stop_sign_hazard"]
             data["junction"] = current_measurement["junction"]
-            data["speed"] = np.float32(current_measurement["speed"])
+            current_speed=np.array([current_measurement["speed"]], dtype=np.float32)
+            if not loaded_temporal_measurements:
+                data["speed"]= current_speed
+            else:
+                if "arp" in self.config.baseline_folder_name:
+                    temporal_speeds=np.array([meas["speed"] for meas in loaded_temporal_measurements], dtype=np.float32)[1:-self.config.pred_len]
+                else:
+                    temporal_speeds=np.array([meas["speed"] for meas in loaded_temporal_measurements], dtype=np.float32)[1:]
+                data["speed"]=np.concatenate((temporal_speeds,current_speed))
             data["theta"] = current_measurement["theta"]
             data["command"] = t_u.command_to_one_hot(current_measurement["command"])
             data["next_command"] = t_u.command_to_one_hot(current_measurement["next_command"])
