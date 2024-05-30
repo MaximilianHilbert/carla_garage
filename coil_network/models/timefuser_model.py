@@ -178,9 +178,9 @@ class TimeFuser(nn.Module):
         additional_inputs=[input for input in [memory_to_fuse, measurement_enc, prev_wp_enc] if input is not None]
         if additional_inputs:
             additional_inputs=torch.cat(additional_inputs, dim=1)
+            x=torch.cat((x.flatten(start_dim=2),additional_inputs), axis=1)
         else:
-            additional_inputs=torch.empty(0).cuda()
-        x=torch.cat((x.flatten(start_dim=2),additional_inputs), axis=1)
+            x=x.flatten(start_dim=2)
         x=self.transformer_encoder(x)
         wp_query=self.wp_query.repeat(bs,1,1)+self.output_token_pos_embedding_wp.repeat(bs, 1, 1)
         x=self.transformer_decoder(wp_query, x)
