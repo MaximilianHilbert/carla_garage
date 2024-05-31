@@ -329,9 +329,9 @@ def main(args):
                         loss.backward()
                         optimizer.step()
                         scheduler.step()
-                        if epoch>2500:
-                            visualize_model(rgb=torch.squeeze(data["rgb"],1),config=merged_config_object, save_path="/home/maximilian/test", gt_bev_semantic=bev_semantic_labels,lidar_bev=data["lidar"], target_point=
-                                            data["target_point"], pred_wp=pred_wp,step=iteration,pred_bev_semantic=pred_bev_semantic, gt_wp=data["ego_waypoints"])
+                        if epoch>300:
+                            visualize_model(rgb=torch.squeeze(data["rgb"],1),config=merged_config_object, save_path=os.path.join(os.environ.get("WORK_DIR"), "test"), gt_bev_semantic=bev_semantic_labels,lidar_bev=data["lidar"], target_point=
+                                                data["target_point"], pred_wp=pred_wp,step=iteration,pred_bev_semantic=pred_bev_semantic, gt_wp=data["ego_waypoints"])
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                             state = {
                                 "epoch": epoch,
