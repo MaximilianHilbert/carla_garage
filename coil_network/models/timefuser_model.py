@@ -47,27 +47,32 @@ class TimeFuser(nn.Module):
         if self.config.prevnum>0 and self.name!="arp-policy":
             #we input the previous waypoints in our ablations only in the memory stream of arp
             self.previous_wp_layer = nn.Linear(in_features=self.config.target_point_size*self.config.prevnum, out_features=self.flattened_channel_dimension)
+        decoder_norm=nn.LayerNorm(self.flattened_channel_dimension)
         transformer_encoder_layer=nn.TransformerEncoderLayer(d_model=self.flattened_channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
-        self.transformer_encoder=nn.TransformerEncoder(encoder_layer=transformer_encoder_layer,num_layers=self.config.num_transformer_layers)
+        self.transformer_encoder=nn.TransformerEncoder(encoder_layer=transformer_encoder_layer,num_layers=self.config.num_transformer_layers, norm=decoder_norm)
 
         transformer_decoder_layer=nn.TransformerDecoderLayer(d_model=self.flattened_channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
-        self.transformer_decoder=nn.TransformerDecoder(decoder_layer=transformer_decoder_layer, num_layers=self.config.num_transformer_layers)
+        self.transformer_decoder=nn.TransformerDecoder(decoder_layer=transformer_decoder_layer, num_layers=self.config.num_transformer_layers, norm=decoder_norm)
         self.wp_query = nn.Parameter(
                         torch.zeros(
                             self.config.pred_len,
                             self.flattened_channel_dimension,
                         )
                     )
-        # self.bev_query=nn.Parameter(
-        #                 torch.zeros(
-        #                     self.config.num_bev_query, self.config.num_bev_query,
-        #                     self.channel_dimension,
-        #                 )
-        #             )
-        #decoder_norm=nn.LayerNorm(self.config.gru_hidden_size)
+        if self.config.bev:
+            self.bev_query=nn.Parameter(
+                            torch.zeros(
+                                self.config.num_bev_query**2,
+                                self.flattened_channel_dimension,
+                            )
+                        )
+        # positional embeddings with respect to themselves (between individual tokens of the same type)
         self.output_token_pos_embedding_wp = nn.Parameter(torch.zeros(self.config.pred_len, self.flattened_channel_dimension))
-        #self.output_token_pos_embedding_bev = nn.Parameter(torch.zeros(self.config.num_bev_query, self.config.num_bev_query, self.channel_dimension))
-        
+        self.output_token_pos_embedding_bev = nn.Parameter(torch.zeros(self.config.num_bev_query**2, self.flattened_channel_dimension))
+        # positional embeddings with respect to one another (between sets of tokens of different types)
+        #self.output_token_pos_embedding_wp = nn.Parameter(torch.zeros(self.config.pred_len, self.flattened_channel_dimension))
+        #self.output_token_pos_embedding_bev = nn.Parameter(torch.zeros(self.config.num_bev_query, self.config.num_bev_query, self.flattened_channel_dimension))
+
         # decoder_layer = nn.TransformerDecoderLayer(
         #             self.channel_dimension,
         #             self.config.transformer_heads,
@@ -92,22 +97,22 @@ class TimeFuser(nn.Module):
             # Register as parameter so that it will automatically be moved to the correct GPU with the rest of the network
             self.valid_bev_pixels = nn.Parameter(valid_bev_pixels, requires_grad=False)
             #self.valid_bev_pixels_inv = nn.Parameter(valid_bev_pixels_inv, requires_grad=False)
-            decoder_norm=nn.LayerNorm(self.config.bev_features_channels)
-            bev_token_decoder= nn.TransformerDecoderLayer(
-                        self.config.lower_channel_dimension,
-                        self.config.num_decoder_heads_bev,
-                        activation=nn.GELU(),
-                        batch_first=True,
-                    )
-            self.bev_token_decoder = torch.nn.TransformerDecoder(
-                        bev_token_decoder,
-                        num_layers=self.config.bev_decoder_layer,
-                        norm=decoder_norm,
-                    )
+            #decoder_norm=nn.LayerNorm(self.config.bev_features_channels)
+            # bev_token_decoder= nn.TransformerDecoderLayer(
+            #             self.config.lower_channel_dimension,
+            #             self.config.num_decoder_heads_bev,
+            #             activation=nn.GELU(),
+            #             batch_first=True,
+            #         )
+            # self.bev_token_decoder = torch.nn.TransformerDecoder(
+            #             bev_token_decoder,
+            #             num_layers=self.config.bev_decoder_layer,
+            #             norm=decoder_norm,
+            #         )
             self.bev_semantic_decoder = nn.Sequential(
                 nn.Conv2d(
-                    self.config.bev_features_channels,
-                    self.config.bev_features_channels,
+                    self.flattened_channel_dimension,
+                    self.flattened_channel_dimension,
                     kernel_size=(3, 3),
                     stride=1,
                     padding=(1, 1),
@@ -115,7 +120,7 @@ class TimeFuser(nn.Module):
                 ),
                 nn.ReLU(inplace=True),
                 nn.Conv2d(
-                    self.config.bev_features_channels,
+                    self.flattened_channel_dimension,
                     self.config.num_bev_semantic_classes,
                     kernel_size=(1, 1),
                     stride=1,
@@ -183,10 +188,14 @@ class TimeFuser(nn.Module):
             x=x.flatten(start_dim=2)
         x=self.transformer_encoder(x)
         wp_query=self.wp_query.repeat(bs,1,1)+self.output_token_pos_embedding_wp.repeat(bs, 1, 1)
-        x=self.transformer_decoder(wp_query, x)
-        x=self.wp_gru(x, target_point)
-  
-
+        wp_tokens=self.transformer_decoder(wp_query, x)
+        wp_tokens=self.wp_gru(wp_tokens, target_point)
+        if self.config.bev:
+            bev_query=self.bev_query.repeat(bs,1,1)+self.output_token_pos_embedding_bev.repeat(bs, 1,1)
+            bev_tokens=self.transformer_decoder(bev_query, x)
+            bev_tokens=bev_tokens.reshape(bs,self.config.num_bev_query,self.config.num_bev_query,-1).permute(0, -1, 1,2).contiguous()
+            pred_bev_grid=self.bev_semantic_decoder(bev_tokens)
+            pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
         #eventually decode to wp tokens via transformer decoder, later use gru to unroll to actual waypoints
         # if self.config.bev:
         #     encoding_positional=self.encoder_pos_encoding_two_dim(x.reshape(-1, 1, 16,32))
@@ -212,9 +221,9 @@ class TimeFuser(nn.Module):
         #     pred_bev_grid=self.bev_semantic_decoder(bev_tokens.unsqueeze(2).unsqueeze(2))
         #     pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
         # else:
-        pred_bev_semantic=None
 
-        return pred_bev_semantic, x, generated_memory
+
+        return pred_bev_semantic, wp_tokens, generated_memory
 
     def create_resnet_backbone(self, config, number_first_layer_channels):
         self.image_encoder=AIMBackbone(config)
