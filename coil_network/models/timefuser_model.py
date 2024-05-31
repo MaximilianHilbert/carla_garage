@@ -196,6 +196,8 @@ class TimeFuser(nn.Module):
             bev_tokens=bev_tokens.reshape(bs,self.config.num_bev_query,self.config.num_bev_query,-1).permute(0, -1, 1,2).contiguous()
             pred_bev_grid=self.bev_semantic_decoder(bev_tokens)
             pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
+        else:
+            pred_bev_semantic=None
         #eventually decode to wp tokens via transformer decoder, later use gru to unroll to actual waypoints
         # if self.config.bev:
         #     encoding_positional=self.encoder_pos_encoding_two_dim(x.reshape(-1, 1, 16,32))
