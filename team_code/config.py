@@ -49,7 +49,7 @@ class GlobalConfig:
         self.num_bev_query=8
 
         #use self.learning_rate = 0.001 for debugging with batchsize 10 on one_sample
-        self.learning_rate = 0.0001
+        self.learning_rate = 1e-5
         self.use_color_aug= 0
         self.augment=0 
         self.every_epoch = 2
