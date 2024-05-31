@@ -329,9 +329,9 @@ def main(args):
                         loss.backward()
                         optimizer.step()
                         scheduler.step()
-                        if epoch>300:
-                            visualize_model(rgb=torch.squeeze(data["rgb"],1),config=merged_config_object, save_path=os.path.join(os.environ.get("WORK_DIR"), "test"), gt_bev_semantic=bev_semantic_labels,lidar_bev=data["lidar"], target_point=
-                                                data["target_point"], pred_wp=pred_wp,step=iteration,pred_bev_semantic=pred_bev_semantic, gt_wp=data["ego_waypoints"])
+                        # if epoch>300:
+                        #     visualize_model(rgb=torch.squeeze(data["rgb"],1),config=merged_config_object, save_path=os.path.join(os.environ.get("WORK_DIR"), "test"), gt_bev_semantic=bev_semantic_labels,lidar_bev=data["lidar"], target_point=
+                        #                         data["target_point"], pred_wp=pred_wp,step=iteration,pred_bev_semantic=pred_bev_semantic, gt_wp=data["ego_waypoints"])
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                             state = {
                                 "epoch": epoch,
@@ -600,7 +600,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         converter[1][0:3] = 40
         bev_semantic_image = converter[bev_semantic_indices, ...].astype("uint8")
         alpha = np.ones_like(bev_semantic_indices) * 0.33
-        alpha = alpha.astype(np.float)
+        alpha = alpha.astype(float)
         alpha[bev_semantic_indices == 0] = 0.0
         alpha[bev_semantic_indices == 1] = 0.1
 
