@@ -1,14 +1,13 @@
 #!/bin/sh
-#SBATCH --job-name=arp_test
+#SBATCH --job-name=bcso_test
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --partition=week
+#SBATCH --partition=a100-galvani
 #SBATCH --time=00-12:00
-#SBATCH --gres=gpu:4
-#SBATCH --cpus-per-task=24
-#SBATCH --mem-per-cpu=9G
-#SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
-#SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
+#SBATCH --gres=gpu:8
+#SBATCH --cpus-per-task=32
+#SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
+#SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
 
 #local
 # export WORK_DIR=/home/maximilian/Master/carla_garage
@@ -37,8 +36,8 @@
 export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export CARLA_ROOT=${WORK_DIR}/carla
-#export DATASET_ROOT=/mnt/qb/work2/geiger0/bjaeger25/datasets/hb_dataset_v08_2023_05_10
-DATASET_ROOT=/mnt/qb/work/geiger/gwb629/datasets/one_curve
+export DATASET_ROOT=/mnt/qb/work2/geiger0/bjaeger25/datasets/hb_dataset_v08_2023_05_10
+#export DATASET_ROOT=/mnt/qb/work/geiger/gwb629/datasets/one_curve
 export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 export TEAM_CODE=$WORK_DIR/team_code
 export COIL_NETWORK=${WORK_DIR}/coil_network
@@ -60,6 +59,6 @@ conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 # source /home/hilbert/.bashrc
 # eval "$(conda shell.bash hook)"
 # conda activate garage
-export OMP_NUM_THREADS=60  # Limits pytorch to spawn at most num cpus cores threads
+export OMP_NUM_THREADS=32  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline-folder-name bcso --number-of-workers 60 --training-repetition 0 --use-disk-cache 1 --batch-size 5 --setting 02_withheld --dataset-repetition 3 --speed 0 --prevnum 0 --bev 1 --lossweights 0 1 --backbone stacking
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline-folder-name bcso --number-of-workers 4 --training-repetition 0 --use-disk-cache 1 --batch-size 10 --setting 02_withheld --dataset-repetition 3 --speed 0 --prevnum 0 --bev 1 --lossweights 0 1 --backbone stacking

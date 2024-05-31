@@ -43,7 +43,7 @@ class GlobalConfig:
         # Training
         #TimeFuser
         self.img_encoding_remaining_spatial_dim=(2,8)
-        self.lower_channel_dimension=256 #change to 64
+        self.lower_channel_dimension=128 #change to 64
         self.transformer_heads=8
         self.num_transformer_layers=6
         self.num_bev_query=8
