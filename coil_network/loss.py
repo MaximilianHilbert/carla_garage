@@ -13,7 +13,7 @@ def l2(params):
 
 def branched_loss(loss_function, params):
     losses=[]
-    main_loss = loss_function(params["pred_wp"], params["targets"])
+    main_loss = loss_function(params["wp_predictions"], params["targets"])
     losses.append(main_loss)
     if params["config"].bev:
         if params["config"].use_label_smoothing:
@@ -30,6 +30,8 @@ def branched_loss(loss_function, params):
         visible_bev_semantic_label = (params["valid_bev_pixels"].squeeze(1).int() - 1) + visible_bev_semantic_label
         loss_bev=loss_bev_semantic(params["pred_bev_semantic"], visible_bev_semantic_label)
         losses.append(loss_bev)
+    else:
+        return torch.sum(torch.stack(losses)).to(device=params["device_id"])
     return torch.sum(torch.stack(losses)*torch.tensor(params["config"].lossweights).to(device=params["device_id"]))
 
 

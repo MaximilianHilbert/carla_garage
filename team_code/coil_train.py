@@ -109,7 +109,7 @@ def main(args):
                 tmp_folder = str(os.environ.get("SCRATCH", "/tmp"))
             print("Tmp folder for dataset cache: ", tmp_folder)
             tmp_folder = tmp_folder + "/dataset_cache"
-            shared_dict = Cache(directory=tmp_folder, size_limit=int(2000 * 1024**3))
+            shared_dict = Cache(directory=tmp_folder, size_limit=int(1800 * 1024**3))
         else:
             shared_dict = None
         # introduce new dataset from the Paper TransFuser++
@@ -161,7 +161,7 @@ def main(args):
         else:
             model = TimeFuser(merged_config_object.baseline_folder_name, merged_config_object)
             model.to(device_id)
-            model = DDP(model, device_ids=[device_id])
+            model = DDP(model, device_ids=[device_id],find_unused_parameters=True)
 
         if "arp" in merged_config_object.experiment:
             policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
@@ -299,7 +299,7 @@ def main(args):
                         optimizer.zero_grad()
                     
                     if "bcso" in merged_config_object.experiment or "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
-                        pred_bev_semantic, pred_wp, _= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
+                        pred_dict= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
     
                     if "keyframes" in merged_config_object.experiment:
                         reweight_params = {
@@ -313,13 +313,11 @@ def main(args):
                         reweight_params = {}
                     if "arp" not in merged_config_object.experiment:
                         loss_function_params = {
-                            "pred_wp": pred_wp,
-                            "pred_bev_semantic": pred_bev_semantic,
-                            "bev_targets": bev_semantic_labels,
+                            **pred_dict,
+                            "bev_targets": bev_semantic_labels if merged_config_object.bev else None,
                             "targets": targets,
                             **reweight_params,
                             "device_id": device_id,
-                            "valid_bev_pixels": model.module.valid_bev_pixels if merged_config_object.bev else None,
                             "config": merged_config_object,
                         }
                         if "keyframes" in merged_config_object.experiment:
@@ -329,7 +327,7 @@ def main(args):
                         loss.backward()
                         optimizer.step()
                         scheduler.step()
-                        # if epoch>300:
+                        # if epoch>2800:
                         #     visualize_model(rgb=torch.squeeze(data["rgb"],1),config=merged_config_object, save_path=os.path.join(os.environ.get("WORK_DIR"), "test"), gt_bev_semantic=bev_semantic_labels,lidar_bev=data["lidar"], target_point=
                         #                         data["target_point"], pred_wp=pred_wp,step=iteration,pred_bev_semantic=pred_bev_semantic, gt_wp=data["ego_waypoints"])
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
@@ -840,19 +838,20 @@ if __name__ == "__main__":
         "--speed",
         type=int,
         choices=[0,1],
-        required=True
+        default=0,
     )
     parser.add_argument(
         "--prevnum",
         type=int,
         choices=[0,1],
-        required=True,
+        default=0,
         help="n-1 is considered"
     )
     parser.add_argument(
         "--backbone",
         type=str,
         choices=["stacking","unrolling"],
+        default="stacking",
         required=True
 
     )
@@ -861,6 +860,19 @@ if __name__ == "__main__":
         type=int,
         choices=[0,1],
         default=0
+
+    )
+    parser.add_argument(
+        "--reducedchanneldim",
+        type=int,
+        choices=[64,128,256,512],
+        default=128
+
+    )
+    parser.add_argument(
+        "--numtransformerlayers",
+        type=int,
+        default=2
 
     )
     parser.add_argument(

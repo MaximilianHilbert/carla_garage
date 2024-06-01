@@ -43,17 +43,15 @@ class GlobalConfig:
         # Training
         #TimeFuser
         self.img_encoding_remaining_spatial_dim=(2,8)
-        self.lower_channel_dimension=128 #change to 64
         self.transformer_heads=8
-        self.num_transformer_layers=6
         self.num_bev_query=8
         self.bev_height=256
         self.bev_width=256
         #use self.learning_rate = 0.001 for debugging with batchsize 10 on one_sample
-        self.learning_rate = 1e-4
+        self.learning_rate = 1e-5
         self.use_color_aug= 0
         self.augment=0 
-        self.every_epoch = 2
+        self.every_epoch = 5
         self.loss_function_baselines = "L1"
         # keyframes
         self.importance_sample_method = "threshold"

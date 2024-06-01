@@ -143,13 +143,6 @@ def main(args):
             else:
                 combinations=generate_ablation_combinations(args)
                 for experiment in combinations:
-                    if "backbone" in experiment.keys():
-                        if experiment["backbone"]==0:
-                            experiment["backbone"]="stacking"
-                        else:
-                            experiment["backbone"]="rnn"
-                    else:
-                        experiment["backbone"]="stacking"
                     if "speed" not in experiment.keys():
                         experiment["speed"]=0
                     # in case we want to ablate prevnum we set it to the past 6 waypoints, because our baselines consider 6 previous frames

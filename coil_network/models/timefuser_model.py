@@ -22,15 +22,15 @@ class TimeFuser(nn.Module):
         #TODO if not working for multiframe stacking, use regular resnet of baselines,
         #because 21 channels -> 32 now in first layer
         original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
-
-        #we use that to reduce the computational load of >1500 channel dim to get down to 512
+        self.channel_dimension=self.config.reducedchanneldim
+        #we use that to reduce the computational load of >1500 channel dim to get down to about 128
         self.change_channel = nn.Conv2d(
                     original_channel_dimension,
-                    self.config.lower_channel_dimension,
+                    self.channel_dimension,
                     kernel_size=1,
                 )
         
-        self.channel_dimension=self.config.lower_channel_dimension
+        
         self.flattened_channel_dimension=self.channel_dimension*self.config.img_encoding_remaining_spatial_dim[0]*self.config.img_encoding_remaining_spatial_dim[1]
         self.time_position_embedding = nn.Parameter(torch.zeros(self.channel_dimension, self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
         self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
@@ -49,10 +49,10 @@ class TimeFuser(nn.Module):
             self.previous_wp_layer = nn.Linear(in_features=self.config.target_point_size*self.config.prevnum, out_features=self.flattened_channel_dimension)
         decoder_norm=nn.LayerNorm(self.flattened_channel_dimension)
         transformer_encoder_layer=nn.TransformerEncoderLayer(d_model=self.flattened_channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
-        self.transformer_encoder=nn.TransformerEncoder(encoder_layer=transformer_encoder_layer,num_layers=self.config.num_transformer_layers, norm=decoder_norm)
+        self.transformer_encoder=nn.TransformerEncoder(encoder_layer=transformer_encoder_layer,num_layers=self.config.numtransformerlayers, norm=decoder_norm)
 
         transformer_decoder_layer=nn.TransformerDecoderLayer(d_model=self.flattened_channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
-        self.transformer_decoder=nn.TransformerDecoder(decoder_layer=transformer_decoder_layer, num_layers=self.config.num_transformer_layers, norm=decoder_norm)
+        self.transformer_decoder=nn.TransformerDecoder(decoder_layer=transformer_decoder_layer, num_layers=self.config.numtransformerlayers, norm=decoder_norm)
         self.wp_query = nn.Parameter(
                         torch.zeros(
                             self.config.pred_len,
@@ -69,21 +69,7 @@ class TimeFuser(nn.Module):
         # positional embeddings with respect to themselves (between individual tokens of the same type)
         self.output_token_pos_embedding_wp = nn.Parameter(torch.zeros(self.config.pred_len, self.flattened_channel_dimension))
         self.output_token_pos_embedding_bev = nn.Parameter(torch.zeros(self.config.num_bev_query**2, self.flattened_channel_dimension))
-        # positional embeddings with respect to one another (between sets of tokens of different types)
-        #self.output_token_pos_embedding_wp = nn.Parameter(torch.zeros(self.config.pred_len, self.flattened_channel_dimension))
-        #self.output_token_pos_embedding_bev = nn.Parameter(torch.zeros(self.config.num_bev_query, self.config.num_bev_query, self.flattened_channel_dimension))
-
-        # decoder_layer = nn.TransformerDecoderLayer(
-        #             self.channel_dimension,
-        #             self.config.transformer_heads,
-        #             batch_first=True,
-        #         )
-        # self.transformer_decoder = nn.TransformerDecoder(
-        #             decoder_layer,
-        #             num_layers=self.config.num_transformer_layers,
-        #             #norm=decoder_norm,
-        #         )
-       
+     
 
         self.wp_gru = GRUWaypointsPredictorTransFuser(config, pred_len=self.config.pred_len, hidden_size=self.config.gru_hidden_size,target_point_size=self.config.target_point_size)
         if self.config.bev:
@@ -93,22 +79,9 @@ class TimeFuser(nn.Module):
             # Conversion from CARLA coordinates x depth, y width to image coordinates x width, y depth.
             # Analogous to transpose after the LiDAR histogram
             valid_bev_pixels = torch.transpose(valid_bev_pixels, 2, 3).contiguous()
-            #valid_bev_pixels_inv = 1.0 - valid_bev_pixels
             # Register as parameter so that it will automatically be moved to the correct GPU with the rest of the network
             self.valid_bev_pixels = nn.Parameter(valid_bev_pixels, requires_grad=False)
-            #self.valid_bev_pixels_inv = nn.Parameter(valid_bev_pixels_inv, requires_grad=False)
-            #decoder_norm=nn.LayerNorm(self.config.bev_features_channels)
-            # bev_token_decoder= nn.TransformerDecoderLayer(
-            #             self.config.lower_channel_dimension,
-            #             self.config.num_decoder_heads_bev,
-            #             activation=nn.GELU(),
-            #             batch_first=True,
-            #         )
-            # self.bev_token_decoder = torch.nn.TransformerDecoder(
-            #             bev_token_decoder,
-            #             num_layers=self.config.bev_decoder_layer,
-            #             norm=decoder_norm,
-            #         )
+           
             self.bev_semantic_decoder = nn.Sequential(
                 nn.Conv2d(
                     self.flattened_channel_dimension,
@@ -143,6 +116,7 @@ class TimeFuser(nn.Module):
                 nn.init.constant_(m.bias, 0.1)
 
     def forward(self, x, speed=None, target_point=None, prev_wp=None, memory_to_fuse=None):
+        pred_dict={}
         bs=x.shape[0]
         if self.config.backbone=="stacking":
             x=torch.cat([x[:, i,...] for i in range(self.img_token_len)], axis=1)
@@ -178,8 +152,7 @@ class TimeFuser(nn.Module):
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
             generated_memory=x.flatten(start_dim=2)
-        else:
-            generated_memory=None
+            pred_dict.update({"memory": generated_memory})
         additional_inputs=[input for input in [memory_to_fuse, measurement_enc, prev_wp_enc] if input is not None]
         if additional_inputs:
             additional_inputs=torch.cat(additional_inputs, dim=1)
@@ -190,42 +163,16 @@ class TimeFuser(nn.Module):
         wp_query=self.wp_query.repeat(bs,1,1)+self.output_token_pos_embedding_wp.repeat(bs, 1, 1)
         wp_tokens=self.transformer_decoder(wp_query, x)
         wp_tokens=self.wp_gru(wp_tokens, target_point)
+        pred_dict.update({"wp_predictions": wp_tokens})
         if self.config.bev:
             bev_query=self.bev_query.repeat(bs,1,1)+self.output_token_pos_embedding_bev.repeat(bs, 1,1)
             bev_tokens=self.transformer_decoder(bev_query, x)
             bev_tokens=bev_tokens.reshape(bs,self.config.num_bev_query,self.config.num_bev_query,-1).permute(0, -1, 1,2).contiguous()
             pred_bev_grid=self.bev_semantic_decoder(bev_tokens)
             pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
-        else:
-            pred_bev_semantic=None
-        #eventually decode to wp tokens via transformer decoder, later use gru to unroll to actual waypoints
-        # if self.config.bev:
-        #     encoding_positional=self.encoder_pos_encoding_two_dim(x.reshape(-1, 1, 16,32))
-        #     encoding_positional=x.reshape(-1, 1, 16,32)+encoding_positional.repeat(bs, 1,1,1)
-        # if self.config.td:
-        #     encoding_positional=self.encoder_pos_encoding_one_dim(x)
-        #     if additional_inputs.numel()>0:
-        #         additional_inputs_with_pos_embedding=additional_inputs+self.extra_sensor_pos_embed.repeat(bs, 1)
-        #         additional_inputs_with_pos_embedding=additional_inputs_with_pos_embedding.unsqueeze(2)
-        #         additional_inputs_with_pos_embedding=additional_inputs_with_pos_embedding.expand(-1, -1, self.config.positional_embedding_dim)
-        #         encoding_positional = torch.cat((encoding_positional, additional_inputs_with_pos_embedding), axis=1) #64 per additional input, so in case of memory input, speed, prev_wp we have 512 (resnet), 64 (memory), 64 (speed), 64 (prev_wp)
-        #         output = self.join(self.wp_query.repeat(bs, 1, 1), encoding_positional)
-        # if not self.config.td:
-        #     #use fc layer for joining encoding or default to backbone outputs only
-        #     if additional_inputs.numel()>0:
-        #         joined_encoding=torch.cat((x, additional_inputs), axis=1)
-        #         joined_encoding = self.join(joined_encoding)
-        #     else:
-        #         joined_encoding = self.join(x)
-        #     output = self.fc_vector(joined_encoding)
-        # if self.config.bev:
-        #     bev_tokens=self.bev_token_decoder(self.bev_query.repeat(bs, 1, 1), encoding_positional).squeeze(1)
-        #     pred_bev_grid=self.bev_semantic_decoder(bev_tokens.unsqueeze(2).unsqueeze(2))
-        #     pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
-        # else:
-
-
-        return pred_bev_semantic, wp_tokens, generated_memory
+            pred_dict.update({"pred_bev_semantic": pred_bev_semantic})
+            pred_dict.update({"valid_bev_pixels":self.valid_bev_pixels})
+        return pred_dict
 
     def create_resnet_backbone(self, config, number_first_layer_channels):
         self.image_encoder=AIMBackbone(config)
