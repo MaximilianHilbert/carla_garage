@@ -852,7 +852,6 @@ if __name__ == "__main__":
         type=str,
         choices=["stacking","unrolling"],
         default="stacking",
-        required=True
 
     )
     parser.add_argument(
