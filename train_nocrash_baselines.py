@@ -110,7 +110,7 @@ source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --speed {experiment["speed"] if "speed" in experiment.keys() else 0} --prevnum {experiment["prevnum"] if "prevnum" in experiment.keys() else 0} --backbone {experiment["backbone"] if "backbone" in experiment.keys() else "stacking"} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --experiment {experiment} --number-of-workers 8 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --speed {experiment["speed"] if "speed" in experiment.keys() else 0} --prevnum {experiment["prevnum"] if "prevnum" in experiment.keys() else 0} --backbone {experiment["backbone"] if "backbone" in experiment.keys() else "stacking"} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --number-of-workers 8 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
 """
             f.write(command)
 
