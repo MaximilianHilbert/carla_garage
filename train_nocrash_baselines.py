@@ -82,7 +82,7 @@ torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
 #SBATCH --nodes=1
 #SBATCH --time=0-{walltime}:00
 #SBATCH --gres=gpu:8
-#SBATCH --partition=2080-galvani
+#SBATCH --partition=a100-galvani
 #SBATCH --cpus-per-task=64
 #SBATCH --output="/mnt/qb/work/geiger/gwb629/slurmlogs/{complete_string}.out"
 #SBATCH --error="/mnt/qb/work/geiger/gwb629/slurmlogs/{complete_string}.err"
