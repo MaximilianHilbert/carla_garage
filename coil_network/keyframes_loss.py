@@ -29,7 +29,7 @@ def branched_loss(loss_function, params):
         The computed loss function, but also a dictionary with plotable variables for tensorboard
     """
 
-    loss = loss_function(params["pred_wp"], params["targets"])
+    loss = loss_function(params["wp_predictions"], params["targets"])
 
 
     """ importance sampling """

@@ -62,6 +62,19 @@ if __name__ == "__main__":
         help="dataloader workers",
     )
     parser.add_argument(
+        "--speed",
+        type=int,
+        choices=[0,1],
+        default=0,
+    )
+    parser.add_argument(
+        "--prevnum",
+        type=int,
+        choices=[0,1],
+        default=0,
+        help="n-1 is considered"
+    )
+    parser.add_argument(
         "--seeds",
         dest="seeds",
         type=int,

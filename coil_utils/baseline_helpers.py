@@ -79,17 +79,15 @@ def merge_with_command_line_args(config, args):
 
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
-    if config.prevnum==1:
-        setattr(config, "prevnum", config.max_img_seq_len_baselines)
-    if "arp" not in config.experiment:
-        setattr(config, "number_previous_waypoints", 0)
-        
     if "bcoh" in config.experiment or "arp" in config.experiment or "keyframes" in config.experiment:
         setattr(config, "img_seq_len", 7) # means a total of 7 frames get used (6 historical frames)
+        setattr(config, "number_previous_waypoints", 0)
     if "keyframes" in config.experiment:
         setattr(config, "correlation_weights", True)
+        setattr(config, "number_previous_waypoints", 0)
     if "bcso" in config.experiment: #only single observation model
         setattr(config, "img_seq_len", 1)
+        setattr(config, "number_previous_waypoints", 0)
     if "arp" in config.experiment:
         setattr(config, "number_previous_waypoints", 1) #means that we use the current-1 as first step for the sequence of arp (a_n-1-a_n)
     if "waypoint_weight_generation" in config.experiment:
@@ -100,11 +98,14 @@ def set_baseline_specific_args(config, experiment_name, args):
         setattr(config, "epochs_baselines", 300)
         setattr(config, "waypoint_weight_generation", True)
     #take ablation args from experiment name
-    if experiment_name in "waypoint_weight_generation_training":
+    if experiment_name!="waypoint_weight_generation_training" and experiment_name!="waypoint_weight_generation_inference":
         for arg in experiment_name.split("_"):
             arg_name, arg_value=arg.split("-")
             try:
-                setattr(config, arg_name, int(arg_value))
+                if arg_name=="prevnum":
+                    setattr(config, "prevnum", config.max_img_seq_len_baselines)
+                else:
+                    setattr(config, arg_name, int(arg_value))
             except ValueError:
                 setattr(config, arg_name, arg_value)
     return config

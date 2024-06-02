@@ -89,6 +89,19 @@ if __name__ == "__main__":
         default=0,
         help="repetition",
     )
+    parser.add_argument(
+        "--speed",
+        type=int,
+        choices=[0,1],
+        default=0,
+    )
+    parser.add_argument(
+        "--prevnum",
+        type=int,
+        choices=[0,1],
+        default=0,
+        help="n-1 is considered"
+    )
     parser.add_argument("--batch-size", dest="batch_size", type=int, default=1, help="batch")
     parser.add_argument(
         "--number-of-workers",
