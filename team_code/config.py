@@ -51,7 +51,7 @@ class GlobalConfig:
         self.learning_rate = 1e-5
         self.use_color_aug= 0
         self.augment=0 
-        self.every_epoch = 5
+        self.every_epoch = 2
         self.loss_function_baselines = "L1"
         # keyframes
         self.importance_sample_method = "threshold"
