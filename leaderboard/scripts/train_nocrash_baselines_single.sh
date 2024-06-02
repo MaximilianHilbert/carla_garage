@@ -36,7 +36,7 @@
 export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export CARLA_ROOT=${WORK_DIR}/carla
-export DATASET_ROOT=/mnt/qb/work2/geiger0/bjaeger25/datasets/hb_dataset_v08_2023_05_10
+export DATASET_ROOT=/mnt/lustre/work/geiger/bjaeger25/old_repos/datasets/hb_dataset_v08_2023_05_10
 #export DATASET_ROOT=/mnt/qb/work/geiger/gwb629/datasets/one_curve
 export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 export TEAM_CODE=$WORK_DIR/team_code
