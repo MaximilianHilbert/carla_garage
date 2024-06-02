@@ -153,11 +153,11 @@ def main(args):
         if "arp" in merged_config_object.experiment:
             policy = TimeFuser("arp-policy", merged_config_object)
             policy.to(device_id)
-            policy = DDP(policy, device_ids=[device_id])
+            policy = DDP(policy, device_ids=[device_id], find_unused_parameters=True)
 
             mem_extract = TimeFuser("arp-memory", merged_config_object)
             mem_extract.to(device_id)
-            mem_extract = DDP(mem_extract, device_ids=[device_id])
+            mem_extract = DDP(mem_extract, device_ids=[device_id], find_unused_parameters=True)
         else:
             model = TimeFuser(merged_config_object.baseline_folder_name, merged_config_object)
             model.to(device_id)
@@ -215,17 +215,15 @@ def main(args):
                     if "arp" in merged_config_object.experiment:
                         mem_extract.zero_grad()
                         #the baseline is defined as getting everything except the last (current) frame into the memory stream, same for speed input
-                        pred_bev_semantic, pred_wp, memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
+                        pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
 
                         mem_extract_targets = targets - previous_targets
                         loss_function_params_memory = {
-                            "pred_wp": pred_wp,
+                            **pred_dict_memory,
                             "targets": mem_extract_targets,
                             "bev_targets": bev_semantic_labels,
-                            "pred_bev_semantic": pred_bev_semantic,
                             "config": merged_config_object,
                             "device_id": device_id,
-                            "valid_bev_pixels":mem_extract.module.valid_bev_pixels if merged_config_object.bev else None
                         }
 
                         mem_extract_loss= criterion(loss_function_params_memory)
@@ -233,16 +231,15 @@ def main(args):
                         mem_extract_optimizer.step()
                         policy.zero_grad()
                         #the baseline is defined as getting the last (current) frame in the policy stream only, same for speed input
-                        pred_bev_semantic, pred_wp, _ = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1:,...] if all_speeds is not None else None, target_point=target_point, prev_wp=None, memory_to_fuse=memory.detach())
+                        pred_dict_policy = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1:,...] if all_speeds is not None else None, target_point=target_point, prev_wp=None, memory_to_fuse=pred_dict_memory["memory"].detach())
                          
                         loss_function_params_policy = {
-                            "pred_wp": pred_wp,
+                            **pred_dict_policy,
                             "targets": targets,
                             "bev_targets": bev_semantic_labels,
-                            "pred_bev_semantic": pred_bev_semantic,
                             "config": merged_config_object,
                             "device_id": device_id,
-                            "valid_bev_pixels":mem_extract.module.valid_bev_pixels if merged_config_object.bev else None,
+                            
                         }
                         policy_loss= criterion(loss_function_params_policy)
                         policy_loss.backward()
