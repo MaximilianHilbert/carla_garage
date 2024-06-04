@@ -102,7 +102,7 @@ def set_baseline_specific_args(config, experiment_name, args):
         for arg in experiment_name.split("_"):
             arg_name, arg_value=arg.split("-")
             try:
-                if arg_name=="prevnum":
+                if arg_name=="prevnum" and int(arg_value)==1:
                     setattr(config, "prevnum", config.max_img_seq_len_baselines)
                 else:
                     setattr(config, arg_name, int(arg_value))
