@@ -210,7 +210,7 @@ def main(args):
                     #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                     #     break
                     capture_time = time.time()
-                    all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels = extract_and_normalize_data(args, device_id, merged_config_object, data)
+                    all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb= extract_and_normalize_data(args, device_id, merged_config_object, data)
 
                     if "arp" in merged_config_object.experiment:
                         mem_extract.zero_grad()
@@ -222,7 +222,7 @@ def main(args):
                             **pred_dict_memory,
                             "targets": mem_extract_targets,
                             "bev_targets": bev_semantic_labels,
-                            "config": merged_config_object,
+                           
                             "device_id": device_id,
                         }
 
@@ -237,11 +237,11 @@ def main(args):
                             **pred_dict_policy,
                             "targets": targets,
                             "bev_targets": bev_semantic_labels,
-                            "config": merged_config_object,
+                            
                             "device_id": device_id,
                             
                         }
-                        policy_loss= criterion(loss_function_params_policy)
+                        policy_loss= policy.compute_loss(loss_function_params_policy)
                         policy_loss.backward()
                         policy_optimizer.step()
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
@@ -313,20 +313,25 @@ def main(args):
                             **pred_dict,
                             "bev_targets": bev_semantic_labels if merged_config_object.bev else None,
                             "targets": targets,
+                            "targets_bb": targets_bb,
                             **reweight_params,
                             "device_id": device_id,
-                            "config": merged_config_object,
+                            
                         }
                         if "keyframes" in merged_config_object.experiment:
-                            loss = criterion(loss_function_params)
+                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration)
                         else:
-                            loss = criterion(loss_function_params)
+                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration)# OBACHT MIT KEYFRAMES LOSS
                         loss.backward()
                         optimizer.step()
                         scheduler.step()
-                        # if epoch>2800:
-                        #     visualize_model(rgb=torch.squeeze(data["rgb"],1),config=merged_config_object, save_path=os.path.join(os.environ.get("WORK_DIR"), "test"), gt_bev_semantic=bev_semantic_labels,lidar_bev=data["lidar"], target_point=
-                        #                         data["target_point"], pred_wp=pred_wp,step=iteration,pred_bev_semantic=pred_bev_semantic, gt_wp=data["ego_waypoints"])
+                        if epoch>1:
+                            if merged_config_object.detectboxes:
+                                batch_of_bbs_pred=model.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
+                            else:
+                                batch_of_bbs_pred=None
+                            visualize_model(rgb=torch.squeeze(data["rgb"],1),config=merged_config_object, save_path=os.path.join(os.environ.get("WORK_DIR"), "test"), gt_bev_semantic=None,lidar_bev=data["lidar"], target_point=
+                                                data["target_point"], pred_wp=pred_dict["wp_predictions"],pred_bb=batch_of_bbs_pred,gt_bbs=bb,step=iteration,pred_bev_semantic=pred_dict["pred_bev_semantic"] if "pred_bev_semantic" in pred_dict.keys() else None, gt_wp=data["ego_waypoints"])
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                             state = {
                                 "epoch": epoch,
@@ -775,7 +780,23 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
         additional_previous_wp_targets=None
 
     bev_semantic_labels=data["bev_semantic"].to(torch.long).to(device_id)
-    return all_images,all_speeds,target_point,wp_targets,previous_wp_targets,additional_previous_wp_targets,bev_semantic_labels
+    if merged_config_object.detectboxes:
+        bb=data["bounding_boxes"].to(device_id, dtype=torch.float32)
+        gt_bb=(
+data["center_heatmap"].to(device_id, dtype=torch.float32),
+data["wh"].to(device_id, dtype=torch.float32),
+data["yaw_class"].to(device_id, dtype=torch.long),
+data["yaw_res"].to(device_id, dtype=torch.float32),
+data["offset"].to(device_id, dtype=torch.float32),
+data["velocity"].to(device_id, dtype=torch.float32),
+data["brake_target"].to(device_id, dtype=torch.long),
+data["pixel_weight"].to(device_id, dtype=torch.float32),
+data["avg_factor"].to(device_id, dtype=torch.float32)
+        )
+    else:
+        gt_bb=None
+        bb=None
+    return all_images,all_speeds,target_point,wp_targets,previous_wp_targets,additional_previous_wp_targets,bev_semantic_labels, gt_bb,bb
 
 if __name__ == "__main__":
     import argparse
@@ -859,16 +880,22 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
+        "--detectboxes",
+        type=int,
+        choices=[0,1],
+        default=0
+
+    )
+    parser.add_argument(
         "--reducedchanneldim",
         type=int,
-        choices=[64,128,256,512],
         default=128
 
     )
     parser.add_argument(
         "--numtransformerlayers",
         type=int,
-        default=2
+        default=6
 
     )
     parser.add_argument(
