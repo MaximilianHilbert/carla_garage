@@ -48,7 +48,8 @@ def set_seed(seed):
 
 
 def generate_experiment_name(args):
-    return f"baseline-{args.baseline_folder_name}_speed-{args.speed}_prevnum-{args.prevnum}_backbone-{args.backbone}_tr-{args.training_repetition}"
+    return f"baseline-{args.baseline_folder_name}_speed-{args.speed}_prevnum-{args.prevnum}_backbone-{args.backbone}_bev-{args.bev}_detectboxes-{args.detectboxes}_lossweights-{','.join([str(weight) for weight in args.lossweights])}_tr-{args.training_repetition}"
+
 def find_free_port():
     """https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number"""
     import socket
@@ -75,7 +76,13 @@ def merge_with_yaml(transfuser_config_object, baseline_name, experiment):
 def merge_with_command_line_args(config, args):
     args_dict = vars(args)
     for key, value in args_dict.items():
-        setattr(config, key, value)
+        try:
+            if key=="prevnum" and int(value)==1:
+                setattr(config, "prevnum", config.max_img_seq_len_baselines)
+            else:
+                setattr(config, key, int(value))
+        except:
+            setattr(config, key, value)
 
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
@@ -97,17 +104,6 @@ def set_baseline_specific_args(config, experiment_name, args):
         setattr(config, "number_future_waypoints", 9)
         setattr(config, "epochs_baselines", 300)
         setattr(config, "waypoint_weight_generation", True)
-    #take ablation args from experiment name
-    if experiment_name!="waypoint_weight_generation_training" and experiment_name!="waypoint_weight_generation_inference":
-        for arg in experiment_name.split("_"):
-            arg_name, arg_value=arg.split("-")
-            try:
-                if arg_name=="prevnum" and int(arg_value)==1:
-                    setattr(config, "prevnum", config.max_img_seq_len_baselines)
-                else:
-                    setattr(config, arg_name, int(arg_value))
-            except ValueError:
-                setattr(config, arg_name, arg_value)
     return config
 
 def merge_config(args, experiment_name, training=True):
