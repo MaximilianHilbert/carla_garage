@@ -351,7 +351,7 @@ class GlobalConfig:
         self.use_optim_groups = False  # Whether to use optimizer groups to exclude some parameters from weight decay
         self.weight_decay = 0.01  # Weight decay coefficient used during training
         self.use_plant_labels = False  # Whether to use the relabeling from plant or the original labels
-        self.use_label_smoothing = True  # Whether to use label smoothing in the classification losses
+        self.use_label_smoothing = False  # Whether to use label smoothing in the classification losses
 
         # -----------------------------------------------------------------------------
         # PID controller
@@ -452,7 +452,7 @@ class GlobalConfig:
         self.predict_checkpoint_len = 10
 
         # Whether to normalize the camera image by the imagenet distribution
-        self.normalize_imagenet = True
+        self.normalize_imagenet = False
 
         # Semantic Segmentation
         self.use_semantic = False  # Whether to use semantic segmentation as auxiliary loss
