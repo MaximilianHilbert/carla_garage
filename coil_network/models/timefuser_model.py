@@ -20,43 +20,41 @@ class TimeFuser(nn.Module):
         self.image_encoder=AIMBackbone(config, channels= self.input_channels)
 
         original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
-        self.channel_dimension=self.config.reducedchanneldim
-        #we use that to reduce the computational load of >1500 channel dim to get down to about 128
-        self.change_channel = nn.Conv2d(
-                    original_channel_dimension,
-                    self.channel_dimension,
-                    kernel_size=1,
-                )
+        self.channel_dimension=original_channel_dimension
         
         
-        self.flattened_channel_dimension=self.channel_dimension*self.config.img_encoding_remaining_spatial_dim[0]*self.config.img_encoding_remaining_spatial_dim[1]
-        self.time_position_embedding = nn.Parameter(torch.zeros(self.channel_dimension, self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
+        self.time_position_embedding = nn.Parameter(torch.zeros(self.img_token_len, self.channel_dimension,self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
         self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
 
         if self.config.speed:
             if self.name=="arp-policy":
                 # 1 time the velocity (current timestep only)
-                self.speed_layer = nn.Linear(in_features=self.total_steps_considered-self.config.max_img_seq_len_baselines, out_features=self.flattened_channel_dimension)
+                self.speed_layer = nn.Linear(in_features=self.total_steps_considered-self.config.max_img_seq_len_baselines, out_features=self.channel_dimension)
             elif self.name=="arp-memory":
                 # 6 times the velocity (of previous timesteps only)
-                self.speed_layer = nn.Linear(in_features=self.config.max_img_seq_len_baselines, out_features=self.flattened_channel_dimension)
+                self.speed_layer = nn.Linear(in_features=self.config.max_img_seq_len_baselines, out_features=self.channel_dimension)
             else:
-                self.speed_layer = nn.Linear(in_features=self.total_steps_considered, out_features=self.flattened_channel_dimension)
+                self.speed_layer = nn.Linear(in_features=self.total_steps_considered, out_features=self.channel_dimension)
         if self.config.prevnum>0 and self.name!="arp-policy":
             #we input the previous waypoints in our ablations only in the memory stream of arp
-            self.previous_wp_layer = nn.Linear(in_features=self.config.target_point_size*self.config.prevnum, out_features=self.flattened_channel_dimension)
-        decoder_norm=nn.LayerNorm(self.flattened_channel_dimension)
-        transformer_encoder_layer=nn.TransformerEncoderLayer(d_model=self.flattened_channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
+            self.previous_wp_layer = nn.Linear(in_features=self.config.target_point_size*self.config.prevnum, out_features=self.channel_dimension)
+        decoder_norm=nn.LayerNorm(self.channel_dimension)
+        transformer_encoder_layer=nn.TransformerEncoderLayer(d_model=self.channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
         self.transformer_encoder=nn.TransformerEncoder(encoder_layer=transformer_encoder_layer,num_layers=self.config.numtransformerlayers, norm=decoder_norm)
 
-        transformer_decoder_layer=nn.TransformerDecoderLayer(d_model=self.flattened_channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
+        transformer_decoder_layer=nn.TransformerDecoderLayer(d_model=self.channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
         self.transformer_decoder=nn.TransformerDecoder(decoder_layer=transformer_decoder_layer, num_layers=self.config.numtransformerlayers, norm=decoder_norm)
         self.wp_query = nn.Parameter(
                         torch.zeros(
                             self.config.pred_len,
-                            self.flattened_channel_dimension,
+                            self.channel_dimension,
                         )
                     )
+        # positional embeddings with respect to themselves (between individual tokens of the same type)
+        self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len, self.channel_dimension))
+     
+
+        self.wp_gru = GRUWaypointsPredictorTransFuser(config, pred_len=self.config.pred_len, hidden_size=self.config.gru_hidden_size,target_point_size=self.config.target_point_size)
         if self.config.bev:
             self.bev_query=nn.Parameter(
                             torch.zeros(
@@ -143,10 +141,11 @@ class TimeFuser(nn.Module):
             prev_wp_enc = self.previous_wp_layer(prev_wp).unsqueeze(1)
         else:
             prev_wp_enc=None
-        #TODO Discuss if learned or fixed number [1], [2] etc
+        x_clone=x.clone()
         for image_index in range(self.img_token_len):
-            x[:,image_index,...]=x[:,image_index,...]+self.spatial_position_embedding_per_image(x[:,image_index,...])
-            x[:,image_index,...]=x[:,image_index,...]+self.time_position_embedding.repeat(bs, 1, 1, 1)
+            x_clone[:,image_index,...]=x[:,image_index,...]+self.spatial_position_embedding_per_image(x[:,image_index,...])
+            x_clone[:,image_index,...]=x[:,image_index,...]+self.time_position_embedding[image_index,...].repeat(bs, 1, 1, 1)
+        x=x_clone
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
             generated_memory=x.flatten(start_dim=2)
@@ -154,18 +153,20 @@ class TimeFuser(nn.Module):
         additional_inputs=[input for input in [memory_to_fuse, measurement_enc, prev_wp_enc] if input is not None]
         if additional_inputs:
             additional_inputs=torch.cat(additional_inputs, dim=1)
-            x=torch.cat((x.flatten(start_dim=2),additional_inputs), axis=1)
+            x=torch.cat((x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3),additional_inputs), axis=1)
         else:
-            x=x.flatten(start_dim=2)
+            x=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3)
         x=self.transformer_encoder(x)
-        wp_query=self.wp_query.repeat(bs,1,1)+self.output_token_pos_embedding_wp.repeat(bs, 1, 1)
-        wp_tokens=self.transformer_decoder(wp_query, x)
-        wp_tokens=self.wp_gru(wp_tokens, target_point)
+        if self.config.bev:
+            queries=torch.cat((self.wp_query, self.bev_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
+        else:
+            queries=self.wp_query.repeat(bs,1,1)
+        all_tokens_output=self.transformer_decoder(queries, x)
+        wp_tokens=self.wp_gru(all_tokens_output[:, :self.wp_query.shape[0],...], target_point)
         pred_dict.update({"wp_predictions": wp_tokens})
         if self.config.bev:
-            bev_query=self.bev_query.repeat(bs,1,1)+self.output_token_pos_embedding_bev.repeat(bs, 1,1)
-            bev_tokens=self.transformer_decoder(bev_query, x)
-            bev_tokens=bev_tokens.reshape(bs,self.config.num_bev_query,self.config.num_bev_query,-1).permute(0, -1, 1,2).contiguous()
+            bev_tokens=all_tokens_output[:, self.wp_query.shape[0]:,...]
+            bev_tokens=bev_tokens.permute(0,2,1).reshape(bs, self.channel_dimension, self.config.num_bev_query, self.config.num_bev_query).contiguous()
             pred_bev_grid=self.bev_semantic_decoder(bev_tokens)
             pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
             pred_dict.update({"pred_bev_semantic": pred_bev_semantic})
