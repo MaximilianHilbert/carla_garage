@@ -61,4 +61,4 @@ export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 # conda activate garage
 export OMP_NUM_THREADS=12  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline-folder-name bcso --number-of-workers 12 --training-repetition 0 --batch-size 20 --setting 02_withheld --dataset-repetition 3 --bev 1 --detectboxes 1 --speed 1 --prevnum 1
+torchrun --nnodes=1 --nproc_per_node=1 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 1 --baseline-folder-name bcoh --number-of-workers 12 --training-repetition 0 --batch-size 5 --setting 02_withheld --dataset-repetition 3 --bev 1 --detectboxes 1 --speed 1 --prevnum 1 --lossweights 1.0 0.0 0.0
