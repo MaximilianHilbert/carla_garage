@@ -283,7 +283,7 @@ class GlobalConfig:
         self.train_debug_save_freq = 1
         self.backbone = "transFuser"  # Vision backbone architecture used
         self.use_velocity = 1  # Whether to use the velocity as input to the network
-        self.image_architecture = "regnety_032"  # Image architecture used in the backbone
+        self.image_architecture = "resnet34"  # Image architecture used in the backbone
         self.lidar_architecture = "regnety_032"  # LiDAR architecture used in the backbone
         # Whether to classify target speeds and regress a path as output representation.
         self.use_controller_input_prediction = True

@@ -16,11 +16,9 @@ class TimeFuser(nn.Module):
         self.set_img_token_len()
         self.set_required_input_channels()
         
-        # we use the same image backbone as in TF++
-        self.create_resnet_backbone(config, self.input_channels)
-        #TODO currently very high with 1500
-        #TODO if not working for multiframe stacking, use regular resnet of baselines,
-        #because 21 channels -> 32 now in first layer
+        
+        self.image_encoder=AIMBackbone(config, channels= self.input_channels)
+
         original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
         self.channel_dimension=self.config.reducedchanneldim
         #we use that to reduce the computational load of >1500 channel dim to get down to about 128

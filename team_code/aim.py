@@ -12,13 +12,13 @@ class AIMBackbone(nn.Module):
     Processes an image with an ImageNet architecture and returns features (grid).
     """
 
-    def __init__(self, config):
+    def __init__(self, config, channels):
         super().__init__()
         self.config = config
 
-        self.image_encoder = timm.create_model(config.image_architecture, pretrained=True, features_only=True)
+        self.image_encoder = timm.create_model(config.image_architecture, pretrained=True, features_only=True, in_chans=channels)
 
-        self.global_pool_img = nn.AdaptiveAvgPool2d(output_size=self.config.img_encoding_remaining_spatial_dim)
+        
         start_index = 0
         # Some networks have a stem layer
         if len(self.image_encoder.return_layers) > 4:
@@ -46,7 +46,7 @@ class AIMBackbone(nn.Module):
         for _ in range(4):
             image_features = self.forward_layer_block(image_layers, self.image_encoder.return_layers, image_features)
 
-        image_features = self.global_pool_img(image_features)
+   
 
         return image_features
 
