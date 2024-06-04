@@ -26,9 +26,8 @@ class LidarCenterNetHead(nn.Module):
         self.offset_head = self._build_head(config.bb_input_channel, 2)
         self.yaw_class_head = self._build_head(config.bb_input_channel, config.num_dir_bins)
         self.yaw_res_head = self._build_head(config.bb_input_channel, 1)
-        if not (self.config.lidar_seq_len == 1 and self.config.seq_len == 1):
-            self.velocity_head = self._build_head(config.bb_input_channel, 1)
-            self.brake_head = self._build_head(config.bb_input_channel, 2)
+        self.velocity_head = self._build_head(config.bb_input_channel, 1)
+        self.brake_head = self._build_head(config.bb_input_channel, 1)
 
         # We use none reduction because we weight each pixel according to the number of bounding boxes.
         self.loss_center_heatmap = t_u.gaussian_focal_loss
@@ -36,9 +35,8 @@ class LidarCenterNetHead(nn.Module):
         self.loss_offset = nn.L1Loss(reduction="none")
         self.loss_dir_class = nn.CrossEntropyLoss(reduction="none")
         self.loss_dir_res = nn.SmoothL1Loss(reduction="none")
-        if not (self.config.lidar_seq_len == 1 and self.config.seq_len == 1):
-            self.loss_velocity = nn.L1Loss(reduction="none")
-            self.loss_brake = nn.CrossEntropyLoss(reduction="none")
+        self.loss_velocity = nn.L1Loss(reduction="none")
+        self.loss_brake = nn.CrossEntropyLoss(reduction="none")
 
     def _build_head(self, in_channel, out_channel):
         """Build head for each branch."""
@@ -66,13 +64,9 @@ class LidarCenterNetHead(nn.Module):
         offset_pred = self.offset_head(feat)
         yaw_class_pred = self.yaw_class_head(feat)
         yaw_res_pred = self.yaw_res_head(feat)
-
-        if not (self.config.lidar_seq_len == 1 and self.config.seq_len == 1):
-            velocity_pred = self.velocity_head(feat)
-            brake_pred = self.brake_head(feat)
-        else:
-            velocity_pred = None
-            brake_pred = None
+        velocity_pred = self.velocity_head(feat)
+        brake_pred = self.brake_head(feat)
+  
 
         return (
             center_heatmap_pred,
@@ -145,13 +139,12 @@ class LidarCenterNetHead(nn.Module):
             loss_yaw_res=loss_yaw_res,
         )
 
-        if not (self.config.lidar_seq_len == 1 and self.config.seq_len == 1):
-            loss_velocity = (
-                self.loss_velocity(velocity_pred, velocity_target) * pixel_weight[:, 0:1]
-            ).sum() / avg_factor
-            loss_brake = (self.loss_brake(brake_pred, brake_target) * pixel_weight[:, 0]).sum() / avg_factor
-            losses["loss_velocity"] = loss_velocity
-            losses["loss_brake"] = loss_brake
+        loss_velocity = (
+            self.loss_velocity(velocity_pred, velocity_target) * pixel_weight[:, 0:1]
+        ).sum() / avg_factor
+        loss_brake = (self.loss_brake(brake_pred, brake_target) * pixel_weight[:, 0]).sum() / avg_factor
+        losses["loss_velocity"] = loss_velocity
+        losses["loss_brake"] = loss_brake
 
         return losses
 
@@ -265,14 +258,11 @@ class LidarCenterNetHead(nn.Module):
         yaw_class = torch.argmax(yaw_class, -1)
         yaw = self.class2angle(yaw_class, yaw_res.squeeze(2))
 
-        if not (self.config.lidar_seq_len == 1 and self.config.seq_len == 1):
-            velocity = g_t.transpose_and_gather_feat(velocity_pred, batch_index)
-            brake = g_t.transpose_and_gather_feat(brake_pred, batch_index)
-            brake = torch.argmax(brake, -1)
-            velocity = velocity[..., 0]
-        else:
-            velocity = torch.zeros_like(yaw)
-            brake = torch.zeros_like(yaw)
+        
+        velocity = g_t.transpose_and_gather_feat(velocity_pred, batch_index)
+        brake = g_t.transpose_and_gather_feat(brake_pred, batch_index)
+        brake = torch.argmax(brake, -1)
+        velocity = velocity[..., 0]
 
         topk_xs = topk_xs + offset[..., 0]
         topk_ys = topk_ys + offset[..., 1]

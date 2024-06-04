@@ -271,7 +271,6 @@ class GlobalConfig:
         # Whether zero_redundancy_optimizer was used during training
         self.zero_redundancy_optimizer = 1
         self.use_disk_cache = 0  # Whether disc cache was used during training
-        self.detect_boxes = 0  # Whether to use the bounding box auxiliary task
         self.train_sampling_rate = 1  # We train on every n th sample on the route
         # Number of route points we use for prediction in TF or input in planT
         self.num_route_points = 20

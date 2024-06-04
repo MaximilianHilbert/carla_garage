@@ -2,7 +2,10 @@ import torch.nn as nn
 import torch
 from team_code.aim import AIMBackbone
 import team_code.transfuser_utils as t_u
+from torch.nn.functional import l1_loss
+from torch.nn import CrossEntropyLoss
 from team_code.model import PositionEmbeddingSine, GRUWaypointsPredictorTransFuser
+from team_code.center_net import LidarCenterNetHead
 import random
 class TimeFuser(nn.Module):
     def __init__(self, name,config):
@@ -59,16 +62,9 @@ class TimeFuser(nn.Module):
             self.bev_query=nn.Parameter(
                             torch.zeros(
                                 self.config.num_bev_query**2,
-                                self.flattened_channel_dimension,
+                                self.channel_dimension,
                             )
                         )
-        # positional embeddings with respect to themselves (between individual tokens of the same type)
-        self.output_token_pos_embedding_wp = nn.Parameter(torch.zeros(self.config.pred_len, self.flattened_channel_dimension))
-        self.output_token_pos_embedding_bev = nn.Parameter(torch.zeros(self.config.num_bev_query**2, self.flattened_channel_dimension))
-     
-
-        self.wp_gru = GRUWaypointsPredictorTransFuser(config, pred_len=self.config.pred_len, hidden_size=self.config.gru_hidden_size,target_point_size=self.config.target_point_size)
-        if self.config.bev:
             # Computes which pixels are visible in the camera. We mask the others.
             _, valid_voxels = t_u.create_projection_grid(self.config)
             valid_bev_pixels = torch.max(valid_voxels, dim=3, keepdim=False)[0].unsqueeze(1)
@@ -80,8 +76,8 @@ class TimeFuser(nn.Module):
            
             self.bev_semantic_decoder = nn.Sequential(
                 nn.Conv2d(
-                    self.flattened_channel_dimension,
-                    self.flattened_channel_dimension,
+                    self.channel_dimension,
+                    self.channel_dimension,
                     kernel_size=(3, 3),
                     stride=1,
                     padding=(1, 1),
@@ -89,7 +85,7 @@ class TimeFuser(nn.Module):
                 ),
                 nn.ReLU(inplace=True),
                 nn.Conv2d(
-                    self.flattened_channel_dimension,
+                    self.channel_dimension,
                     self.config.num_bev_semantic_classes,
                     kernel_size=(1, 1),
                     stride=1,
@@ -105,7 +101,34 @@ class TimeFuser(nn.Module):
                     align_corners=False,
                 ),
             )
-
+            if self.config.detectboxes:
+                self.head=LidarCenterNetHead(config=config)
+                self.change_channel_bev_to_bb_and_upscale= nn.Sequential( nn.Conv2d(
+                    self.channel_dimension,
+                    self.channel_dimension,
+                    kernel_size=(3, 3),
+                    stride=1,
+                    padding=(1, 1),
+                    bias=True,
+                ),
+                nn.ReLU(inplace=True),
+                 nn.Conv2d(
+                    self.channel_dimension,
+                    self.config.bb_feature_channel,
+                    kernel_size=(1, 1),
+                    stride=1,
+                    padding=0,
+                    bias=True,
+                ),
+                nn.Upsample(
+                    size=(
+                        self.config.bb_input_channel,
+                        self.config.bb_input_channel,
+                    ),
+                    mode="bilinear",
+                    align_corners=False,
+                ),
+                )
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.xavier_uniform_(m.weight)
@@ -117,7 +140,6 @@ class TimeFuser(nn.Module):
         if self.config.backbone=="stacking":
             x=torch.cat([x[:, i,...] for i in range(self.img_token_len)], axis=1)
             x= self.image_encoder(x)
-            x=self.change_channel(x)
             x=x.unsqueeze(1)
         else:
             encodings=[]
@@ -132,7 +154,7 @@ class TimeFuser(nn.Module):
                     single_frame_encoding=self.change_channel(single_frame_encoding)
                 encodings.append(single_frame_encoding)
             x=torch.stack(encodings, dim=1)
-       
+        
         if self.config.speed:
             measurement_enc = self.speed_layer(speed).unsqueeze(1) #we add the token dimension here
         else:
@@ -171,19 +193,11 @@ class TimeFuser(nn.Module):
             pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
             pred_dict.update({"pred_bev_semantic": pred_bev_semantic})
             pred_dict.update({"valid_bev_pixels":self.valid_bev_pixels})
+        if self.config.detectboxes:
+            bev_tokens=self.change_channel_bev_to_bb_and_upscale(bev_tokens)
+            pred_bb=self.head(bev_tokens)
+            pred_dict.update({"pred_bb": pred_bb})
         return pred_dict
-
-    def create_resnet_backbone(self, config, number_first_layer_channels):
-        self.image_encoder=AIMBackbone(config)
-        old_conv_1=self.image_encoder.image_encoder.stem.conv
-        new_conv_1=nn.Conv2d(in_channels=number_first_layer_channels, out_channels=old_conv_1.out_channels, kernel_size=old_conv_1.kernel_size, stride=old_conv_1.stride, padding=old_conv_1.padding, bias=old_conv_1.bias)
-        if number_first_layer_channels == old_conv_1.in_channels:
-            new_conv_1.weight.data = old_conv_1.weight.data
-        else:
-            new_conv_1.weight.data = old_conv_1.weight.data.mean(dim=1, keepdim=True).repeat(1, number_first_layer_channels, 1, 1)
-
-        # Replace the first convolutional layer
-        self.image_encoder.image_encoder.stem.conv = new_conv_1
 
     def set_img_token_len(self):
         self.total_steps_considered=self.config.max_img_seq_len_baselines+1
@@ -202,3 +216,72 @@ class TimeFuser(nn.Module):
             self.input_channels=self.img_token_len*self.config.rgb_input_channels
         else:
             self.input_channels=self.config.rgb_input_channels
+
+    def compute_loss(self,params, logger, logging_step):
+        if self.config.detectboxes:
+            self.detailed_loss_weights={}
+            factor = 1.0 / sum(self.config.detailed_loss_weights.values())
+            for k in self.config.detailed_loss_weights:
+                self.detailed_loss_weights[k] = self.config.detailed_loss_weights[k] * factor
+        losses=[]
+        main_loss = l1_loss(params["wp_predictions"], params["targets"])
+        losses.append(main_loss)
+        if self.config.bev:
+            if self.config.use_label_smoothing:
+                label_smoothing =self.config.label_smoothing_alpha
+            else:
+                label_smoothing = 0.0
+            loss_bev_semantic = CrossEntropyLoss(
+                    weight=torch.tensor(self.config.bev_semantic_weights, dtype=torch.float32),
+                    label_smoothing=label_smoothing,
+                    ignore_index=-1,
+                ).to(device=params["device_id"])
+            visible_bev_semantic_label = params["valid_bev_pixels"].squeeze(1).int() * params["bev_targets"]
+                # Set 0 class to ignore index -1
+            visible_bev_semantic_label = (params["valid_bev_pixels"].squeeze(1).int() - 1) + visible_bev_semantic_label
+            loss_bev=loss_bev_semantic(params["pred_bev_semantic"], visible_bev_semantic_label)
+            losses.append(loss_bev)
+            if self.config.detectboxes:
+                head_loss=self.head.loss(*params["pred_bb"], *params["targets_bb"])
+                sub_loss=0
+                logger.add_scalar(
+                                "bev",
+                                loss_bev.data,
+                                logging_step
+                            )
+                logger.add_scalar(
+                                "wp",
+                                main_loss.data,
+                                logging_step
+                            )
+                for key, value in head_loss.items():
+                    sub_loss += self.detailed_loss_weights[key] * value
+                    logger.add_scalar(
+                                key,
+                                value.data,
+                                logging_step
+                            )
+                losses.append(sub_loss)
+        return torch.sum(torch.stack(losses)*torch.tensor(self.config.lossweights).to(device=params["device_id"]))
+    def convert_features_to_bb_metric(self, bb_predictions):
+        bboxes = self.head.get_bboxes(
+            bb_predictions[0],
+            bb_predictions[1],
+            bb_predictions[2],
+            bb_predictions[3],
+            bb_predictions[4],
+            bb_predictions[5],
+            bb_predictions[6],
+        )[0]
+
+        # filter bbox based on the confidence of the prediction
+        bboxes = bboxes[bboxes[:, -1] > self.config.bb_confidence_threshold]
+
+        carla_bboxes = []
+        for bbox in bboxes.detach().cpu().numpy():
+            bbox = t_u.bb_image_to_vehicle_system(
+                bbox, self.config.pixels_per_meter, self.config.min_x, self.config.min_y
+            )
+            carla_bboxes.append(bbox)
+
+        return carla_bboxes
