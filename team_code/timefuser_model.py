@@ -22,9 +22,12 @@ class TimeFuser(nn.Module):
         self.image_encoder=AIMBackbone(config, channels=self.input_channels)
 
         original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
-        self.channel_dimension=original_channel_dimension
-        
-        
+        self.channel_dimension=self.config.reduced_channel_dimension
+        self.change_channel = nn.Conv2d(
+                    original_channel_dimension,
+                    self.channel_dimension,
+                    kernel_size=1,
+                )
         self.time_position_embedding = nn.Parameter(torch.zeros(self.img_token_len, self.channel_dimension,self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
         self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
 
@@ -139,6 +142,7 @@ class TimeFuser(nn.Module):
         if self.config.backbone=="stacking":
             x=torch.cat([x[:,i,:,:] for i in range(self.img_seq_len)], axis=1)
             x= self.image_encoder(x)
+            x=self.change_channel(x)
             x=x.unsqueeze(1)
         else:
             encodings=[]
@@ -147,8 +151,10 @@ class TimeFuser(nn.Module):
                 if image_index!=self.img_token_len-1:
                     with torch.no_grad():
                         single_frame_encoding=self.image_encoder(x[:,image_index,...])
+                        single_frame_encoding=self.change_channel(single_frame_encoding)
                 else:
                     single_frame_encoding=self.image_encoder(x[:,image_index,...])
+                    single_frame_encoding=self.change_channel(single_frame_encoding)
                 encodings.append(single_frame_encoding)
             x=torch.stack(encodings, dim=1)
         
