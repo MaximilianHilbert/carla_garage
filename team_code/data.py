@@ -504,7 +504,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     boxes_i = None
 
                     # Load bounding boxes
-                    if self.config.detect_boxes or self.config.use_plant:
+                    if self.config.detectboxes or self.config.use_plant:
                         with gzip.open(str(boxes[i], encoding="utf-8"), "rt", encoding="utf-8") as f2:
                             boxes_i = ujson.load(f2)
                         if self.config.use_plant:
@@ -796,7 +796,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
                 temporal_lidar_bev = np.concatenate(temporal_lidars_lst, axis=0)
 
-        if self.config.detect_boxes or self.config.use_plant:
+        if self.config.detectboxes or self.config.use_plant:
             bounding_boxes, future_bounding_boxes = self.parse_bounding_boxes(
                 loaded_boxes[self.config.seq_len - 1],
                 loaded_future_boxes[self.config.seq_len - 1],
@@ -917,7 +917,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 lidar_bev = self.lidar_augmenter_func(image=np.transpose(lidar_bev, (1, 2, 0)))
                 data["lidar"] = np.transpose(lidar_bev, (2, 0, 1))
 
-            if self.config.detect_boxes or self.config.use_plant:
+            if self.config.detectboxes or self.config.use_plant:
                 data["bounding_boxes"] = bounding_boxes_padded
                 if self.config.use_plant:
                     data["future_bounding_boxes"] = future_bounding_boxes_padded
