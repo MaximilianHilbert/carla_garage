@@ -630,9 +630,16 @@ def normalize_imagenet(x):
         x (tensor): input images
     """
     x = x.clone()
-    x[:, 0] = ((x[:, 0] / 255.0) - 0.485) / 0.229
-    x[:, 1] = ((x[:, 1] / 255.0) - 0.456) / 0.224
-    x[:, 2] = ((x[:, 2] / 255.0) - 0.406) / 0.225
+    norm_params = [
+    (0.485, 0.229),
+    (0.456, 0.224),
+    (0.406, 0.225)
+]
+
+    # Apply the normalization to every third dimension
+    for i in range(len(x[0,:])):
+        mean, std = norm_params[i % 3]
+        x[:, i] = ((x[:, i] / 255.0) - mean) / std
     return x
 
 
