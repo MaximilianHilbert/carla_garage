@@ -140,7 +140,7 @@ class TimeFuser(nn.Module):
         pred_dict={}
         bs=x.shape[0]
         if self.config.backbone=="stacking":
-            x=torch.cat([x[:,i,:,:] for i in range(self.img_seq_len)], axis=1)
+            x=torch.cat([x[:,i,:,:] for i in range(len(x[0,:,0,0]))], axis=1)
             x= self.image_encoder(x)
             x=self.change_channel(x)
             x=x.unsqueeze(1)
@@ -166,11 +166,9 @@ class TimeFuser(nn.Module):
             prev_wp_enc = self.previous_wp_layer(prev_wp).unsqueeze(1)
         else:
             prev_wp_enc=None
-        x_clone=x.clone()
         for image_index in range(self.img_token_len):
-            x_clone[:,image_index,...]=x[:,image_index,...]+self.spatial_position_embedding_per_image(x[:,image_index,...])
-            x_clone[:,image_index,...]=x[:,image_index,...]+self.time_position_embedding[image_index,...].repeat(bs, 1, 1, 1)
-        x=x_clone
+            x[:,image_index,...]=x[:,image_index,...]+self.spatial_position_embedding_per_image(x[:,image_index,...])
+            x[:,image_index,...]=x[:,image_index,...]+self.time_position_embedding[image_index,...].repeat(bs, 1, 1, 1)
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
             generated_memory=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3)
@@ -245,10 +243,10 @@ class TimeFuser(nn.Module):
             else:
                 label_smoothing = 0.0
             loss_bev_semantic = CrossEntropyLoss(
-                    weight=torch.tensor(self.config.bev_semantic_weights, dtype=torch.float32),
+                    weight=torch.tensor(self.config.bev_semantic_weights, dtype=torch.float32, device=params["device_id"]),
                     label_smoothing=label_smoothing,
                     ignore_index=-1,
-                ).to(device=params["device_id"])
+                )
             visible_bev_semantic_label = params["valid_bev_pixels"].squeeze(1).int() * params["bev_targets"]
                 # Set 0 class to ignore index -1
             visible_bev_semantic_label = (params["valid_bev_pixels"].squeeze(1).int() - 1) + visible_bev_semantic_label
@@ -256,7 +254,7 @@ class TimeFuser(nn.Module):
             losses.append(loss_bev)
             if self.config.detectboxes:
                 head_loss=self.head.loss(*params["pred_bb"], *params["targets_bb"])
-                sub_loss=0
+                sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
                 # if rank == 0:
                 #     logger.add_scalar(
                 #                     "bev",
@@ -276,8 +274,10 @@ class TimeFuser(nn.Module):
                         #             value.data,
                         #             logging_step
                         #         )
-                losses.append(sub_loss)
-        final_loss= torch.sum(torch.stack(losses)*torch.tensor(self.config.lossweights).to(device=params["device_id"]))
+                losses.append(sub_loss.squeeze())
+        
+        final_loss= torch.sum(torch.stack(losses)*torch.tensor(self.config.lossweights, device=params["device_id"], dtype=torch.float32))
+
         if keyframes:
             importance_sampling_method = params["importance_sampling_method"]
             if importance_sampling_method == "mean":
