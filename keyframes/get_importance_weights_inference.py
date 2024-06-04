@@ -96,6 +96,18 @@ if __name__ == "__main__":
         default=0,
     )
     parser.add_argument(
+        "--bev",
+        type=int,
+        choices=[0,1],
+        default=0,
+    )
+    parser.add_argument(
+        "--detectboxes",
+        type=int,
+        choices=[0,1],
+        default=0,
+    )
+    parser.add_argument(
         "--prevnum",
         type=int,
         choices=[0,1],

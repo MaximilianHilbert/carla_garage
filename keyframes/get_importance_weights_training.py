@@ -75,6 +75,18 @@ if __name__ == "__main__":
         help="n-1 is considered"
     )
     parser.add_argument(
+        "--bev",
+        type=int,
+        choices=[0,1],
+        default=0,
+    )
+    parser.add_argument(
+        "--detectboxes",
+        type=int,
+        choices=[0,1],
+        default=0,
+    )
+    parser.add_argument(
         "--seeds",
         dest="seeds",
         type=int,
