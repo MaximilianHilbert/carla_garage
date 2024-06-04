@@ -44,8 +44,6 @@ from coil_utils.baseline_helpers import (
 )
 
 def main(args):
-    # torch.backends.cudnn.benchmark=False
-    # torch.backends.cudnn.deterministic=True
     torch.cuda.empty_cache()
     world_size = int(os.environ["WORLD_SIZE"])
     rank = int(os.environ["LOCAL_RANK"])

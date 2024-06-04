@@ -27,7 +27,7 @@ class LidarCenterNetHead(nn.Module):
         self.yaw_class_head = self._build_head(config.bb_input_channel, config.num_dir_bins)
         self.yaw_res_head = self._build_head(config.bb_input_channel, 1)
         self.velocity_head = self._build_head(config.bb_input_channel, 1)
-        self.brake_head = self._build_head(config.bb_input_channel, 1)
+        self.brake_head = self._build_head(config.bb_input_channel, 2)
 
         # We use none reduction because we weight each pixel according to the number of bounding boxes.
         self.loss_center_heatmap = t_u.gaussian_focal_loss
