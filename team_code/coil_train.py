@@ -319,9 +319,9 @@ def main(args):
                             
                         }
                         if "keyframes" in merged_config_object.experiment:
-                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration)
+                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank)
                         else:
-                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration)# OBACHT MIT KEYFRAMES LOSS
+                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration,rank=rank)# OBACHT MIT KEYFRAMES LOSS
                         loss.backward()
                         optimizer.step()
                         scheduler.step()
