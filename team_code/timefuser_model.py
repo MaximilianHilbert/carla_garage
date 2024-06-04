@@ -257,25 +257,25 @@ class TimeFuser(nn.Module):
             if self.config.detectboxes:
                 head_loss=self.head.loss(*params["pred_bb"], *params["targets_bb"])
                 sub_loss=0
-                if rank == 0:
-                    logger.add_scalar(
-                                    "bev",
-                                    loss_bev.data,
-                                    logging_step
-                                )
-                    logger.add_scalar(
-                                    "wp",
-                                    main_loss.data,
-                                    logging_step
-                                )
+                # if rank == 0:
+                #     logger.add_scalar(
+                #                     "bev",
+                #                     loss_bev.data,
+                #                     logging_step
+                #                 )
+                #     logger.add_scalar(
+                #                     "wp",
+                #                     main_loss.data,
+                #                     logging_step
+                #                 )
                 for key, value in head_loss.items():
                     sub_loss += self.detailed_loss_weights[key] * value
-                    if rank == 0:
-                        logger.add_scalar(
-                                    key,
-                                    value.data,
-                                    logging_step
-                                )
+                    # if rank == 0:
+                        # logger.add_scalar(
+                        #             key,
+                        #             value.data,
+                        #             logging_step
+                        #         )
                 losses.append(sub_loss)
         final_loss= torch.sum(torch.stack(losses)*torch.tensor(self.config.lossweights).to(device=params["device_id"]))
         if keyframes:
