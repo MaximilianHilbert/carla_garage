@@ -11,9 +11,9 @@ import numpy as np
 from PIL import Image
 from copy import deepcopy
 from diskcache import Cache
-from coil_network.models.timefuser_model import TimeFuser
 from coil_utils.baseline_helpers import get_copycat_criteria,generate_experiment_name
 from team_code.data import CARLA_Data
+from team_code.timefuser_model import TimeFuser
 import csv
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data.distributed import DistributedSampler
@@ -44,6 +44,8 @@ from coil_utils.baseline_helpers import (
 )
 
 def main(args):
+    # torch.backends.cudnn.benchmark=False
+    # torch.backends.cudnn.deterministic=True
     torch.cuda.empty_cache()
     world_size = int(os.environ["WORLD_SIZE"])
     rank = int(os.environ["LOCAL_RANK"])
@@ -153,15 +155,15 @@ def main(args):
         if "arp" in merged_config_object.experiment:
             policy = TimeFuser("arp-policy", merged_config_object)
             policy.to(device_id)
-            policy = DDP(policy, device_ids=[device_id], find_unused_parameters=True)
+            policy = DDP(policy, device_ids=[device_id])
 
             mem_extract = TimeFuser("arp-memory", merged_config_object)
             mem_extract.to(device_id)
-            mem_extract = DDP(mem_extract, device_ids=[device_id], find_unused_parameters=True)
+            mem_extract = DDP(mem_extract, device_ids=[device_id])
         else:
             model = TimeFuser(merged_config_object.baseline_folder_name, merged_config_object)
             model.to(device_id)
-            model = DDP(model, device_ids=[device_id],find_unused_parameters=True)
+            model = DDP(model, device_ids=[device_id])
 
         if "arp" in merged_config_object.experiment:
             policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
@@ -195,11 +197,6 @@ def main(args):
             accumulated_time = 0
             already_trained_epochs = 0
         print("Before the loss")
-        if "keyframes" in merged_config_object.experiment:
-            from coil_network.keyframes_loss import Loss
-        else:
-            from coil_network.loss import Loss
-        criterion = Loss(merged_config_object.loss_function_baselines)
         if not args.metric:
             for epoch in tqdm(
                 range(1 + already_trained_epochs, merged_config_object.epochs_baselines + 1),
@@ -222,11 +219,11 @@ def main(args):
                             **pred_dict_memory,
                             "targets": mem_extract_targets,
                             "bev_targets": bev_semantic_labels,
-                           
+                            "targets_bb": targets_bb,
                             "device_id": device_id,
                         }
 
-                        mem_extract_loss= criterion(loss_function_params_memory)
+                        mem_extract_loss= mem_extract.module.compute_loss(params=loss_function_params_memory, logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank)
                         mem_extract_loss.backward()
                         mem_extract_optimizer.step()
                         policy.zero_grad()
@@ -237,11 +234,11 @@ def main(args):
                             **pred_dict_policy,
                             "targets": targets,
                             "bev_targets": bev_semantic_labels,
-                            
+                            "targets_bb": targets_bb,
                             "device_id": device_id,
                             
                         }
-                        policy_loss= policy.compute_loss(loss_function_params_policy)
+                        policy_loss= policy.module.compute_loss(params=loss_function_params_policy, logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank)
                         policy_loss.backward()
                         policy_optimizer.step()
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
@@ -319,13 +316,14 @@ def main(args):
                             
                         }
                         if "keyframes" in merged_config_object.experiment:
-                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank)
+                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank, keyframes=True)
                         else:
-                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration,rank=rank)# OBACHT MIT KEYFRAMES LOSS
+                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration,rank=rank)
                         loss.backward()
                         optimizer.step()
                         scheduler.step()
-                        if epoch>1:
+                        
+                        if args.debug and epoch>1000:
                             if merged_config_object.detectboxes:
                                 batch_of_bbs_pred=model.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
                             else:
@@ -761,7 +759,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     Path(store_path).parent.mkdir(parents=True, exist_ok=True)
     all_images.save(store_path)
 def extract_and_normalize_data(args, device_id, merged_config_object, data):
-    all_images = data["rgb"].to(device_id).to(torch.float32) / 255.0
+    all_images = data["rgb"].to(device_id).to(torch.float32)
                    
     
     if merged_config_object.speed:
@@ -887,22 +885,10 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
-        "--reducedchanneldim",
-        type=int,
-        default=128
-
-    )
-    parser.add_argument(
-        "--numtransformerlayers",
-        type=int,
-        default=6
-
-    )
-    parser.add_argument(
         "--lossweights",
         nargs="+",
         type=float,
-        default=[1, 0]
+        default=[0.33, 0.33, 0.33]
 
     )
     parser.add_argument("--dataset-repetition", type=int, default=1)
