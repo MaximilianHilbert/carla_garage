@@ -171,14 +171,14 @@ class TimeFuser(nn.Module):
             x[:,image_index,...]=x[:,image_index,...]+self.time_position_embedding[image_index,...].repeat(bs, 1, 1, 1)
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
-            generated_memory=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3)
+            generated_memory=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
             pred_dict.update({"memory": generated_memory})
         additional_inputs=[input for input in [memory_to_fuse, measurement_enc, prev_wp_enc] if input is not None]
         if additional_inputs:
             additional_inputs=torch.cat(additional_inputs, dim=1)
-            x=torch.cat((x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3),additional_inputs), axis=1)
+            x=torch.cat((x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3),additional_inputs), axis=1).contiguous()
         else:
-            x=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3)
+            x=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
         x=self.transformer_encoder(x)
         if self.config.bev:
             queries=torch.cat((self.wp_query, self.bev_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
@@ -189,7 +189,7 @@ class TimeFuser(nn.Module):
         pred_dict.update({"wp_predictions": wp_tokens})
         if self.config.bev:
             bev_tokens=all_tokens_output[:, self.wp_query.shape[0]:,...]
-            bev_tokens=bev_tokens.permute(0,2,1).reshape(bs, self.channel_dimension, self.config.num_bev_query, self.config.num_bev_query)
+            bev_tokens=bev_tokens.permute(0,2,1).reshape(bs, self.channel_dimension, self.config.num_bev_query, self.config.num_bev_query).contiguous()
             pred_bev_grid=self.bev_semantic_decoder(bev_tokens)
             pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
             pred_dict.update({"pred_bev_semantic": pred_bev_semantic})
