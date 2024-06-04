@@ -72,7 +72,7 @@ class TimeFuser(nn.Module):
             valid_bev_pixels = torch.max(valid_voxels, dim=3, keepdim=False)[0].unsqueeze(1)
             # Conversion from CARLA coordinates x depth, y width to image coordinates x width, y depth.
             # Analogous to transpose after the LiDAR histogram
-            valid_bev_pixels = torch.transpose(valid_bev_pixels, 2, 3).contiguous()
+            valid_bev_pixels = torch.transpose(valid_bev_pixels, 2, 3)
             # Register as parameter so that it will automatically be moved to the correct GPU with the rest of the network
             self.valid_bev_pixels = nn.Parameter(valid_bev_pixels, requires_grad=False)
            
@@ -191,7 +191,7 @@ class TimeFuser(nn.Module):
         pred_dict.update({"wp_predictions": wp_tokens})
         if self.config.bev:
             bev_tokens=all_tokens_output[:, self.wp_query.shape[0]:,...]
-            bev_tokens=bev_tokens.permute(0,2,1).reshape(bs, self.channel_dimension, self.config.num_bev_query, self.config.num_bev_query).contiguous()
+            bev_tokens=bev_tokens.permute(0,2,1).reshape(bs, self.channel_dimension, self.config.num_bev_query, self.config.num_bev_query)
             pred_bev_grid=self.bev_semantic_decoder(bev_tokens)
             pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
             pred_dict.update({"pred_bev_semantic": pred_bev_semantic})
