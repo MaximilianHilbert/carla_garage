@@ -48,7 +48,7 @@ def set_seed(seed):
 
 
 def generate_experiment_name(ablations_dict):
-    return f'baseline-{ablations_dict["baseline_folder_name"]}_speed-{ablations_dict["speed"] if "speed" in ablations_dict.keys() else 0}_prevnum-{ablations_dict["prevnum"] if "prevnum" in ablations_dict.keys() else 0}_backbone-{ablations_dict["backbone"] if "backbone" in ablations_dict.keys() else "unrolling"}_head-{ablations_dict["head"] if "head" in ablations_dict.keys() else 0}_lossweights-{ablations_dict["lossweights"] if "lossweights" in ablations_dict.keys() else [0.33, 0.33, 0.33]}_tr-{ablations_dict["training_repetition"]}'
+    return f'baseline-{ablations_dict["baseline_folder_name"]}_speed-{ablations_dict["speed"] if "speed" in ablations_dict.keys() else 0}_prevnum-{ablations_dict["prevnum"] if "prevnum" in ablations_dict.keys() else 0}_backbone-{ablations_dict["backbone"] if "backbone" in ablations_dict.keys() else "unrolling"}_head-{ablations_dict["head"] if "head" in ablations_dict.keys() else 0}_lossweights-{ablations_dict["lossweights"] if "lossweights" in ablations_dict.keys() else str([0.33, 0.33, 0.33])}_tr-{ablations_dict["training_repetition"]}'
 
 def find_free_port():
     """https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number"""
