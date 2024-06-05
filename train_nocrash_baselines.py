@@ -150,8 +150,6 @@ def main(args):
                             experiment["prevnum"]=max_img_seq_len_baselines
                     else:
                         experiment["prevnum"]=0
-                    if "lossweights" not in experiment.keys():
-                        experiment["lossweights"]=str([0.33, 0.33, 0.33])
                     experiment.update({"baseline_folder_name": baseline_folder_name})
                     experiment.update({"training_repetition": training_repetition})
                     experiment_string=generate_experiment_name(experiment)
