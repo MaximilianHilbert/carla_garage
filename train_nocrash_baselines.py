@@ -120,8 +120,8 @@ def place_batch_scripts():
     root = os.path.join(os.environ.get("WORK_DIR"), "job_files")
     for file in os.listdir(root):
         full_path = os.path.join(root, file)
-        out = subprocess.check_output(f"chmod u+x {full_path}", shell=True)
-        out = subprocess.check_output(f"sbatch {full_path}", shell=True)
+        out = subprocess.check_output(f'chmod u+x {full_path}', shell=True)
+        out = subprocess.check_output(f'sbatch {full_path}', shell=True)
         print(out)
 
 
@@ -151,7 +151,7 @@ def main(args):
                     else:
                         experiment["prevnum"]=0
                     if "lossweights" not in experiment.keys():
-                        experiment["lossweights"]=[0.33, 0.33, 0.33]
+                        experiment["lossweights"]=str([0.33, 0.33, 0.33])
                     experiment.update({"baseline_folder_name": baseline_folder_name})
                     experiment.update({"training_repetition": training_repetition})
                     experiment_string=generate_experiment_name(experiment)
