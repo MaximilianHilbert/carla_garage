@@ -58,7 +58,7 @@ def main(args):
     if rank == 0:
         print("Backend initialized")
     device_id = torch.device(f"cuda:{rank}")
-    experiment_name=generate_experiment_name(args)
+    experiment_name=generate_experiment_name({"training_repetition": args.training_repetition, "baseline_folder_name": args.baseline_folder_name, "prevnum": args.prevnum, "speed": args.speed, "backbone": args.backbone, "bev": args.bev, "detectboxes": args.detectboxes, "lossweights": args.lossweights})
     merged_config_object = merge_config(args, experiment_name)
     
     basepath=os.path.join(os.environ.get("WORK_DIR"),

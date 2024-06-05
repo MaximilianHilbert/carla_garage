@@ -1,7 +1,8 @@
 import os
 import subprocess
 import numpy as np
-from coil_utils.baseline_helpers import get_latest_saved_checkpoint
+
+from coil_utils.baseline_helpers import get_latest_saved_checkpoint, generate_experiment_name
 import itertools
 max_img_seq_len_baselines=6
 def generate_ablation_combinations(args):
@@ -82,7 +83,7 @@ torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
 #SBATCH --nodes=1
 #SBATCH --time=0-{walltime}:00
 #SBATCH --gres=gpu:8
-#SBATCH --partition=a100-galvani
+#SBATCH --partition=2080-galvani
 #SBATCH --cpus-per-task=64
 #SBATCH --output="/mnt/qb/work/geiger/gwb629/slurmlogs/{complete_string}.out"
 #SBATCH --error="/mnt/qb/work/geiger/gwb629/slurmlogs/{complete_string}.err"
@@ -110,7 +111,7 @@ source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --speed {experiment["speed"] if "speed" in experiment.keys() else 0} --prevnum {experiment["prevnum"] if "prevnum" in experiment.keys() else 0} --backbone {experiment["backbone"] if "backbone" in experiment.keys() else "stacking"} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --number-of-workers 8 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --bev {experiment["head"] if "head" in experiment.keys() else 0} --detectboxes {experiment["head"] if "head" in experiment.keys() else 0} --speed {experiment["speed"] if "speed" in experiment.keys() else 0} --prevnum {experiment["prevnum"]} --backbone {experiment["backbone"] if "backbone" in experiment.keys() else "unrolling"} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --number-of-workers 8 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
 """
             f.write(command)
 
@@ -143,19 +144,18 @@ def main(args):
             else:
                 combinations=generate_ablation_combinations(args)
                 for experiment in combinations:
-                    if not "backbone" in experiment.keys():
-                        experiment["backbone"]="unrolling"
-                    if "speed" not in experiment.keys():
-                        experiment["speed"]=0
                     # in case we want to ablate prevnum we set it to the past 6 waypoints, because our baselines consider 6 previous frames
                     if "prevnum" in experiment.keys():
                         if experiment["prevnum"]==1:
                             experiment["prevnum"]=max_img_seq_len_baselines
                     else:
                         experiment["prevnum"]=0
-                    experiment_string=f'baseline-{baseline_folder_name}_speed-{experiment["speed"]}_prevnum-{experiment["prevnum"]}_backbone-{experiment["backbone"]}'
-                    complete_string=f"{experiment_string}_tr-{str(training_repetition)}"
-                    final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, complete_string,f"repetition_{training_repetition}", args.setting)
+                    if "lossweights" not in experiment.keys():
+                        experiment["lossweights"]=[0.33, 0.33, 0.33]
+                    experiment.update({"baseline_folder_name": baseline_folder_name})
+                    experiment.update({"training_repetition": training_repetition})
+                    experiment_string=generate_experiment_name(experiment)
+                    final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, experiment_string,f"repetition_{training_repetition}", args.setting)
                     if os.path.isdir(final_log_dir):
                         checkpoint=get_latest_saved_checkpoint(final_log_dir)
                         if checkpoint==30:
@@ -168,7 +168,7 @@ def main(args):
                         experiment,
                         batch_size,
                         walltime,
-                        complete_string
+                        experiment_string
                     )
     if not args.train_local:
         place_batch_scripts()
