@@ -53,7 +53,7 @@ def main(args):
         init_method=f"env://127.0.0.1:{find_free_port()}",
         world_size=world_size,
         rank=rank,
-        timeout=datetime.timedelta(seconds=3600),
+        timeout=datetime.timedelta(seconds=259200),
     )
     if rank == 0:
         print("Backend initialized")
