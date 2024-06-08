@@ -117,8 +117,8 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 
 def make_jobsub_file(root,commands, exp_name, exp_root_name, filename, partition):
     os.makedirs(os.path.join(root, 'evaluation', exp_root_name,exp_name,'run_files','logs'), exist_ok=True)
-    os.makedirs(os.path.join(root, 'evaluation', exp_root_name,exp_name,'job_files','logs'), exist_ok=True)
-    job_file = os.path.join(root, "evaluation",exp_root_name,exp_name,"run_files","job_files",f"{filename}.sh")
+    os.makedirs(os.path.join(root, 'evaluation', exp_root_name,exp_name,'run_files','job_files'), exist_ok=True)
+    job_file = os.path.join(root, "evaluation",exp_root_name,exp_name,"run_files",f"{filename}.sh")
     qsub_template = f"""#!/bin/bash
 #SBATCH --job-name={filename}
 #SBATCH --partition={partition}
