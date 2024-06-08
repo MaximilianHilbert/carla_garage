@@ -21,21 +21,27 @@ def get_copycat_criteria(data_lst,prev_predictions_aligned,prev_gt_aligned_lst, 
     differences_gt=[]
     differences_loss=[]
     for index,(current, previous_pred_aligned,prev_gt_aligned) in enumerate(zip(data_lst, prev_predictions_aligned,prev_gt_aligned_lst)):
-        differences_pred.append(norm(previous_pred_aligned-current["pred"], ord=which_norm))
-        differences_gt.append(norm(prev_gt_aligned-current["gt"], ord=which_norm))
-        differences_loss.append(norm(data_lst[index-1]["loss"]-current["loss"], ord=which_norm))
+        try:
+            differences_pred.append(norm(previous_pred_aligned-current["pred"], ord=which_norm))
+            differences_gt.append(norm(prev_gt_aligned-current["gt"], ord=which_norm))
+            differences_loss.append(norm(data_lst[index-1]["loss"]-current["loss"], ord=which_norm))
+        except TypeError:
+            differences_pred.append(np.nan)
+            differences_gt.append(np.nan)
+            differences_loss.append(np.nan)
+
     differences_pred=np.array(differences_pred)
     differences_gt=np.array(differences_gt)
     differences_loss=np.array(differences_loss)
 
-    std_value_gt=np.std(differences_gt)
-    std_value_pred=np.std(differences_pred)
+    std_value_gt=np.nanstd(differences_gt)
+    std_value_pred=np.nanstd(differences_pred)
 
-    mean_value_gt=np.mean(differences_gt)
-    mean_value_pred=np.mean(differences_pred)
+    mean_value_gt=np.nanmean(differences_gt)
+    mean_value_pred=np.nanmean(differences_pred)
 
-    mean_value_loss=np.mean(differences_loss)
-    std_value_loss=np.std(differences_loss)
+    mean_value_loss=np.nanmean(differences_loss)
+    std_value_loss=np.nanstd(differences_loss)
 
     return {"mean_pred": mean_value_pred,"mean_gt": mean_value_gt, "std_pred":std_value_pred,
             "std_gt":std_value_gt, "loss_mean": mean_value_loss, "loss_std": std_value_loss}
