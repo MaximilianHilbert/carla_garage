@@ -6,6 +6,7 @@ import cv2
 from collections import deque
 from torch.nn.parallel import DistributedDataParallel as DDP
 import matplotlib.pyplot as plt
+from team_code.transfuser_utils import non_maximum_suppression
 from leaderboard.envs.sensor_interface import SensorInterface
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
 from leaderboard.autoagents.autonomous_agent import Track
@@ -13,8 +14,7 @@ from coil_utils.baseline_helpers import norm
 from coil_utils.baseline_helpers import visualize_model
 from nav_planner import RoutePlanner
 from srunner.scenariomanager.timer import GameTime
-from coil_network.models.coil_icra import CoILICRA
-from coil_planner.planner import Planner
+from team_code.timefuser_model import TimeFuser
 from team_code.transfuser_utils import preprocess_compass, inverse_conversion_2d
 import carla
 from team_code.transfuser_utils import PIDController
@@ -28,19 +28,20 @@ class CoILAgent(AutonomousAgent):
         self.initialized = False
         self.checkpoint = checkpoint  # We save the checkpoint for some interesting future use.
         self.config = config
+        
         if baseline in ["bcoh", "bcso", "keyframes"]:
-            model = CoILICRA("coil-icra", self.config)
+            model = TimeFuser(baseline, self.config)
             model.to("cuda:0")
             self.model = DDP(model, device_ids=["cuda:0"])
             self.model.load_state_dict(checkpoint["state_dict"])
             self.model.cuda()
             self.model.eval()
         else:
-            policy = CoILICRA("coil-policy", self.config)
+            policy = TimeFuser("arp-policy", self.config)
             policy.to("cuda:0")
             self._policy = DDP(policy, device_ids=["cuda:0"])
 
-            mem_extract = CoILICRA("coil-memory", self.config)
+            mem_extract = TimeFuser("arp-memory", self.config)
             mem_extract.to("cuda:0")
             self._mem_extract = DDP(mem_extract, device_ids=["cuda:0"])
             self._policy.load_state_dict(checkpoint["policy_state_dict"])
@@ -56,20 +57,17 @@ class CoILAgent(AutonomousAgent):
             k_d=config.speed_kd,
             n=config.speed_n,
         )
-
+        
         self.first_iter = True
-        # self.rgb_queue=deque(maxlen=g_conf.NUMBER_FRAMES_FUSION)
-        self.rgb_queue = deque(maxlen=self.config.img_seq_len - 1)
-        self.prev_wp = deque(maxlen=self.config.closed_loop_previous_waypoint_predictions)
-        self.prev_location_queue=deque(maxlen=self.config.max_img_seq_len_baselines)
+        self.prev_rgb_queue = deque(maxlen=self.config.img_seq_len*self.config.data_save_freq)
+        self.prev_speeds_queue = deque(maxlen=(self.config.max_img_seq_len_baselines+1)*self.config.data_save_freq) #we fuse the previous and the current timestep velocity
+        self.prev_location_queue=deque(maxlen=self.config.max_img_seq_len_baselines*self.config.data_save_freq) # we fuse only the previous 6 timesteps locations
         #queues for replay simulation
-        if self.config.visualize_without_rgb or self.config.visualize_combined:
-            self.replay_image_queue=deque(maxlen=self.config.replay_seq_len)
-            self.replay_previous_waypoints_queue=deque(maxlen=self.config.replay_seq_len)
-            self.replay_current_waypoints_queue=deque(maxlen=self.config.replay_seq_len)
-            self.replay_target_points_queue=deque(maxlen=self.config.replay_seq_len)
-            self.replay_road_queue=deque(maxlen=self.config.replay_seq_len)
-            self.replay_pred_residual_queue=deque(maxlen=self.config.replay_seq_len)
+        self.replay_image_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq)
+        self.replay_current_predictions_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq)
+        self.replay_target_points_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq)
+        self.replay_road_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq)
+        self.replay_pred_residual_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq)
         self.track = Track.SENSORS
         self._global_plan = None
         self._global_plan_world_coord = None
@@ -82,7 +80,7 @@ class CoILAgent(AutonomousAgent):
         self.latest_image = None
         self.latest_image_tensor = None
         self.target_point_prev = 0
-
+    
     def destroy(self, results=None):  # pylint: disable=locally-disabled, unused-argument
         """
         Gets called after a route finished.
@@ -176,19 +174,25 @@ class CoILAgent(AutonomousAgent):
             self.wallclock_t0 = GameTime.get_wallclocktime()
         wallclock = GameTime.get_wallclocktime()
         wallclock_diff = (wallclock - self.wallclock_t0).total_seconds()
-        if timestamp < 1:
+        if timestamp < 2:
             control = carla.VehicleControl()
             control.steer = 0.0
             control.brake = 0.0
             control.throttle = 0.0
             current_image = current_data.get("CentralRGB")[1][..., :3]
             current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
+            current_speed=current_data.get("speed")[1]["speed"]
+            current_position = self.vehicle.get_location()
+            current_position = np.array([current_position.x, current_position.y])
             replay_params={}
+            model=None
+            self.prev_rgb_queue.append(current_image)
+            self.prev_speeds_queue.append(current_speed)
+            self.prev_location_queue.append(current_position)
         else:
-            control, current_image,replay_params = self.run_step(current_data, list(self.rgb_queue), timestamp)
+            control, replay_params, model = self.run_step(current_data, timestamp)
         control.manual_gear_shift = False
-        self.rgb_queue.append(current_image)
-        return control, replay_params
+        return control, replay_params, model
 
     def yaw_to_orientation(self, yaw):
         # Calculate the orientation vector in old carla convention
@@ -219,26 +223,9 @@ class CoILAgent(AutonomousAgent):
     def run_step(
         self,
         sensor_data,
-        original_image_list,
         timestamp,
-        avoid_stop=True,
-        perturb_speed=True,
     ):
-        """
-            Run a step on the benchmark simulation
-        Args:
-            measurements: The measurements
-            sensor_data: The sensor data
-            original_image_list: All the original images used on this benchmark, the input format is a list, including a series of continous frames.
-            processed_image_list: All the processed images, the input format is a list, including a series of continous frames.
-            directions: The directions, high level commands
-            target: Final objective. Not used when the agent is predicting all outputs.
-            previous_actions_list: All the previous actions used on this benchmark, optional
-
-        Returns:
-            Controls for the vehicle on the CARLA simulator.
-
-        """
+       
         # retrieve location data from sensors and normalize/transform to ego vehicle system
         if not self.initialized:
             self._init()
@@ -273,94 +260,98 @@ class CoILAgent(AutonomousAgent):
         current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
 
         vehicle_speed=sensor_data.get("speed")[1]["speed"]
-        speed_value=torch.tensor(vehicle_speed, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to("cuda:0")
-        single_image, observation_history = self._process_sensors(current_image, original_image_list)
+        #add data to queues in beginning of the loop, so we have historical information + current information and then subsample before it comes into the model
+        # here we add the current one but the self.prev_location_queue does append later, we fuse only historical locations, but also current speeds and observations
+        self.prev_rgb_queue.append(current_image)
+        self.prev_speeds_queue.append(vehicle_speed)
+        
+
+
+        prev_speeds=torch.tensor(list(self.prev_speeds_queue)[::-self.config.data_save_freq], dtype=torch.float32).unsqueeze(0).cuda("cuda:0")
+        all_images = self._process_sensors(list(self.prev_rgb_queue)[::-self.config.data_save_freq])
         if self.config.prevnum>0:
-            vehicle_prev_positions=torch.tensor(np.array([inverse_conversion_2d(wp, current_location, current_yaw_ego_system) for wp in self.prev_location_queue], dtype=np.float32)).unsqueeze(0).to("cuda:0")
-            if vehicle_prev_positions.shape[1]<self.config.max_img_seq_len_baselines:
-                vehicle_prev_positions=torch.empty((1,2*self.config.max_img_seq_len_baselines), dtype=torch.float32).to("cuda:0")
-            else:
-                vehicle_prev_positions=vehicle_prev_positions.flatten(start_dim=1)
+            vehicle_prev_positions=torch.tensor(np.array([inverse_conversion_2d(wp, current_location, current_yaw_ego_system) for wp in list(self.prev_location_queue)[::-self.config.data_save_freq]], dtype=np.float32)).unsqueeze(0).to("cuda:0")
         else:
             vehicle_prev_positions=None
         if self.config.baseline_folder_name == "arp":
-            
-            _, memory = self._mem_extract(
-                x=observation_history.unsqueeze(0),
-                speed=speed_value if self.config.speed else None, target_point=end_point_location_ego_system,
-                prev_wp=vehicle_prev_positions,
-            )
-            model_outputs,_ = self._policy.module.forward(
-                x=single_image.unsqueeze(0),
-                speed=speed_value if self.config.speed else None,
-                prev_wp=vehicle_prev_positions,
-                memory_to_fuse=memory,
-                target_point=end_point_location_ego_system,
-            )
-
-        elif self.config.baseline_folder_name in ["bcoh", "keyframes"]:
-            if self.config.backbone_type=="stacking":
-                merged_history_and_current = torch.cat([observation_history, single_image], dim=0)
-            else:
-                merged_history_and_current=torch.concat([observation_history, single_image.unsqueeze(0)], axis=0)
-            model_outputs,_ = self.model.module.forward(
-                    x=merged_history_and_current.unsqueeze(0),
-                    speed=speed_value if self.config.speed else None, target_point=end_point_location_ego_system,
-                prev_wp=vehicle_prev_positions,
+            with torch.no_grad():
+                pred_dict_memory = self._mem_extract.module.forward(
+                    x=all_images[:-1].unsqueeze(0),
+                    speed=prev_speeds[:,:-1,...] if self.config.speed else None, target_point=end_point_location_ego_system,
+                    prev_wp=vehicle_prev_positions,
                 )
-        else:
-            model_outputs,_ = self.model.module.forward(
-                    x=single_image.unsqueeze(0),speed=speed_value if self.config.speed else None,
+                pred_dict= self._policy.module.forward(
+                    x=all_images[-1].unsqueeze(0).unsqueeze(0),
+                    speed=prev_speeds[:,-1:,...] if self.config.speed else None,
+                    prev_wp=None,
+                    memory_to_fuse=pred_dict_memory["memory"].detach(),
                     target_point=end_point_location_ego_system,
-                prev_wp=vehicle_prev_positions,
                 )
-        current_predictions=model_outputs.squeeze().detach().cpu().numpy()
-        if not self.prev_wp:
-            previous_waypoints=None
-            prediction_residual=None
         else:
-            previous_waypoints=self.prev_wp[-1].detach().cpu().numpy()
-            prediction_residual=norm(current_predictions-previous_waypoints, ord=self.config.norm)
-
+            with torch.no_grad():
+                pred_dict = self.model.module.forward(
+                        x=all_images.unsqueeze(0),speed=prev_speeds if self.config.speed else None,
+                        target_point=end_point_location_ego_system,
+                    prev_wp=vehicle_prev_positions,
+                    )
+        current_predictions_wp=pred_dict["wp_predictions"].squeeze().detach().cpu().numpy()
+        if len(self.replay_current_predictions_queue)!=0:
+            previous_waypoints=[pred["wp_predictions"] for pred in list(self.replay_current_predictions_queue)][-1].squeeze().detach().cpu().numpy()
+        else:
+            previous_waypoints=None
+        if previous_waypoints is not None:
+            prediction_residual=norm(current_predictions_wp-previous_waypoints, ord=self.config.norm)
+        else:
+            prediction_residual=None
         if self.config.debug:
-            if self.config.img_seq_len<7:
-                single_image=single_image.detach().cpu().numpy()
-                empties=np.concatenate([np.zeros_like(single_image)]*(7-self.config.img_seq_len), axis=1)
-                image_sequence=np.concatenate([empties, single_image], axis=1)
-                image_sequence=np.transpose(image_sequence,(1,2,0))*255
+            if self.config.baseline_folder_name=="bcso":
+                empties=np.concatenate([np.zeros_like(current_image)]*(7-self.config.img_seq_len), axis=0)
+                image_sequence=np.concatenate([empties, current_image], axis=0)
+                image_sequence=image_sequence*255
             else:
-                original_image_list.append(current_image)
-                image_sequence=np.concatenate(original_image_list, axis=0)
+                image_sequence=np.concatenate(list(self.prev_rgb_queue)[::-self.config.data_save_freq], axis=0)*255
+            root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
+                                  "debug",self.config.eval_id)
 
-            if int(timestamp)%2==0:
-                visualize_model(save_path_root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name),
-                                pred_wp=current_predictions,config=self.config,pred_wp_prev=previous_waypoints,
-                                rgb=image_sequence,step=timestamp,target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(),
-                                parameters={'pred_residual':prediction_residual},
-                                args=self.config,frame=timestamp,
-                                road=self.ss_bev_manager.get_road(), closed_loop=True)
-        if self.config.visualize_without_rgb or self.config.visualize_combined:            
-            self.replay_previous_waypoints_queue.append(previous_waypoints)
-            self.replay_current_waypoints_queue.append(current_predictions)
-            self.replay_image_queue.append(single_image.detach().cpu().numpy())
-            self.replay_target_points_queue.append(end_point_location_ego_system.squeeze().detach().cpu().numpy())
-            self.replay_road_queue.append(self.ss_bev_manager.get_road())
-            self.replay_pred_residual_queue.append(prediction_residual)
-        self.prev_wp.append(model_outputs.squeeze())
-        self.prev_location_queue.append(current_location)
-       
-        model_outputs = model_outputs.cpu().detach()
+            #if np.round(timestamp,2)%2==0.0:
+            if self.config.detectboxes:
+                if "arp" in self.config.baseline_folder_name:
+                    batch_of_bbs_pred=self._policy.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
+                else:
+                    batch_of_bbs_pred=self.model.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
+                batch_of_bbs_pred = non_maximum_suppression([batch_of_bbs_pred], self.config.iou_treshold_nms)
+            else:
+                batch_of_bbs_pred=None
+            if not self.config.bev==1:
+                road=self.ss_bev_manager.get_road()
+            else:
+                road=None
+            visualize_model(rgb=image_sequence,config=self.config,closed_loop=True,
+                            save_path_root=root,
+                            target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(), pred_wp=pred_dict["wp_predictions"].squeeze().detach().cpu().numpy(),
+                            pred_bb=batch_of_bbs_pred,step=timestamp,
+                            pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
+                            road=road, parameters={"pred_residual": prediction_residual}, pred_wp_prev=previous_waypoints, args=self.config)
+        
+
+        
+        self.replay_current_predictions_queue.append(pred_dict)
+        #we need an additional rgb queue, because it is way longer, to be able to visualize collisions with a long horizon
+        self.replay_image_queue.append(all_images[-1].detach().cpu().numpy())
+        self.replay_target_points_queue.append(end_point_location_ego_system.squeeze().detach().cpu().numpy())
+        self.replay_road_queue.append(self.ss_bev_manager.get_road())
+        self.replay_pred_residual_queue.append(prediction_residual)
+        
         steer, throttle, brake = self.control_pid(
-            waypoints=model_outputs, speed=vehicle_speed
+            waypoints=pred_dict["wp_predictions"].cpu().detach(), speed=vehicle_speed
         )
  
         control = carla.VehicleControl()
         control.steer = float(steer)
         control.throttle = float(throttle)
         control.brake = float(brake)
-
-        # There is the posibility to replace some of the predictions with oracle predictions.
-        self.first_iter = False
+        #now we append the current location, that it will be a previous_location in the next step
+        self.prev_location_queue.append(current_location)
 
         print(timestamp, steer, throttle, brake)
         print("target")
@@ -368,9 +359,11 @@ class CoILAgent(AutonomousAgent):
         print("current location")
         print(current_location)
     
-        return control, current_image,{"image_sequence": self.replay_image_queue, "previous_predictions": self.replay_previous_waypoints_queue,
-                                       "current_waypoints": self.replay_current_waypoints_queue, "target_points":self.replay_target_points_queue, "roads": self.replay_road_queue,
-                                       "pred_residual": self.replay_pred_residual_queue} if self.config.visualize_without_rgb or self.config.visualize_combined else {}
+        return control,{"image_sequence": list(self.replay_image_queue)[::-self.config.data_save_freq],
+                "current_predictions": list(self.replay_current_predictions_queue)[::-self.config.data_save_freq],
+                "target_points": list(self.replay_target_points_queue)[::-self.config.data_save_freq],
+                "roads": list(self.replay_road_queue)[::-self.config.data_save_freq],
+                "pred_residual": list(self.replay_pred_residual_queue)[::-self.config.data_save_freq]},self.model if self.config.baseline_folder_name!="arp" else self._policy 
 
     def control_pid(self, waypoints, speed):
         """
@@ -474,24 +467,15 @@ class CoILAgent(AutonomousAgent):
         self.latest_image = current_image
         current_image = np.swapaxes(current_image, 0, 1)
         current_image = np.transpose(current_image, (2, 1, 0))
-        current_image = torch.from_numpy(current_image / 255.0).type(torch.FloatTensor).cuda()
+        current_image = torch.from_numpy(current_image/255.0).type(torch.FloatTensor).cuda()
         return current_image
 
-    def _process_sensors(self, current_image, image_list):
+    def _process_sensors(self, image_list):
         processed_images = []
-        current_image = self._process_single_frame(current_image)
         for image in image_list:
             processed_image = self._process_single_frame(image)
             processed_images.append(processed_image)
-        if processed_images:
-            if self.config.backbone_type=="stacking":
-                multi_image_input = torch.cat(processed_images, dim=0)
-            else:
-                multi_image_input=torch.stack(processed_images)
-        else:
-            multi_image_input = torch.empty((1, 1))
-        self.latest_image_tensor = multi_image_input
-        return current_image.to("cuda:0"), multi_image_input.to("cuda:0")
+        return torch.stack(processed_images).to("cuda:0")
 
     def _process_model_outputs_actions(self, outputs, norm_speed, predicted_speed, avoid_stop=False):
         """

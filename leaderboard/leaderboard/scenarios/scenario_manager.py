@@ -148,8 +148,9 @@ class ScenarioManager(object):
             GameTime.on_carla_tick(timestamp)
             CarlaDataProvider.on_carla_tick()
             try:
-                ego_action, replay_params = self._agent()
+                ego_action, replay_params, model = self._agent()
                 self.replay_parameter=replay_params
+                self.model=model
             # Special exception inside the agent that isn't caused by the agent
             except SensorReceivedNoData as e:
                 raise RuntimeError(e)
