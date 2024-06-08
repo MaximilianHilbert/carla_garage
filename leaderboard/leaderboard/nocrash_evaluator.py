@@ -14,11 +14,13 @@ from __future__ import print_function
 
 import traceback
 import argparse
+import pickle
 import itertools
 from argparse import RawTextHelpFormatter
 from datetime import datetime
 from distutils.version import LooseVersion
 import importlib
+from coil_utils.baseline_helpers import merge_with_command_line_args
 import os
 import numpy as np
 import pkg_resources
