@@ -96,7 +96,13 @@ class NoCrashEvaluator(object):
         self.statistics_manager = statistics_manager
         self.sensors = None
         self.sensor_icons = []
-        self.config = merge_config(args, experiment_name=args.eval_id, training=False)
+        config_path=os.path.join(os.path.dirname(os.path.dirname(args.coil_checkpoint)), "config_training.pkl")
+        with open(os.path.join(config_path), 'rb') as f:
+            config = pickle.load(f)
+        merge_with_command_line_args(config, args)
+        if args.override_seq_len:
+            setattr(config, "replay_seq_len", args.override_seq_len)
+        self.config = config
         # First of all, we need to create the client that will send the requests
         # to the simulator. Here we'll assume the simulator is accepting
         # requests in the localhost at port 2000.
@@ -561,6 +567,10 @@ def main():
         default="./simulation_results.json",
         help="Path to checkpoint used for saving statistics and resuming",
     )
+    parser.add_argument(
+        "--override_seq_len",
+        type=int,
+        )
 
     arguments = parser.parse_args()
 
