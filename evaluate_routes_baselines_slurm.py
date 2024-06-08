@@ -115,7 +115,7 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
         )
 
 
-def make_jobsub_file(commands, exp_name, exp_root_name, filename, partition):
+def make_jobsub_file(root,commands, exp_name, exp_root_name, filename, partition):
     os.makedirs(f"evaluation/{exp_root_name}/{exp_name}/run_files/logs", exist_ok=True)
     os.makedirs(f"evaluation/{exp_root_name}/{exp_name}/run_files/job_files", exist_ok=True)
     job_file = f"evaluation/{exp_root_name}/{exp_name}/run_files/job_files/{filename}.sh"
@@ -397,6 +397,7 @@ def main():
                                             carla_tm_port_start += 50
 
                                             job_file = make_jobsub_file(
+                                                root=code_root,
                                                 commands=commands,
                                                 exp_name=experiment_name_stem,
                                                 exp_root_name=experiment_name_root,
