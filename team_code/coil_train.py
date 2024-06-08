@@ -259,7 +259,7 @@ def main(args):
                                     str(epoch) + ".pth",
                                 ),
                             )
-                        if rank == 0:
+                        if rank == 0 and iteration%100==0:
                             logger.add_scalar(
                                 "Policy_Loss_Iterations",
                                 policy_loss.data,
@@ -323,12 +323,12 @@ def main(args):
                         optimizer.step()
                         scheduler.step()
                         
-                        if args.debug and epoch>1000:
+                        if args.debug and iteration%1==0:
                             if merged_config_object.detectboxes:
                                 batch_of_bbs_pred=model.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
                             else:
                                 batch_of_bbs_pred=None
-                            visualize_model(rgb=torch.squeeze(data["rgb"],1),config=merged_config_object, save_path=os.path.join(os.environ.get("WORK_DIR"), "test"), gt_bev_semantic=None,lidar_bev=data["lidar"], target_point=
+                            visualize_model(rgb=torch.squeeze(data["rgb"],0),config=merged_config_object, save_path=os.path.join(os.environ.get("WORK_DIR"), "test"), gt_bev_semantic=None,lidar_bev=data["lidar"], target_point=
                                                 data["target_point"], pred_wp=pred_dict["wp_predictions"],pred_bb=batch_of_bbs_pred,gt_bbs=bb,step=iteration,pred_bev_semantic=pred_dict["pred_bev_semantic"] if "pred_bev_semantic" in pred_dict.keys() else None, gt_wp=data["ego_waypoints"])
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                             state = {
@@ -825,7 +825,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug", type=int, default=0)
     parser.add_argument("--use-disk-cache", type=int, default=0)
     parser.add_argument("--batch-size", type=int, default=30)
-    parser.add_argument("--printing-step", type=int, default=100)
+    parser.add_argument("--printing-step", type=int, default=1000)
     parser.add_argument(
         "--adapt-lr-milestones",
         nargs="+",
