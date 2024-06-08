@@ -1305,7 +1305,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         return bbox, bbox_dict["position"][2]
 
     def parse_bounding_boxes(self, boxes, future_boxes=None, y_augmentation=0.0, yaw_augmentation=0):
-        if self.config.use_plant and future_boxes is not None:
+        if (self.config.use_plant and future_boxes is not None) or self.config.detectboxes:
             # Find ego matrix of the current time step, i.e. the coordinate frame we want to use:
             ego_matrix = None
             ego_yaw = None
@@ -1348,8 +1348,27 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 or height >= self.config.max_z
             ):
                 continue
-
+            #simple check to get only bbs that are in front of the vehicle (technically you would need a perspective transformation here to determine the visible space)
             # Load bounding boxes to forcast
+            intrinsic_matrix = torch.from_numpy(
+                t_u.calculate_intrinsic_matrix(
+            fov=self.config.camera_fov,
+            height=self.config.camera_height,
+            width=self.config.camera_width,
+            ))
+            #we have to change the coordinate system multiple times from
+            # x (forward), y (right), z (up) -> x (left), z (back), y (down)
+            # and then invert z to check if bb is in front of verhicle or not,
+            # but normalize with the correct (back) z-axis direction
+            image_point_definition_changed=np.zeros_like(current_box["position"])
+            image_point_definition_changed[0]=-current_box["position"][1]
+            image_point_definition_changed[1]=-current_box["position"][2]
+            image_point_definition_changed[2]=-current_box["position"][0]
+            image_point=np.dot(intrinsic_matrix, image_point_definition_changed)
+            z=-image_point[-1]
+            image_point=image_point/-z
+            if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
+                continue
             if self.config.use_plant and future_boxes is not None:
                 exists = False
                 for future_box in future_boxes:
