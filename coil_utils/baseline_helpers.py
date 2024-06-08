@@ -90,7 +90,8 @@ def merge_with_command_line_args(config, args):
                 setattr(config, key, int(value))
         except:
             setattr(config, key, value)
-
+def all_ablations():
+    return ["head", "speed", "prevnum", "backbone"]
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
     if "bcoh" in config.experiment or "arp" in config.experiment or "keyframes" in config.experiment:
