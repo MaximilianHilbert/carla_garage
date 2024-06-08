@@ -410,78 +410,78 @@ def main(args):
             cc_lst=[]
             for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
                 image=str(image, encoding="utf-8").replace("\x00", "")
-                all_images,current_speed,target_point,targets,previous_targets,additional_previous_waypoints, bev_semantic_labels=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
+                all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
                 
                 if "arp" in merged_config_object.experiment:
-                    policy.eval()
                     mem_extract.eval()
-                    predictions_dict_memory=mem_extract(x=temporal_images, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints,bev_semantic_labels=bev_semantic_labels)
-                    predictions_dict_policy = policy(x=current_image, speed=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints, memory_to_fuse=predictions_dict_memory["memory"])
-                    loss_function_params = {
-                        "branches": predictions,
-                        "targets": targets,
-                        "speed": current_speed,
-                        "config": merged_config_object
+                    policy.eval()
+                    pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
+
+                    mem_extract_targets = targets - previous_targets
+                    loss_function_params_memory = {
+                        **pred_dict_memory,
+                        "targets": mem_extract_targets,
+                        "bev_targets": bev_semantic_labels,
+                        "targets_bb": targets_bb,
+                        "device_id": device_id,
                     }
+
+                    mem_extract_loss, detailed_losses= mem_extract.module.compute_loss(params=loss_function_params_memory)
+                    pred_dict = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1:,...] if all_speeds is not None else None, target_point=target_point, prev_wp=None, memory_to_fuse=pred_dict_memory["memory"].detach())
+                        
+                    loss_function_params_policy = {
+                        **pred_dict,
+                        "targets": targets,
+                        "bev_targets": bev_semantic_labels,
+                        "targets_bb": targets_bb,
+                        "device_id": device_id,
+                        
+                    }
+                    policy_loss,detailed_losses= policy.module.compute_loss(params=loss_function_params_policy)
+                else:
+                    if "bcso" in merged_config_object.experiment or "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
+                        pred_dict= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
     
-                
+                    if "keyframes" in merged_config_object.experiment:
+                        reweight_params = {
+                            "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
+                            "importance_sampling_threshold": action_predict_threshold,
+                            "importance_sampling_method": merged_config_object.importance_sample_method,
+                            "importance_sampling_threshold_weight": merged_config_object.threshold_weight,
+                            "action_predict_loss": data["correlation_weight"].squeeze().to(device_id),
+                        }
+                    else:
+                        reweight_params = {}
                     
-                if "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
-                    model.eval()
-                    temporal_and_current_images = torch.cat([temporal_images, current_image], axis=1)
-                    predictions = model(x=temporal_and_current_images, a=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
                     loss_function_params = {
-                        "branches": predictions,
+                        **pred_dict,
+                        "bev_targets": bev_semantic_labels if merged_config_object.bev else None,
                         "targets": targets,
-                        "speed": current_speed,
-                        "config": merged_config_object,
+                        "targets_bb": targets_bb,
+                        **reweight_params,
+                        "device_id": device_id,
+                        
                     }
-                if "keyframes" in merged_config_object.experiment:
-                    reweight_params = {
-                        "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
-                        "importance_sampling_threshold": action_predict_threshold,
-                        "importance_sampling_method": merged_config_object.importance_sample_method,
-                        "importance_sampling_threshold_weight": merged_config_object.threshold_weight,
-                        "action_predict_loss": data["correlation_weight"].squeeze().to(device_id),
-                    }
-                    loss_function_params = {
-                    "branches": predictions,
-                    "targets": targets,
-                    "inputs": current_speed,
-                    **reweight_params,
-                    "branch_weights": merged_config_object.branch_loss_weight,
-                    "variable_weights": merged_config_object.variable_weight,
-                    "config": merged_config_object,
-                }
+                    model_loss,detailed_losses= model.module.compute_loss(params=loss_function_params)
                     
-                if "bcso" in merged_config_object.experiment:
-                    model.eval()
-                    predictions = model(x=current_image, a=current_speed, target_point=target_point, prev_wp=additional_previous_waypoints)
-                    loss_function_params = {
-                        "branches": predictions,
-                        "targets": targets,
-                        "inputs": current_speed,
-                        "branch_weights": merged_config_object.branch_loss_weight,
-                        "variable_weights": merged_config_object.variable_weight,
-                        "config": merged_config_object,
-                    }
-                
-                    
-                loss, _ = criterion(loss_function_params)
                 #this is only a viable comparison, if the batch_size is set to 1, because it will be marginalized over the batch dimension before the loss is returned!
-                cc_lst.append({"image": image, "pred":predictions[0].squeeze().cpu().detach().numpy(),
-                                           "gt":targets.squeeze().cpu().detach().numpy(), "loss":loss.cpu().detach().numpy(),
+                cc_lst.append({"image": image, "pred":pred_dict["wp_predictions"][0].squeeze().cpu().detach().numpy(),
+                                           "gt":targets.squeeze().cpu().detach().numpy(), "loss":detailed_losses[0].cpu().detach().numpy(),
                                            "previous_matrix": data["ego_matrix_previous"].detach().cpu().numpy()[0],
                                            "current_matrix": data["ego_matrix_current"].detach().cpu().numpy()[0]})
             prev_predictions_aligned_lst=[]
             prev_gt_aligned_lst=[]
-            for i in range(1,len(cc_lst)):
-                prev_predictions_aligned=align_previous_prediction(pred=cc_lst[i-1]["pred"], matrix_previous=cc_lst[i]["previous_matrix"],
+            for i in range(len(cc_lst)):
+                if i==0:
+                    prev_predictions_aligned_lst.append(np.nan)
+                    prev_gt_aligned_lst.append(np.nan)
+                else:
+                    prev_predictions_aligned=align_previous_prediction(pred=cc_lst[i-1]["pred"], matrix_previous=cc_lst[i]["previous_matrix"],
                                                                    matrix_current=cc_lst[i]["current_matrix"])
-                prev_gt_aligned=align_previous_prediction(pred=cc_lst[i-1]["gt"], matrix_previous=cc_lst[i]["previous_matrix"],
+                    prev_gt_aligned=align_previous_prediction(pred=cc_lst[i-1]["gt"], matrix_previous=cc_lst[i]["previous_matrix"],
                                                                    matrix_current=cc_lst[i]["current_matrix"])
-                prev_predictions_aligned_lst.append(prev_predictions_aligned)
-                prev_gt_aligned_lst.append(prev_gt_aligned)
+                    prev_predictions_aligned_lst.append(prev_predictions_aligned)
+                    prev_gt_aligned_lst.append(prev_gt_aligned)
             #data_df = pd.DataFrame.from_dict(wp_dict, orient='index', columns=['image','pred', 'gt', 'loss'])
             criterion_dict=get_copycat_criteria(cc_lst, prev_predictions_aligned_lst,prev_gt_aligned_lst,args.norm)
            
