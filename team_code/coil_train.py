@@ -355,24 +355,23 @@ def main(args):
                         if rank == 0:
                             if iteration % args.printing_step == 0:
                                 print(f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}")
-                            logger.add_scalar(
-                                f"{merged_config_object.experiment}_loss",
-                                loss.data,
-                                (epoch - 1) * len(data_loader) + iteration,
-                            )
-                            logger.add_scalar(
-                                f"{merged_config_object.experiment}_loss_Epochs",
-                                loss.data,
-                                (epoch - 1),
-                            )
+                                logger.add_scalar(
+                                    f"{merged_config_object.experiment}_loss",
+                                    loss.data,
+                                    (epoch - 1) * len(data_loader) + iteration,
+                                )
+                                logger.add_scalar(
+                                    f"{merged_config_object.experiment}_loss_Epochs",
+                                    loss.data,
+                                    (epoch - 1),
+                                )
                 torch.cuda.empty_cache()
             with open(os.path.join(basepath,"config_training.pkl"), "wb") as file:
                 pickle.dump(merged_config_object, file)
         dist.destroy_process_group()
-        #TODO CHeck how changes in branch structure changed this
+        
         if args.metric:
             merged_config_object.number_previous_waypoints=1
-            #merged_config_object.number_previous_waypoints=7
             merged_config_object.visualize_copycat=True
             if args.custom_validation:
                 with open(os.path.join(os.environ.get("WORK_DIR"),

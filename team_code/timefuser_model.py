@@ -226,7 +226,7 @@ class TimeFuser(nn.Module):
                 self.img_seq_len=self.config.max_img_seq_len_baselines+1
                 self.img_token_len=self.config.max_img_seq_len_baselines+1
                 
-    def compute_loss(self,params, logger, logging_step, rank, keyframes=False):
+    def compute_loss(self,params, logger=None, logging_step=None, rank=None, keyframes=False):
         losses=[]
         main_loss = l1_loss(params["wp_predictions"], params["targets"])
         losses.append(main_loss)
@@ -256,7 +256,7 @@ class TimeFuser(nn.Module):
             if self.config.detectboxes:
                 head_loss=self.head.loss(*params["pred_bb"], *params["targets_bb"])
                 sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
-                if rank == 0:
+                if rank == 0 and logging_step%1000==0:
                     logger.add_scalar(
                                     "bev",
                                     loss_bev.data,
@@ -269,7 +269,7 @@ class TimeFuser(nn.Module):
                                 )
                 for key, value in head_loss.items():
                     sub_loss += self.detailed_loss_weights[key] * value
-                    if rank == 0:
+                    if rank == 0 and logging_step%1000==0:
                         logger.add_scalar(
                                     key,
                                     value.data,
@@ -298,7 +298,7 @@ class TimeFuser(nn.Module):
                 else:
                     raise ValueError
                 final_loss = torch.mean(weighted_loss_function)
-        return final_loss
+        return final_loss, losses
     def convert_features_to_bb_metric(self, bb_predictions):
         bboxes = self.head.get_bboxes(
             bb_predictions[0],
