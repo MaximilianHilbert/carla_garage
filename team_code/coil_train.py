@@ -720,7 +720,6 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     images_lidar = np.rot90(images_lidar, k=1)
 
     rgb_image = rgb[0].permute(1, 2, 0).detach().cpu().numpy()
-
     if wp_selected is not None:
         colors_name = ["blue", "yellow"]
         colors_idx = [(0, 0, 255), (255, 255, 0)]
@@ -890,7 +889,7 @@ if __name__ == "__main__":
         default=[0.33, 0.33, 0.33]
 
     )
-    parser.add_argument("--dataset-repetition", type=int, default=1)
+    parser.add_argument("--dataset-repetition", type=int, default=3)
 
     arguments = parser.parse_args()
 
