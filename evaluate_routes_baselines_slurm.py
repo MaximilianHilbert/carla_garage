@@ -164,23 +164,22 @@ def get_num_jobs(job_name, username):
 def main():
     single_test = False
     settings_to_be_tested = ["02_withheld"]  # only set when single test is True
-    training_reps_to_be_tested = ["repetition_2"]  # only set when single test is True
+    training_reps_to_be_tested = ["repetition_0"]  # only set when single test is True
 
     towns = ["Town01", "Town02"]
-    ablations=True
-    weathers = {"train": [1, 6, 10, 14], "test": [3,8]}
+
+    #weathers = {"train": [1, 6, 10, 14], "test": [3,8]}
+    weathers = {"train": [14], "test": [8]}
+    weather_conditions=["train", "test"]
     traffics_len = 3
-    if ablations:
-        weathers_conditions = ["test"]
-    else:
-        weathers_conditions = ["train", "test"]
     partition = "day"
     username = "hilbert"
     epochs = ["30"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3
-    baselines_to_run=["bcso", "bcoh", "keyframes","arp"]
+    baselines_to_run=["bcso", "bcoh","arp"]
     code_root="/home/hilbert/carla_garage"
+    #code_root="/home/maximilian/Master/carla_garage"
     benchmark = "nocrash"
     model_dir = os.path.join(code_root, "_logs")
     carla_root = os.path.join(code_root, "carla")
@@ -218,7 +217,7 @@ def main():
                         if checkpoint_file not in checkpoints:
                             print(f"Not finisehd checkpoint file for experiment {experiment}")
                         else:
-                            for weather in weathers_conditions:
+                            for weather in weather_conditions:
                               for town in towns:
                                   for evaluation_repetition, seed in zip(
                                       range(1, num_repetitions + 1), seeds
