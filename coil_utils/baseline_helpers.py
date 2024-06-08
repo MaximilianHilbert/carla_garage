@@ -9,6 +9,7 @@ from PIL import Image
 import cv2
 from team_code import transfuser_utils as t_u
 from pathlib import Path
+from copy import deepcopy
 
 def norm(differences, ord):
     if ord==1:
