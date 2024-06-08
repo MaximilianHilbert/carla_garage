@@ -187,17 +187,27 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             interpolation=cv2.INTER_NEAREST,
         )
     else:
-
-        images_lidar=road[:,:,:3]
-        images_lidar[(images_lidar == [0, 0, 0]).all(axis=2)]=[255.,255.,255.]
-        images_lidar = cv2.resize(
-            images_lidar,
-            dsize=(
-                images_lidar.shape[1] * 1,
-                images_lidar.shape[0] * 1,
-            ),
-            interpolation=cv2.INTER_NEAREST,
-        )
+        if road is None:
+            images_lidar = np.full((1024,1024,3), 255, dtype=np.uint8)
+            images_lidar = cv2.resize(
+                images_lidar,
+                dsize=(
+                    images_lidar.shape[1] * 1,
+                    images_lidar.shape[0] * 1,
+                ),
+                interpolation=cv2.INTER_NEAREST,
+            )
+        else:
+            images_lidar=road[:,:,:3]
+            images_lidar[(images_lidar == [0, 0, 0]).all(axis=2)]=[255.,255.,255.]
+            images_lidar = cv2.resize(
+                images_lidar,
+                dsize=(
+                    images_lidar.shape[1] * 1,
+                    images_lidar.shape[0] * 1,
+                ),
+                interpolation=cv2.INTER_NEAREST,
+            )
 
     if pred_bev_semantic is not None:
         bev_semantic_indices = np.argmax(pred_bev_semantic, axis=0)
@@ -285,7 +295,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             )
     # Draw wps previous
 
-    if prev_gt is not None:
+    if prev_gt is not None and not isinstance(prev_gt, np.float):
         for wp_prev in prev_gt:
             wp_x = wp_prev[0] * loc_pixels_per_meter + origin[0]
             wp_y = wp_prev[1] * loc_pixels_per_meter + origin[1]
@@ -328,8 +338,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
                 color=pred_wp_color,
                 thickness=-1,
             )
-    if pred_wp_prev is not None:
-        pred_wp_prev = pred_wp_prev
+    if pred_wp_prev is not None and not isinstance(pred_wp_prev, np.float):
         num_wp = len(pred_wp_prev)
         for idx, wp in enumerate(pred_wp_prev):
             color_weight = 0.5 + 0.5 * float(idx) / num_wp
@@ -486,16 +495,16 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             draw.text((distance_from_left,start+40*20), f"kf. score: {correlation_weight:.2f}", fill=firebrick, font=font)
 
             if detect_our:
-                font.set_variation_by_name("Bold")
+                #font.set_variation_by_name("Bold")
                 draw.text((distance_from_left,start+40*10), f"our copycat", fill=firebrick, font=font_copycat)
             if detect_kf:
-                font.set_variation_by_name("Bold")
+                #font.set_variation_by_name("Bold")
                 draw.text((distance_from_left,start+40*13), f"kf. copycat", fill=dark_blue, font=font_copycat)
 
         draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
         draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
-        if ego_speed:
-            draw.text((distance_from_left,start+40*22), f"ego speed: {ego_speed:.2f} km/h", fill=firebrick, font=font)
+        if ego_speed is not None:
+            draw.text((distance_from_left,start+40*22), f"ego speed: {ego_speed[-1]:.2f} km/h", fill=firebrick, font=font)
 
         draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255) if image_name=="combined" else (0,0,0), font=font_baseline)
         
@@ -503,9 +512,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         final_image=np.array(image)
         final_image_object = Image.fromarray(final_image.astype(np.uint8))
         if image_name=="combined":
-            store_path = os.path.join(save_path_root, "with_rgb", f"{step}.jpg")
+            store_path = os.path.join(save_path_root, "with_rgb", f"{step:.2f}.jpg")
         else:
-            store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
+            store_path = os.path.join(save_path_root, "without_rgb", f"{step:.2f}.jpg")
         Path(store_path).parent.mkdir(parents=True, exist_ok=True)
         final_image_object.save(store_path, quality=95)
 
