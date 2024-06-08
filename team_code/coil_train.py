@@ -66,7 +66,7 @@ def main(args):
     basepath=os.path.join(os.environ.get("WORK_DIR"),
                     "_logs",
                     merged_config_object.baseline_folder_name,
-                    merged_config_object.experiment,
+                    merged_config_object.experiment, 
                     f"repetition_{str(args.training_repetition)}",
                     args.setting)
     logger = Logger(
@@ -223,7 +223,7 @@ def main(args):
                             "device_id": device_id,
                         }
 
-                        mem_extract_loss= mem_extract.module.compute_loss(params=loss_function_params_memory, logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank)
+                        mem_extract_loss,_= mem_extract.module.compute_loss(params=loss_function_params_memory, logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank)
                         mem_extract_loss.backward()
                         mem_extract_optimizer.step()
                         policy.zero_grad()
@@ -238,7 +238,7 @@ def main(args):
                             "device_id": device_id,
                             
                         }
-                        policy_loss= policy.module.compute_loss(params=loss_function_params_policy, logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank)
+                        policy_loss,_= policy.module.compute_loss(params=loss_function_params_policy, logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank)
                         policy_loss.backward()
                         policy_optimizer.step()
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
@@ -316,9 +316,9 @@ def main(args):
                             
                         }
                         if "keyframes" in merged_config_object.experiment:
-                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank, keyframes=True)
+                            loss,_ = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank, keyframes=True)
                         else:
-                            loss = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration,rank=rank)
+                            loss,_ = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration,rank=rank)
                         loss.backward()
                         optimizer.step()
                         scheduler.step()
