@@ -758,7 +758,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     Path(store_path).parent.mkdir(parents=True, exist_ok=True)
     all_images.save(store_path)
 def extract_and_normalize_data(args, device_id, merged_config_object, data):
-    all_images = data["rgb"].to(device_id).to(torch.float32)
+    all_images = data["rgb"].to(device_id).to(torch.float32)/255.0
                    
     
     if merged_config_object.speed:
