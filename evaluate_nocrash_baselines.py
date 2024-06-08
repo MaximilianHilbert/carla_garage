@@ -65,6 +65,10 @@ if __name__ == "__main__":
         help="Set this to be your path to the log file for evaluation",
     )
     parser.add_argument(
+        "--override_seq_len",
+        type=int,
+        )
+    parser.add_argument(
         "--coil_checkpoint",
         help="Set this to be your path to the previously recorded checkpoint file of the coiltraine framework",
     )
