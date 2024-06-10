@@ -177,9 +177,7 @@ def main():
     epochs = ["30"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3
-    baselines_to_run=["bcso", "bcoh","arp"]
     code_root="/home/hilbert/carla_garage"
-    #code_root="/home/maximilian/Master/carla_garage"
     benchmark = "nocrash"
     model_dir = os.path.join(code_root, "_logs")
     carla_root = os.path.join(code_root, "carla")
@@ -188,7 +186,7 @@ def main():
     already_placed_files = {}
     meta_jobs = {}
     experiment_name_stem = f"{benchmark}"
-    for baseline in baselines_to_run:
+    for baseline in os.path.listdir(model_dir):
         for experiment in tqdm(os.listdir(os.path.join(model_dir, baseline))):
             if not os.path.isdir(os.path.join(model_dir, baseline, experiment)):
                 continue
@@ -215,7 +213,8 @@ def main():
                     for epoch in epochs:
                         checkpoint_file = f"{epoch}.pth"
                         if checkpoint_file not in checkpoints:
-                            print(f"Not finisehd checkpoint file for experiment {experiment}")
+                            print(f"Not finished checkpoint file for experiment {experiment}")
+                            continue
                         else:
                             for weather in weather_conditions:
                               for town in towns:
