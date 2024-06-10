@@ -33,7 +33,6 @@ def create_run_eval_bash(
     seed,
     eval_id,
     baseline,
-    experiment,
     model_dir,
     bash_save_dir,
     results_save_dir,
@@ -75,7 +74,7 @@ echo 'TM Port:' $TM_PORT
 export SCENARIOS=leaderboard/data/scenarios/eval_scenarios.json
 export BASELINE={baseline}
 export COIL_CHECKPOINT={model_dir}
-export EVAL_ID={experiment}
+export EVAL_ID={eval_id}
 export ADDITIONAL_LOG_PATH={results_save_dir}
 export TOWN={town}
 export WEATHER={weather}
@@ -187,6 +186,8 @@ def main():
     meta_jobs = {}
     experiment_name_stem = f"{benchmark}"
     for baseline in os.listdir(model_dir):
+        if baseline=="waypoint_weight_generation":
+            continue
         for experiment in tqdm(os.listdir(os.path.join(model_dir, baseline))):
             if not os.path.isdir(os.path.join(model_dir, baseline, experiment)):
                 continue
@@ -378,7 +379,6 @@ def main():
                                                 seed,
                                                 eval_filename,
                                                 baseline,
-                                                experiment,
                                                 current_model,
                                                 bash_save_dir,
                                                 results_save_dir,
