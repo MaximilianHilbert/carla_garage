@@ -186,7 +186,7 @@ def main():
     already_placed_files = {}
     meta_jobs = {}
     experiment_name_stem = f"{benchmark}"
-    for baseline in os.path.listdir(model_dir):
+    for baseline in os.listdir(model_dir):
         for experiment in tqdm(os.listdir(os.path.join(model_dir, baseline))):
             if not os.path.isdir(os.path.join(model_dir, baseline, experiment)):
                 continue
