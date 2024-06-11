@@ -386,13 +386,18 @@ class NoCrashEvaluator(object):
                 root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
                                   failure_case,self.config.eval_id,self.manager.scenario_class.scenario.name)
                 #for collisions we dont want too many data trash, only approx last 10 secs
-                curr_pred=curr_pred[-self.config.collision_frame_length:] if failure_case=="collision" else curr_pred
-                target_points=target_points[-self.config.collision_frame_length:] if failure_case=="collision" else target_points
-                roads=roads[-self.config.collision_frame_length:] if failure_case=="collision" else roads
-                pred_residual=pred_residual[-self.config.collision_frame_length:] if failure_case=="collision" else pred_residual
-                observations=observations[-self.config.collision_frame_length:] if failure_case=="collision" else observations
-
+                # curr_pred=curr_pred[-self.config.collision_frame_length:] if failure_case=="collision" else curr_pred
+                # target_points=target_points[-self.config.collision_frame_length:] if failure_case=="collision" else target_points
+                # roads=roads[-self.config.collision_frame_length:] if failure_case=="collision" else roads
+                # pred_residual=pred_residual[-self.config.collision_frame_length:] if failure_case=="collision" else pred_residual
+                # observations=observations[-self.config.collision_frame_length:] if failure_case=="collision" else observations
+                observations.reverse()
+                curr_pred.reverse()
+                target_points.reverse()
+                roads.reverse()
+                pred_residual.reverse()
                 for iteration, (pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(curr_pred, target_points, roads,pred_residual)):
+                    #to prevent the problem of not having a history
                     if iteration<self.config.max_img_seq_len_baselines:
                         continue
                     if iteration==0:
