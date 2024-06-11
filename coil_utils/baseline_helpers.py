@@ -485,7 +485,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             draw.text((distance_from_left,start), f"time {step:.2f}", fill=(0, 0, 0), font=font)
         else:
             draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
-        if parameters['pred_residual']:
+        if parameters['pred_residual'] is not None:
             draw.text((distance_from_left,start+40*3), f"pred. res.: {parameters['pred_residual']:.2f}", fill=firebrick, font=font)
         else:
             draw.text((distance_from_left,start+40*3), f"pred. res.: None", fill=firebrick, font=font)
