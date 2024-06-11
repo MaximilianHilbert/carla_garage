@@ -3,10 +3,10 @@ import csv
 from pathlib import Path
 from copy import deepcopy
 from leaderboard.nocrash_evaluator import NoCrashEvaluator
-
+from coil_utils.baseline_helpers import get_ablations_dict
 
 class NoCrashEvalRunner:
-    def __init__(self, args, town, weather, port=1000, tm_port=1002, debug=False):
+    def __init__(self, args, config,town, weather, port=1000, tm_port=1002, debug=False):
         args = deepcopy(args)
 
         # Inject args
@@ -19,7 +19,7 @@ class NoCrashEvalRunner:
         args.town = town
         args.weather = weather
 
-        self.runner = NoCrashEvaluator(args, StatisticsManager(args))
+        self.runner = NoCrashEvaluator(args, StatisticsManager(args, config))
         self.args = args
 
     def run(self):
@@ -27,11 +27,18 @@ class NoCrashEvalRunner:
 
 
 class StatisticsManager:
-    headers = [
+    def __init__(self, args, config):
+        self.finished_tasks = {"Town01": {}, "Town02": {}}
+        ablations_dict=get_ablations_dict()
+        setattr(config, "head", 1) if config.bev or config.detectboxes else setattr(config, "head", 0)
+        self.ablations_dict={ablation:getattr(config, ablation) for ablation in ablations_dict.keys()}
+        self.headers = [
+        *ablations_dict,
+        "eval_rep",
+        "training_rep",
+        "experiment",
         "town",
         "baseline",
-        "experiment",
-        "setting",
         "traffic",
         "weather",
         "start",
@@ -45,12 +52,8 @@ class StatisticsManager:
         "duration",
         "timeout_blocked",
 ]
-
-    def __init__(self, args):
-        self.finished_tasks = {"Town01": {}, "Town02": {}}
-
         logdir = Path(args.log_path)
-        filename = f"{args.eval_id}.csv"
+        filename = f"{config.baseline_folder_name}_{args.eval_id}.csv"
         self.path_to_file = os.path.join(logdir, filename)
         if args.resume and os.path.exists(self.path_to_file):
             self.load(self.path_to_file)
@@ -69,9 +72,16 @@ class StatisticsManager:
                 self.finished_tasks[row["town"]][
                     (
                         str(row["baseline"]),
-                        str(row["experiment"]),
-                        str(row["setting"]),
+                        int(row["head"]),
+                        int(row["speed"]),
+                        int(row["prevnum"]),
+                        str(row["backbone"]),
+                        int(row["freeze"]),
+                        str(row["lossweights"]),
                         int(row["traffic"]),
+                        int(row["eval_rep"]),
+                        int(row["training_rep"]),
+                        str(row["experiment"]),
                         int(row["weather"]),
                         int(row["start"]),
                         int(row["target"]),
@@ -91,8 +101,9 @@ class StatisticsManager:
         self,
         town,
         baseline,
+        eval_rep,
+        training_rep,
         experiment,
-        setting,
         traffic,
         weather,
         start,
@@ -111,8 +122,10 @@ class StatisticsManager:
             csv_writer.writerow(
                 {
                     "baseline": baseline,
+                    **self.ablations_dict,
+                    "eval_rep": eval_rep,
+                    "training_rep": training_rep,
                     "experiment": experiment,
-                    "setting": setting,
                     "town": town,
                     "traffic": traffic,
                     "weather": weather,
@@ -133,5 +146,5 @@ class StatisticsManager:
 
     def is_finished(self, args, route,weather, traffic):
         start, target = route
-        key = (str(args.baseline_folder_name), str(args.eval_id), str(args.setting),int(traffic), int(weather), int(start), int(target))
+        key = (str(args.baseline_folder_name), str(args.eval_id), int(traffic), int(weather), int(start), int(target))
         return key in self.finished_tasks[args.town]

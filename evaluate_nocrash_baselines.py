@@ -1,12 +1,16 @@
 from nocrash_runner import NoCrashEvalRunner
-
-
+from coil_utils.baseline_helpers import merge_with_command_line_args
+import pickle
 def main(args):
     town = args.town
     weather = args.weather
     debug=args.debug
     port = args.port
-    runner = NoCrashEvalRunner(args, town, weather, port=port, tm_port=args.tm_port, debug=debug)
+    config_path=os.path.join(os.path.dirname(os.path.dirname(args.coil_checkpoint)), "config_training.pkl")
+    with open(os.path.join(config_path), 'rb') as f:
+        config = pickle.load(f)
+    merge_with_command_line_args(config, args)
+    runner = NoCrashEvalRunner(args, config,town, weather, port=port, tm_port=args.tm_port, debug=debug)
     runner.run()
 
 
@@ -46,6 +50,7 @@ if __name__ == "__main__":
     parser.add_argument("--route", type=str, help="full path to route file on disk")
     parser.add_argument("--tm_port", type=int, default=2002)
     parser.add_argument("--repetitions", type=int, default=1, help="Number of repetitions per route.")
+    parser.add_argument("--eval_rep", type=int, default=1, help="Number of repetitions per route.")
     parser.add_argument("--track", type=str, default="SENSORS", help="Participation track: SENSORS, MAP")
     parser.add_argument("--resume", type=bool, default=False)
     parser.add_argument(

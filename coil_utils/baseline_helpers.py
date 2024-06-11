@@ -53,9 +53,11 @@ def set_seed(seed):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-
-def generate_experiment_name(ablations_dict):
-    return f'baseline-{ablations_dict["baseline_folder_name"]}_speed-{ablations_dict["speed"] if "speed" in ablations_dict.keys() else 0}_prevnum-{ablations_dict["prevnum"] if "prevnum" in ablations_dict.keys() else 0}_backbone-{ablations_dict["backbone"] if "backbone" in ablations_dict.keys() else "unrolling"}_head-{ablations_dict["head"] if "head" in ablations_dict.keys() else 0}_lossweights-{",".join(map(str,ablations_dict["lossweights"])) if "lossweights" in ablations_dict.keys() else ",".join(map(str,[0.33, 0.33, 0.33]))}_tr-{ablations_dict["training_repetition"]}'
+def generate_experiment_name(args):
+    ablations_dict=get_ablations_dict()
+    args_dict=vars(args)
+    ablations_dict.update({arg:args_dict[arg] for arg in args_dict.keys() for ablation in ablations_dict.keys() if arg==ablation})
+    return "_".join([f'{ablation}-{",".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()]),ablations_dict
 
 def find_free_port():
     """https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number"""
@@ -90,8 +92,10 @@ def merge_with_command_line_args(config, args):
                 setattr(config, key, int(value))
         except:
             setattr(config, key, value)
-def all_ablations():
-    return ["head", "speed", "prevnum", "backbone"]
+
+def get_ablations_dict():
+    return {"head":0, "speed":0, "prevnum":0, "backbone":0, "freeze":0, "lossweights": [0, 0, 0]}
+
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
     if "bcoh" in config.experiment or "arp" in config.experiment or "keyframes" in config.experiment:

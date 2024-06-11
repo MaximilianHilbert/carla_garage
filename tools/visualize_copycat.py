@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm
 import torch
 from PIL import Image
-from coil_utils.baseline_helpers import visualize_model, norm, all_ablations
+from coil_utils.baseline_helpers import visualize_model, norm
 import os
 import csv
 import pickle

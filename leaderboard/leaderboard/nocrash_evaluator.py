@@ -422,8 +422,9 @@ class NoCrashEvaluator(object):
             self.statistics_manager.log(
                 self.town,
                 args.baseline_folder_name,
-                args.eval_id,
-                args.setting,
+                args.eval_rep,
+                self.config.training_repetition,
+                self.config.eval_id,
                 traffic_idx,
                 weather_idx,
                 start_idx,

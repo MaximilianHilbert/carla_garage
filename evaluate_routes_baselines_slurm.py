@@ -31,16 +31,17 @@ def create_run_eval_bash(
     weather,
     setting,
     seed,
-    eval_id,
+    eval_filename,
     baseline,
     model_dir,
     bash_save_dir,
     results_save_dir,
     carla_tm_port_start,
     carla_root,
+    eval_rep
 ):
     Path(f"{results_save_dir}").mkdir(parents=True, exist_ok=True)
-    with open(f"{bash_save_dir}/eval_{eval_id}.sh", "w", encoding="utf-8") as rsh:
+    with open(f"{bash_save_dir}/eval_{eval_filename}.sh", "w", encoding="utf-8") as rsh:
         rsh.write(
             f"""\
           
@@ -74,13 +75,13 @@ echo 'TM Port:' $TM_PORT
 export SCENARIOS=leaderboard/data/scenarios/eval_scenarios.json
 export BASELINE={baseline}
 export COIL_CHECKPOINT={model_dir}
-export EVAL_ID={eval_id}
+export EVAL_ID={eval_filename}
 export ADDITIONAL_LOG_PATH={results_save_dir}
 export TOWN={town}
 export WEATHER={weather}
 export SEED={seed}
 export CHALLENGE_TRACK_CODENAME=SENSORS
-export REPETITIONS=1
+export REPETITION={eval_rep}
 export RESUME=1
 export SETTING={setting}
 export ROUTE={route}
@@ -106,7 +107,7 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --tm_port=${TM_PORT} \
 --timeout=600 \
 --resume=${RESUME} \
---repetitions=${REPETITIONS} \
+--eval_rep=${REPETITION} \
 --setting=${SETTING} \
 --route=${ROUTE} \
 --visualize-combined=1
@@ -384,6 +385,7 @@ def main():
                                                 results_save_dir,
                                                 carla_tm_port_start,
                                                 carla_root,
+                                                evaluation_repetition,
                                             )
                                             commands.append(f"chmod u+x {bash_save_dir}/eval_{eval_filename}.sh")
                                             commands.append(
