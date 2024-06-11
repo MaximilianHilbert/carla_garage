@@ -76,7 +76,6 @@ class StatisticsManager:
                         int(row["speed"]),
                         int(row["prevnum"]),
                         str(row["backbone"]),
-                        int(row["freeze"]),
                         str(row["lossweights"]),
                         int(row["traffic"]),
                         int(row["eval_rep"]),
