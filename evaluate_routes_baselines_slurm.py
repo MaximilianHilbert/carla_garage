@@ -170,7 +170,7 @@ def main():
 
     #weathers = {"train": [1, 6, 10, 14], "test": [3,8]}
     weathers = {"train": [14], "test": [8]}
-    weather_conditions=["train", "test"]
+    weather_conditions=["train"]
     traffics_len = 3
     partition = "day"
     username = "hilbert"
