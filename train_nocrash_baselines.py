@@ -5,19 +5,12 @@ import numpy as np
 from coil_utils.baseline_helpers import get_latest_saved_checkpoint, generate_experiment_name
 import itertools
 max_img_seq_len_baselines=6
-def generate_ablation_combinations(args):
-    combinations=list(itertools.product([0, 1], repeat=len(args.ablations)))
-    comb_lst=[]
-    for combination in combinations:
-        combinations_dict=dict(zip(args.ablations, combination))
-        comb_lst.append(combinations_dict)
-    return comb_lst
 def generate_batch_script(
     args,
     seed,
     training_repetition,
     baseline_folder_name,
-    experiment,
+    ablations_dict,
     batch_size,
     walltime,
     complete_string
@@ -72,8 +65,8 @@ eval "$(conda shell.bash hook)"
 conda activate garage
 export OMP_NUM_THREADS=24  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --speed {experiment["speed"] if "speed" in experiment.keys() else 0} --prevnum {experiment["prevnum"] if "prevnum" in experiment.keys() else 0} --backbone {experiment["backbone"] if "backbone" in experiment.keys() else "stacking"} --seed {seed} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --number-of-workers 6 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
-"""
+torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --baseline_folder_name {baseline_folder_name} --training_repetition {training_repetition} \
+"""+"--"+" --".join([f'{ablation} {" ".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()])
             else:
 
 
@@ -111,8 +104,8 @@ source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --bev {experiment["head"] if "head" in experiment.keys() else 0} --detectboxes {experiment["head"] if "head" in experiment.keys() else 0} --speed {experiment["speed"] if "speed" in experiment.keys() else 0} --prevnum {experiment["prevnum"]} --backbone {experiment["backbone"] if "backbone" in experiment.keys() else "unrolling"} --training-repetition {training_repetition} --use-disk-cache {args.use_disk_cache} --baseline-folder-name {baseline_folder_name} --number-of-workers 8 --batch-size {batch_size} --dataset-repetition {args.dataset_repetition} --setting {args.setting}
-"""
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --baseline_folder_name {baseline_folder_name} --training_repetition {training_repetition} \
+"""+"--"+" --".join([f'{ablation} {" ".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()])
             f.write(command)
 
 
@@ -142,32 +135,28 @@ def main(args):
 
                 )
             else:
-                combinations=generate_ablation_combinations(args)
-                for experiment in combinations:
-                    # in case we want to ablate prevnum we set it to the past 6 waypoints, because our baselines consider 6 previous frames
-                    if "prevnum" in experiment.keys():
-                        if experiment["prevnum"]==1:
-                            experiment["prevnum"]=max_img_seq_len_baselines
-                    else:
-                        experiment["prevnum"]=0
-                    experiment.update({"baseline_folder_name": baseline_folder_name})
-                    experiment.update({"training_repetition": training_repetition})
-                    experiment_string=generate_experiment_name(experiment)
-                    final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, experiment_string,f"repetition_{training_repetition}", args.setting)
-                    if os.path.isdir(final_log_dir):
-                        checkpoint=get_latest_saved_checkpoint(final_log_dir)
-                        if checkpoint==30:
-                            continue
-                    generate_batch_script(
-                        args,
-                        seed,
-                        training_repetition,
-                        baseline_folder_name,
-                        experiment,
-                        batch_size,
-                        walltime,
-                        experiment_string
-                    )
+                # in case we want to ablate prevnum we set it to the past 6 waypoints, because our baselines consider 6 previous frames
+                experiment_string,ablations_dict=generate_experiment_name(args)
+                if ablations_dict["prevnum"]==1:
+                    ablations_dict["prevnum"]=max_img_seq_len_baselines
+                else:
+                    ablations_dict["prevnum"]=0
+                
+                final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, experiment_string,f"repetition_{training_repetition}", args.setting)
+                if os.path.isdir(final_log_dir):
+                    checkpoint=get_latest_saved_checkpoint(final_log_dir)
+                    if checkpoint==30:
+                        continue
+                generate_batch_script(
+                    args,
+                    seed,
+                    training_repetition,
+                    baseline_folder_name,
+                    ablations_dict,
+                    batch_size,
+                    walltime,
+                    experiment_string
+                )
     if not args.train_local:
         place_batch_scripts()
 
@@ -207,10 +196,51 @@ if __name__ == "__main__":
         type=int,
     )
     parser.add_argument(
-        "--ablations",
-        nargs="*",
+        "--speed",
+        type=int,
+        choices=[0,1],
+        default=0,
+    )
+    parser.add_argument(
+        "--prevnum",
+        type=int,
+        choices=[0,1],
+        default=0,
+        help="n-1 is considered"
+    )
+    parser.add_argument(
+        "--backbone",
         type=str,
-        default=[]
+        choices=["stacking","unrolling"],
+        default="unrolling",
+
+    )
+    parser.add_argument(
+        "--bev",
+        type=int,
+        choices=[0,1],
+        default=0
+
+    )
+    parser.add_argument(
+        "--detectboxes",
+        type=int,
+        choices=[0,1],
+        default=0
+
+    )
+    parser.add_argument(
+        "--freeze",
+        type=int,
+        default=0
+
+    )
+    parser.add_argument(
+        "--lossweights",
+        nargs="+",
+        type=float,
+        default=[0.33, 0.33, 0.33]
+
     )
     parser.add_argument(
         "--setting",
