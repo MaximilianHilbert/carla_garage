@@ -740,7 +740,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     if transposed_temporal_images.size==0:
                         data["rgb"]=single_image
                     else:
-                        data["rgb"] = np.concatenate((single_image, transposed_temporal_images), axis=0)
+                        data["rgb"] = np.concatenate((transposed_temporal_images, single_image), axis=0)
                     
         except TypeError:
             print("Tried to work on None Type images")
