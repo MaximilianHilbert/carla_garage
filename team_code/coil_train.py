@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 from copy import deepcopy
 from diskcache import Cache
-from coil_utils.baseline_helpers import get_copycat_criteria,generate_experiment_name
+from coil_utils.baseline_helpers import get_copycat_criteria,generate_experiment_name, visualize_model
 from team_code.data import CARLA_Data
 from team_code.timefuser_model import TimeFuser
 import csv
