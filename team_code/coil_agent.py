@@ -266,9 +266,11 @@ class CoILAgent(AutonomousAgent):
         self.prev_speeds_queue.append(vehicle_speed)
         
 
-
+        #TODO if this line is correct revert all queues!
         prev_speeds=torch.tensor(list(self.prev_speeds_queue)[::-self.config.data_save_freq], dtype=torch.float32).unsqueeze(0).cuda("cuda:0")
-        all_images = self._process_sensors(list(self.prev_rgb_queue)[::-self.config.data_save_freq])
+        image_input_queue=list(self.prev_rgb_queue)[::-self.config.data_save_freq]
+        image_input_queue.reverse()
+        all_images = self._process_sensors(image_input_queue)
         if self.config.prevnum>0:
             vehicle_prev_positions=torch.tensor(np.array([inverse_conversion_2d(wp, current_location, current_yaw_ego_system) for wp in list(self.prev_location_queue)[::-self.config.data_save_freq]], dtype=np.float32)).unsqueeze(0).to("cuda:0")
         else:
@@ -309,7 +311,7 @@ class CoILAgent(AutonomousAgent):
                 image_sequence=np.concatenate([empties, current_image], axis=0)
                 image_sequence=image_sequence*255
             else:
-                image_sequence=np.concatenate(list(self.prev_rgb_queue)[::-self.config.data_save_freq], axis=0)*255
+                image_sequence=np.concatenate(image_input_queue, axis=0)*255
             root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
                                   "debug",self.config.eval_id)
 
