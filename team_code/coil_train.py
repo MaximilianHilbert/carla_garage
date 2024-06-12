@@ -166,8 +166,8 @@ def main(args):
             model = DDP(model, device_ids=[device_id])
 
         if "arp" in merged_config_object.baseline_folder_name:
-            policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
-            mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate)
+            policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate_multi_obs)
+            mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate_multi_obs)
 
             mem_extract_scheduler = MultiStepLR(
                 mem_extract_optimizer,
@@ -175,11 +175,13 @@ def main(args):
                 gamma=0.1,
             )
             policy_scheduler = MultiStepLR(policy_optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
-        else:
-            optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate)
+        if "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
+            optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_multi_obs)
             scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
-
-
+        if "bcso" in merged_config_object.baseline_folder_name:
+            optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_single_obs)
+            scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
+            
         if checkpoint_file is not None:
             accumulated_time = checkpoint["total_time"]
             already_trained_epochs = checkpoint["epoch"]
