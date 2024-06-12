@@ -658,6 +658,24 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
+        "--freeze",
+        type=int,
+        default=0
+
+    )
+    parser.add_argument(
+        "--visualize-combined",
+        type=int,
+        default=0
+
+    )
+    parser.add_argument(
+        "--visualize-without-rgb",
+        type=int,
+        default=0
+
+    )
+    parser.add_argument(
         "--lossweights",
         nargs="+",
         type=float,
