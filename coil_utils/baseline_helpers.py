@@ -142,6 +142,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     step,
     rgb,
     target_point,
+    training=False,
     road=None,
     closed_loop=False,
     lidar_bev=None,
@@ -474,64 +475,65 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         options.append("lidar_only")
     if args.visualize_combined:
         options.append("combined")
-
-
     for image_name in options:
-        if image_name=="combined":
-            start=1800
-            image=Image.fromarray(all_images.astype(np.uint8))
-        else:
-            start=20
-            image=Image.fromarray(images_lidar.astype(np.uint8))
-        draw = ImageDraw.Draw(image)
-        if closed_loop:
-            draw.text((distance_from_left,start), f"time {step:.2f}", fill=(0, 0, 0), font=font)
-        else:
-            draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
-        if parameters['pred_residual'] is not None:
-            draw.text((distance_from_left,start+40*3), f"pred. res.: {parameters['pred_residual']:.2f}", fill=firebrick, font=font)
-        else:
-            draw.text((distance_from_left,start+40*3), f"pred. res.: None", fill=firebrick, font=font)
-        if not closed_loop:
-            draw.text((distance_from_left,start+40*4), f"gt. res.: {parameters['gt_residual']:.2f}", fill=firebrick, font=font)
-            draw.text((distance_from_left,start+40*5), f"loss: {loss:.2f}", fill=firebrick, font=font)
-
-            draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
-            draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
-            draw.text((distance_from_left,start+40*16), f"condition: {condition}", fill=firebrick, font=font)
-            if condition=="loss":
-                draw.text((distance_from_left,start+40*18), f"loss. th. > {parameters['condition_value_2']:.2f}", fill=firebrick, font=font)
+            if image_name=="combined":
+                start=1800
+                image=Image.fromarray(all_images.astype(np.uint8))
             else:
-                draw.text((distance_from_left,start+40*18), f"gt. res. th. > {parameters['condition_value_2']:.2f}", fill=firebrick, font=font)    
-            draw.text((distance_from_left,start+40*17), f"pred. res. th. < {parameters['condition_value_1']:.2f}", fill=firebrick, font=font)
-            
-            draw.text((distance_from_left,start+40*19), f"kf. th. > {parameters['condition_value_keyframes']:.2f}", fill=firebrick, font=font)
+                start=20
+                image=Image.fromarray(images_lidar.astype(np.uint8))
+    if not training:
+            draw = ImageDraw.Draw(image)
+            if closed_loop:
+                draw.text((distance_from_left,start), f"time {step:.2f}", fill=(0, 0, 0), font=font)
+            else:
+                draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
+            if parameters is not None:
+                if "pred_residual" in parameters.keys():
+                    draw.text((distance_from_left,start+40*3), f"pred. res.: {parameters['pred_residual']:.2f}", fill=firebrick, font=font)
+            else:
+                draw.text((distance_from_left,start+40*3), f"pred. res.: None", fill=firebrick, font=font)
+            if not closed_loop:
+                draw.text((distance_from_left,start+40*4), f"gt. res.: {parameters['gt_residual']:.2f}", fill=firebrick, font=font)
+                draw.text((distance_from_left,start+40*5), f"loss: {loss:.2f}", fill=firebrick, font=font)
 
-            draw.text((distance_from_left,start+40*20), f"kf. score: {correlation_weight:.2f}", fill=firebrick, font=font)
+                draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
+                draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
+                draw.text((distance_from_left,start+40*16), f"condition: {condition}", fill=firebrick, font=font)
+                if condition=="loss":
+                    draw.text((distance_from_left,start+40*18), f"loss. th. > {parameters['condition_value_2']:.2f}", fill=firebrick, font=font)
+                else:
+                    draw.text((distance_from_left,start+40*18), f"gt. res. th. > {parameters['condition_value_2']:.2f}", fill=firebrick, font=font)    
+                draw.text((distance_from_left,start+40*17), f"pred. res. th. < {parameters['condition_value_1']:.2f}", fill=firebrick, font=font)
+                
+                draw.text((distance_from_left,start+40*19), f"kf. th. > {parameters['condition_value_keyframes']:.2f}", fill=firebrick, font=font)
 
-            if detect_our:
-                #font.set_variation_by_name("Bold")
-                draw.text((distance_from_left,start+40*10), f"our copycat", fill=firebrick, font=font_copycat)
-            if detect_kf:
-                #font.set_variation_by_name("Bold")
-                draw.text((distance_from_left,start+40*13), f"kf. copycat", fill=dark_blue, font=font_copycat)
+                draw.text((distance_from_left,start+40*20), f"kf. score: {correlation_weight:.2f}", fill=firebrick, font=font)
 
-        draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
-        draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
-        if ego_speed is not None:
-            draw.text((distance_from_left,start+40*22), f"ego speed: {ego_speed[-1]:.2f} km/h", fill=firebrick, font=font)
+                if detect_our:
+                    #font.set_variation_by_name("Bold")
+                    draw.text((distance_from_left,start+40*10), f"our copycat", fill=firebrick, font=font_copycat)
+                if detect_kf:
+                    #font.set_variation_by_name("Bold")
+                    draw.text((distance_from_left,start+40*13), f"kf. copycat", fill=dark_blue, font=font_copycat)
 
-        draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255) if image_name=="combined" else (0,0,0), font=font_baseline)
-        
+            draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
+            draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
+            if ego_speed is not None:
+                draw.text((distance_from_left,start+40*22), f"ego speed: {ego_speed[-1]:.2f} km/h", fill=firebrick, font=font)
 
-        final_image=np.array(image)
-        final_image_object = Image.fromarray(final_image.astype(np.uint8))
-        if image_name=="combined":
-            store_path = os.path.join(save_path_root, "with_rgb", f"{step:.2f}.jpg")
-        else:
-            store_path = os.path.join(save_path_root, "without_rgb", f"{step:.2f}.jpg")
-        Path(store_path).parent.mkdir(parents=True, exist_ok=True)
-        final_image_object.save(store_path, quality=95)
+            draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255) if image_name=="combined" else (0,0,0), font=font_baseline)
+    else:
+        image=Image.fromarray(all_images.astype(np.uint8)) 
+
+    final_image=np.array(image)
+    final_image_object = Image.fromarray(final_image.astype(np.uint8))
+    if image_name=="combined":
+        store_path = os.path.join(save_path_root, "with_rgb", f"{step:.2f}.jpg")
+    else:
+        store_path = os.path.join(save_path_root, "without_rgb", f"{step:.2f}.jpg")
+    Path(store_path).parent.mkdir(parents=True, exist_ok=True)
+    final_image_object.save(store_path, quality=95)
 
 
 def is_ready_to_save(epoch, iteration, data_loader, merged_config):
