@@ -356,6 +356,7 @@ def main(args):
                                                 #pred_bev_semantic=pred_dict["pred_bev_semantic"].detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
                                                 
                                                 )
+                    if merged_config_object.baseline_folder_name!="arp":
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
                             state = {
                                 "epoch": epoch,
@@ -382,12 +383,12 @@ def main(args):
                             if iteration % args.printing_step == 0:
                                 print(f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}")
                                 logger.add_scalar(
-                                    f"{merged_config_object.experiment}_loss",
+                                    f"{merged_config_object.baseline_folder_name}_loss",
                                     loss.data,
                                     (epoch - 1) * len(data_loader) + iteration,
                                 )
                                 logger.add_scalar(
-                                    f"{merged_config_object.experiment}_loss_Epochs",
+                                    f"{merged_config_object.baseline_folder_name}_loss_Epochs",
                                     loss.data,
                                     (epoch - 1),
                                 )
