@@ -98,18 +98,18 @@ def get_ablations_dict():
 
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
-    if "bcoh" in config.experiment or "arp" in config.experiment or "keyframes" in config.experiment:
+    if "bcoh" in config.baseline_folder_name or "arp" in config.baseline_folder_name or "keyframes" in config.baseline_folder_name:
         setattr(config, "img_seq_len", 7) # means a total of 7 frames get used (6 historical frames)
         setattr(config, "number_previous_waypoints", 0)
-    if "keyframes" in config.experiment:
+    if "keyframes" in config.baseline_folder_name:
         setattr(config, "correlation_weights", True)
         setattr(config, "number_previous_waypoints", 0)
-    if "bcso" in config.experiment: #only single observation model
+    if "bcso" in config.baseline_folder_name: #only single observation model
         setattr(config, "img_seq_len", 1)
         setattr(config, "number_previous_waypoints", 0)
-    if "arp" in config.experiment:
+    if "arp" in config.baseline_folder_name:
         setattr(config, "number_previous_waypoints", 1) #means that we use the current-1 as first step for the sequence of arp (a_n-1-a_n)
-    if "waypoint_weight_generation" in config.experiment:
+    if "waypoint_weight_generation" in config.baseline_folder_name:
         setattr(config, "img_seq_len", 0)
         setattr(config, "lidar_seq_len", 0)
         setattr(config, "number_previous_waypoints", 9)

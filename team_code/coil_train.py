@@ -58,9 +58,9 @@ def main(args):
     if rank == 0:
         print("Backend initialized")
     device_id = torch.device(f"cuda:{rank}")
-    experiment_name=generate_experiment_name({"training_repetition": args.training_repetition,
-                                              "baseline_folder_name": args.baseline_folder_name, "prevnum": args.prevnum,
-                                              "speed": args.speed, "backbone": args.backbone, "head": (args.detectboxes or args.bev), "lossweights": args.lossweights})
+    
+    experiment_name,ablations_dict=generate_experiment_name(args)
+
     merged_config_object = merge_config(args, experiment_name)
     
     basepath=os.path.join(os.environ.get("WORK_DIR"),
@@ -77,7 +77,7 @@ def main(args):
     )
     if rank == 0:
         logger.create_tensorboard_logs()
-        print(f"Start of Training {merged_config_object.baseline_folder_name}, {merged_config_object.experiment}, {merged_config_object.training_repetition}")
+        print(f"Start of Training {merged_config_object.baseline_folder_name}, {experiment_name}, {merged_config_object.training_repetition}")
     logger.create_checkpoint_logs()
     try:
         set_seed(args.seed)
@@ -124,7 +124,7 @@ def main(args):
         )
     
 
-        if "keyframes" in merged_config_object.experiment:
+        if "keyframes" in merged_config_object.baseline_folder_name:
             if not args.metric:
                 filename = os.path.join(
                     os.environ.get("WORK_DIR"),
@@ -152,7 +152,7 @@ def main(args):
             drop_last=True,
             sampler=sampler,
         )
-        if "arp" in merged_config_object.experiment:
+        if "arp" in merged_config_object.baseline_folder_name:
             policy = TimeFuser("arp-policy", merged_config_object)
             policy.to(device_id)
             policy = DDP(policy, device_ids=[device_id])
@@ -165,7 +165,7 @@ def main(args):
             model.to(device_id)
             model = DDP(model, device_ids=[device_id])
 
-        if "arp" in merged_config_object.experiment:
+        if "arp" in merged_config_object.baseline_folder_name:
             policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate)
             mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate)
 
@@ -183,7 +183,7 @@ def main(args):
         if checkpoint_file is not None:
             accumulated_time = checkpoint["total_time"]
             already_trained_epochs = checkpoint["epoch"]
-            if "arp" in merged_config_object.experiment:
+            if "arp" in merged_config_object.baseline_folder_name:
                 policy.load_state_dict(checkpoint["policy_state_dict"])
                 policy_optimizer.load_state_dict(checkpoint["policy_optimizer"])
                 mem_extract.load_state_dict(checkpoint["mem_extract_state_dict"])
@@ -209,7 +209,7 @@ def main(args):
                     capture_time = time.time()
                     all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb= extract_and_normalize_data(args, device_id, merged_config_object, data)
 
-                    if "arp" in merged_config_object.experiment:
+                    if "arp" in merged_config_object.baseline_folder_name:
                         mem_extract.zero_grad()
                         #the baseline is defined as getting everything except the last (current) frame into the memory stream, same for speed input
                         pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
@@ -292,10 +292,10 @@ def main(args):
                         model.zero_grad()
                         optimizer.zero_grad()
                     
-                    if "bcso" in merged_config_object.experiment or "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
+                    if "bcso" in merged_config_object.baseline_folder_name or "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
                         pred_dict= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
     
-                    if "keyframes" in merged_config_object.experiment:
+                    if "keyframes" in merged_config_object.baseline_folder_name:
                         reweight_params = {
                             "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
                             "importance_sampling_threshold": action_predict_threshold,
@@ -305,7 +305,7 @@ def main(args):
                         }
                     else:
                         reweight_params = {}
-                    if "arp" not in merged_config_object.experiment:
+                    if "arp" not in merged_config_object.baseline_folder_name:
                         loss_function_params = {
                             **pred_dict,
                             "bev_targets": bev_semantic_labels if merged_config_object.bev else None,
@@ -315,7 +315,7 @@ def main(args):
                             "device_id": device_id,
                             
                         }
-                        if "keyframes" in merged_config_object.experiment:
+                        if "keyframes" in merged_config_object.baseline_folder_name:
                             loss,_ = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank, keyframes=True)
                         else:
                             loss,_ = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration,rank=rank)
@@ -385,7 +385,7 @@ def main(args):
             else:
                 val_set = CARLA_Data(root=merged_config_object.val_data, config=merged_config_object, shared_dict=shared_dict, rank=rank,baseline=args.baseline_folder_name)
             sampler_val=SequentialSampler(val_set)
-            if "keyframes" in merged_config_object.experiment:
+            if "keyframes" in merged_config_object.baseline_folder_name:
                 filename = os.path.join(
                     os.environ.get("WORK_DIR"),
                         "_logs",
@@ -408,11 +408,12 @@ def main(args):
             
             print("Start of Evaluation")
             cc_lst=[]
+            assert len(data_loader_val.dataset.images)!=0, "Selected validation dataset does not contain Town02 (validation) routes!"
             for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
                 image=str(image, encoding="utf-8").replace("\x00", "")
                 all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=merged_config_object, data=data)
                 
-                if "arp" in merged_config_object.experiment:
+                if "arp" in merged_config_object.baseline_folder_name:
                     mem_extract.eval()
                     policy.eval()
                     pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
@@ -439,10 +440,10 @@ def main(args):
                     }
                     policy_loss,detailed_losses= policy.module.compute_loss(params=loss_function_params_policy)
                 else:
-                    if "bcso" in merged_config_object.experiment or "bcoh" in merged_config_object.experiment or "keyframes" in merged_config_object.experiment:
+                    if "bcso" in merged_config_object.baseline_folder_name or "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
                         pred_dict= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
     
-                    if "keyframes" in merged_config_object.experiment:
+                    if "keyframes" in merged_config_object.baseline_folder_name:
                         reweight_params = {
                             "importance_sampling_softmax_temper": merged_config_object.softmax_temper,
                             "importance_sampling_threshold": action_predict_threshold,
