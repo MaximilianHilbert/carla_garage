@@ -69,7 +69,7 @@ class GlobalConfig:
         self.collision_frame_length=400 # if there is a collision closed loop only 200 frames of the queue get saved, timeouts get the whole queue
         #originally only for dataloader but we use it in inference too
         self.carla_fps = 20  # Simulator Frames per second
-        self.replay_seq_len=int(self.carla_fps*150) #saves last n sec. of simulation time to disk
+        self.replay_seq_len=int(self.carla_fps*10) #saves last n sec. of simulation time to disk
 
         #ablations for baselines
         self.rnn_encoding=False
