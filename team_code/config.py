@@ -630,7 +630,7 @@ class GlobalConfig:
         self.plant_max_speed_pred = 60.0  # Maximum speed we classify when forcasting cars.
         self.forcast_time = 0.5  # Number of seconds we forcast into the future
 
-    def initialize(self, root_dir="", setting="all", **kwargs):
+    def initialize(self, root_dir="", setting="all", num_repetitions=3,**kwargs):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -666,6 +666,7 @@ class GlobalConfig:
             raise ValueError(f"Error: Selected setting: {setting} does not exist.")
 
         print("Setting: ", setting)
+        print("Num Dataset Repetitions", num_repetitions)
         self.train_towns = os.listdir(self.root_dir)  # Scenario Folders
         self.val_towns = self.train_towns
         self.train_data, self.val_data = [], []
@@ -674,7 +675,7 @@ class GlobalConfig:
             for file in root_files:
                 # Only load as many repetitions as specified
                 repetition = int(re.search("Repetition(\\d+)", file).group(1))
-                if repetition >= self.num_repetitions:
+                if repetition >= num_repetitions:
                     continue
                 # We don't train on two towns and reserve them for validation
                 if np.array([val_town in file for val_town in val_towns]).any():
@@ -685,7 +686,7 @@ class GlobalConfig:
             root_files = os.listdir(os.path.join(self.root_dir, town))
             for file in root_files:
                 repetition = int(re.search("Repetition(\\d+)", file).group(1))
-                if repetition >= self.num_repetitions:
+                if repetition >= num_repetitions:
                     continue
                 # Only use withheld towns for validation
                 if not np.array([val_town in file for val_town in val_towns]).any():
