@@ -127,8 +127,8 @@ def make_jobsub_file(commands, exp_name, exp_root_name, filename, partition):
     qsub_template = f"""#!/bin/bash
 #SBATCH --job-name={filename}
 #SBATCH --partition={partition}
-#SBATCH -o evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_out{filename}.log
-#SBATCH -e evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_err{filename}.log
+#SBATCH -o /home/hilbert/carla_garage/evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_out{filename}.log
+#SBATCH -e /home/hilbert/carla_garage/evaluation/{exp_root_name}/{exp_name}/run_files/logs/qsub_err{filename}.log
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=6
