@@ -65,7 +65,7 @@ eval "$(conda shell.bash hook)"
 conda activate garage
 export OMP_NUM_THREADS=24  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --baseline_folder_name {baseline_folder_name} --training_repetition {training_repetition} \
+torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --number-of-workers 4 --baseline-folder-name {baseline_folder_name} --training-repetition {training_repetition} \
 """+"--"+" --".join([f'{ablation} {" ".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()])
             else:
 
@@ -104,7 +104,7 @@ source ~/.bashrc
 conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --baseline_folder_name {baseline_folder_name} --training_repetition {training_repetition} \
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed {seed} --number-of-workers 8 --baseline-folder-name {baseline_folder_name} --training-repetition {training_repetition} \
 """+"--"+" --".join([f'{ablation} {" ".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()])
             f.write(command)
 
@@ -136,7 +136,7 @@ def main(args):
                 )
             else:
                 # in case we want to ablate prevnum we set it to the past 6 waypoints, because our baselines consider 6 previous frames
-                experiment_string,ablations_dict=generate_experiment_name(args)
+                experiment_string,ablations_dict=generate_experiment_name(args, baseline_folder_name)
                 if ablations_dict["prevnum"]==1:
                     ablations_dict["prevnum"]=max_img_seq_len_baselines
                 else:

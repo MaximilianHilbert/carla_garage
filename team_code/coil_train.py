@@ -66,12 +66,12 @@ def main(args):
     basepath=os.path.join(os.environ.get("WORK_DIR"),
                     "_logs",
                     merged_config_object.baseline_folder_name,
-                    merged_config_object.experiment, 
+                    experiment_name, 
                     f"repetition_{str(args.training_repetition)}",
                     args.setting)
     logger = Logger(
         merged_config_object.baseline_folder_name,
-        merged_config_object.experiment,
+        experiment_name,
         args.training_repetition,
         args.setting,
     )
