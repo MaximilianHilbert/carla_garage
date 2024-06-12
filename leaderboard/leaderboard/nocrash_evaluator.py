@@ -363,53 +363,53 @@ class NoCrashEvaluator(object):
                 route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout_blocked
             ) = self.manager.get_nocrash_diagnostics()
 
-            fail=False
-            for criterion in self.manager.scenario_class.scenario.test_criteria:
-                if criterion.test_status=="FAILURE" and criterion._terminate_on_failure:
-                    fail=True
-            if fail and (self.config.visualize_without_rgb or self.config.visualize_combined):
-                observations,curr_pred,target_points, roads, pred_residual=self.manager.replay_parameter.values()
-                if collision>0:
-                    failure_case="collision"
-                elif timeout_blocked>0:
-                    failure_case="timeout_blocked"
-                else:
-                    failure_case="misc"
-                root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
-                                  failure_case,self.config.eval_id,self.manager.scenario_class.scenario.name)
-                #for collisions we dont want too many data trash, only approx last 10 secs
-                curr_pred=curr_pred[-self.config.collision_frame_length:] if failure_case=="collision" else curr_pred
-                target_points=target_points[-self.config.collision_frame_length:] if failure_case=="collision" else target_points
-                roads=roads[-self.config.collision_frame_length:] if failure_case=="collision" else roads
-                pred_residual=pred_residual[-self.config.collision_frame_length:] if failure_case=="collision" else pred_residual
-                observations=observations[-self.config.collision_frame_length:] if failure_case=="collision" else observations
+            # fail=False
+            # for criterion in self.manager.scenario_class.scenario.test_criteria:
+            #     if criterion.test_status=="FAILURE" and criterion._terminate_on_failure:
+            #         fail=True
+            # if fail and (self.config.visualize_without_rgb or self.config.visualize_combined):
+            #     observations,curr_pred,target_points, roads, pred_residual=self.manager.replay_parameter.values()
+            #     if collision>0:
+            #         failure_case="collision"
+            #     elif timeout_blocked>0:
+            #         failure_case="timeout_blocked"
+            #     else:
+            #         failure_case="misc"
+            #     root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
+            #                       failure_case,self.config.eval_id,self.manager.scenario_class.scenario.name)
+            #     #for collisions we dont want too many data trash, only approx last 10 secs
+            #     curr_pred=curr_pred[-self.config.collision_frame_length:] if failure_case=="collision" else curr_pred
+            #     target_points=target_points[-self.config.collision_frame_length:] if failure_case=="collision" else target_points
+            #     roads=roads[-self.config.collision_frame_length:] if failure_case=="collision" else roads
+            #     pred_residual=pred_residual[-self.config.collision_frame_length:] if failure_case=="collision" else pred_residual
+            #     observations=observations[-self.config.collision_frame_length:] if failure_case=="collision" else observations
 
-                for iteration, (pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(curr_pred, target_points, roads,pred_residual)):
-                    if iteration<self.config.max_img_seq_len_baselines:
-                        continue
-                    if iteration==0:
-                        prev_wp=None
-                    else:
-                        prev_wp=curr_pred[iteration-1]["wp_predictions"].squeeze()
-                    image_sequence=self.build_image_sequence(list(observations), iteration)
-                    if self.config.detectboxes:
-                        batch_of_bbs_pred=self.manager.model.module.convert_features_to_bb_metric(pred_i["pred_bb"])
-                    else:
-                        batch_of_bbs_pred=None
-                    if not self.config.bev:
-                        road=roads_i
-                    else:
-                        road=None
-                    visualize_model(rgb=image_sequence,config=self.config,closed_loop=True,
-                                    save_path_root=root,
-                                    target_point=target_point_i, pred_wp=pred_i["wp_predictions"].squeeze().detach().cpu().numpy(),
-                                    pred_bb=batch_of_bbs_pred,step=-1/self.config.carla_fps*(len(observations)-iteration),
-                                    pred_bev_semantic=pred_i["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_i.keys() else None,
-                                    road=road, parameters={"pred_residual": pred_residual_i}, pred_wp_prev=prev_wp, args=args)
+            #     for iteration, (pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(curr_pred, target_points, roads,pred_residual)):
+            #         if iteration<self.config.max_img_seq_len_baselines:
+            #             continue
+            #         if iteration==0:
+            #             prev_wp=None
+            #         else:
+            #             prev_wp=curr_pred[iteration-1]["wp_predictions"].squeeze()
+            #         image_sequence=self.build_image_sequence(list(observations), iteration)
+            #         if self.config.detectboxes:
+            #             batch_of_bbs_pred=self.manager.model.module.convert_features_to_bb_metric(pred_i["pred_bb"])
+            #         else:
+            #             batch_of_bbs_pred=None
+            #         if not self.config.bev:
+            #             road=roads_i
+            #         else:
+            #             road=None
+            #         visualize_model(rgb=image_sequence,config=self.config,closed_loop=True,
+            #                         save_path_root=root,
+            #                         target_point=target_point_i, pred_wp=pred_i["wp_predictions"].squeeze().detach().cpu().numpy(),
+            #                         pred_bb=batch_of_bbs_pred,step=-1/self.config.carla_fps*(len(observations)-iteration),
+            #                         pred_bev_semantic=pred_i["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_i.keys() else None,
+            #                         road=road, parameters={"pred_residual": pred_residual_i}, pred_wp_prev=prev_wp, args=args)
                 
-                os.makedirs(root, exist_ok=True)
-                with open(os.path.join(root, "predictions.pkl"), "wb") as file:
-                    pickle.dump({"predictions":curr_pred}, file)
+                # os.makedirs(root, exist_ok=True)
+                # with open(os.path.join(root, "predictions.pkl"), "wb") as file:
+                #     pickle.dump({"predictions":curr_pred}, file)
                 
             self.statistics_manager.log(
                 self.town,

@@ -115,7 +115,7 @@ class CoILPolicy(nn.Module):
             _, hidden_state=self.rnn_single_module(encodings, hidden_state)
             x=hidden_state.squeeze(0)
 
-        m = self.measurements(v)
+        m = self.measurements(v).unsqueeze(0)
 
         m = torch.cat((m, memory), 1)
         j = self.join(x, m)

@@ -75,6 +75,8 @@ class GlobalConfig:
         self.rnn_encoding=False
         self.gru_encoding_hidden_size=512
         self.num_gru_encoding_layers=1
+
+        self.prevnum=0
         # -----------------------------------------------------------------------------
         # Autopilot
         # -----------------------------------------------------------------------------

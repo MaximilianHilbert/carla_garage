@@ -171,7 +171,7 @@ class CoILICRA(nn.Module):
         # self.intermediate_layers = inter
         """ ###### APPLY THE MEASUREMENT MODULE """
         if self.measurements is not None:
-            m = self.measurements(a)
+            m = self.measurements(a).unsqueeze(0)
         else:
             m = None
 

@@ -172,9 +172,9 @@ def main():
     training_reps_to_be_tested = ["repetition_2"]  # only set when single test is True
 
     towns = ["Town01", "Town02"]
-    weathers = {"train": [1, 6, 10, 14], "test": [3,8]}
+    weathers = {"train": [14], "test": [8]}
     traffics_len = 3
-    weathers_conditions = ["train", "test"]
+    weathers_conditions = ["train"]
     partition = "day"
     username = "hilbert"
     epochs = ["30"]
