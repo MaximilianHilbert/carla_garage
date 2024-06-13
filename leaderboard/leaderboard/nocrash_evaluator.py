@@ -26,6 +26,7 @@ import numpy as np
 import pkg_resources
 import pickle
 import sys
+import cv2
 from coil_utils.baseline_helpers import visualize_model
 import carla
 import signal
@@ -370,7 +371,8 @@ class NoCrashEvaluator(object):
             (
                 route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout_blocked
             ) = self.manager.get_nocrash_diagnostics()
-
+            if self.config.debug:
+                self.manager.video_writer.release()
             fail=False
             for criterion in self.manager.scenario_class.scenario.test_criteria:
                 if criterion.test_status=="FAILURE" and criterion._terminate_on_failure:
@@ -385,17 +387,14 @@ class NoCrashEvaluator(object):
                     failure_case="misc"
                 root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
                                   failure_case,self.config.eval_id,self.manager.scenario_class.scenario.name)
-                #for collisions we dont want too many data trash, only approx last 10 secs
-                # curr_pred=curr_pred[-self.config.collision_frame_length:] if failure_case=="collision" else curr_pred
-                # target_points=target_points[-self.config.collision_frame_length:] if failure_case=="collision" else target_points
-                # roads=roads[-self.config.collision_frame_length:] if failure_case=="collision" else roads
-                # pred_residual=pred_residual[-self.config.collision_frame_length:] if failure_case=="collision" else pred_residual
-                # observations=observations[-self.config.collision_frame_length:] if failure_case=="collision" else observations
                 observations.reverse()
                 curr_pred.reverse()
                 target_points.reverse()
                 roads.reverse()
                 pred_residual.reverse()
+                fps = self.config.fps_closed_loop_infractions
+                os.makedirs(root,exist_ok=True)
+                video_writer = cv2.VideoWriter(os.path.join(root,f"{self.manager.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (512,1080))
                 for iteration, (pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(curr_pred, target_points, roads,pred_residual)):
                     #to prevent the problem of not having a history
                     if iteration<self.config.max_img_seq_len_baselines:
@@ -413,14 +412,19 @@ class NoCrashEvaluator(object):
                         road=roads_i
                     else:
                         road=None
-                    visualize_model(rgb=image_sequence,config=self.config,closed_loop=True,
+                    image=visualize_model(rgb=image_sequence,config=self.config,closed_loop=True,
+                                          generate_video=True,
                                     save_path_root=root,
                                     target_point=target_point_i, pred_wp=pred_i["wp_predictions"].squeeze().detach().cpu().numpy(),
-                                    pred_bb=batch_of_bbs_pred,step=-1/self.config.carla_fps*(len(observations)-iteration),
+                                    pred_bb=batch_of_bbs_pred,step=np.round(-1/self.config.carla_fps*(len(observations)-iteration),2),
                                     pred_bev_semantic=pred_i["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_i.keys() else None,
                                     road=road, parameters={"pred_residual": pred_residual_i}, pred_wp_prev=prev_wp, args=args)
+                    
+                    image = np.array(image.resize((512,1080)))
+                    video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+                   
+                video_writer.release()
                 
-                os.makedirs(root, exist_ok=True)
                 with open(os.path.join(root, "predictions.pkl"), "wb") as file:
                     pickle.dump({"predictions":curr_pred}, file)
                 
@@ -464,13 +468,13 @@ class NoCrashEvaluator(object):
     def build_image_sequence(self,recorded_images, index):
         prev_images=recorded_images[index-self.config.max_img_seq_len_baselines:index]
         current_image=recorded_images[index]
+        
         if self.config.img_seq_len<self.config.max_img_seq_len_baselines:
-            empties=np.concatenate([np.zeros_like(recorded_images[0])]*(self.config.max_img_seq_len_baselines-self.config.img_seq_len), axis=1)
+            empties=np.concatenate([np.zeros_like(recorded_images[0])]*(self.config.max_img_seq_len_baselines+1-self.config.img_seq_len), axis=1)
             image_sequence=np.concatenate([empties, current_image], axis=1)
         else:
             prev_images.append(current_image)
             image_sequence=np.concatenate(prev_images, axis=1)
-
         image_sequence=np.transpose(image_sequence,(1,2,0))*255
         return image_sequence
     def run(self, args):

@@ -76,6 +76,8 @@ class GlobalConfig:
         # Waypoint GRU
         self.gru_hidden_size = 64
         self.gru_input_size = 64
+        #debugging:
+        self.fps_closed_loop_full_debug=5
 
         # -----------------------------------------------------------------------------
         # Autopilot

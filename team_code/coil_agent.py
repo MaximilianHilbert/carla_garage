@@ -189,10 +189,11 @@ class CoILAgent(AutonomousAgent):
             self.prev_rgb_queue.append(current_image)
             self.prev_speeds_queue.append(current_speed)
             self.prev_location_queue.append(current_position)
+            saveable_image=None
         else:
-            control, replay_params, model = self.run_step(current_data, timestamp)
+            control, replay_params, model, saveable_image = self.run_step(current_data, timestamp)
         control.manual_gear_shift = False
-        return control, replay_params, model
+        return control, replay_params, model, saveable_image
 
     def yaw_to_orientation(self, yaw):
         # Calculate the orientation vector in old carla convention
@@ -327,14 +328,15 @@ class CoILAgent(AutonomousAgent):
                 road=self.ss_bev_manager.get_road()
             else:
                 road=None
-            visualize_model(rgb=image_sequence,config=self.config,closed_loop=True,
-                            save_path_root=root,
+            image_to_save=visualize_model(rgb=image_sequence,config=self.config,closed_loop=True,generate_video=True,
+                            save_path_root="",
                             target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(), pred_wp=pred_dict["wp_predictions"].squeeze().detach().cpu().numpy(),
-                            pred_bb=batch_of_bbs_pred,step=f"{self.scenario_identifier}_{timestamp:.2f}",
+                            pred_bb=batch_of_bbs_pred,step=f"{timestamp:.2f}",
                             pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
                             road=road, parameters={"pred_residual": prediction_residual}, pred_wp_prev=previous_waypoints, args=self.config)
         
-
+        else:
+            image_to_save=None
         
         self.replay_current_predictions_queue.append(pred_dict)
         #we need an additional rgb queue, because it is way longer, to be able to visualize collisions with a long horizon

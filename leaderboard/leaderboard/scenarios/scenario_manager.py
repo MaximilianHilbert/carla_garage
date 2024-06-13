@@ -109,7 +109,15 @@ class ScenarioManager(object):
         self.ego_vehicles = scenario.ego_vehicles
         self.other_actors = scenario.other_actors
         self.repetition_number = rep_number
-
+        if self.scenario_class.agent.config.debug:
+            import os
+            import cv2
+            fps = self.scenario_class.agent.config.fps_closed_loop_full_debug
+            root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop",  self.scenario_class.agent.config.baseline_folder_name,
+                    "debug", self.scenario_class.agent.config.eval_id)
+            os.makedirs(root,exist_ok=True)
+            self.video_writer = cv2.VideoWriter(os.path.join(root,f"{self.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (512,1080))
+        
         # To print the scenario tree uncomment the next line
         # py_trees.display.render_dot_tree(self.scenario_tree)
 
@@ -148,9 +156,15 @@ class ScenarioManager(object):
             GameTime.on_carla_tick(timestamp)
             CarlaDataProvider.on_carla_tick()
             try:
-                ego_action, replay_params, model = self._agent()
+                ego_action, replay_params, model, image = self._agent()
                 self.replay_parameter=replay_params
                 self.model=model
+                if self.scenario_class.agent.config.debug:
+                    import cv2
+                    import numpy as np
+                    if image is not None:
+                        image = np.array(image.resize((512,1080)))
+                        self.video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
             # Special exception inside the agent that isn't caused by the agent
             except SensorReceivedNoData as e:
                 raise RuntimeError(e)

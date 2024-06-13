@@ -168,7 +168,8 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     condition=None,
     prev_gt=None,
     ego_speed=None,
-    correlation_weight=None
+    correlation_weight=None,
+    generate_video=False,
 ):
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
@@ -526,16 +527,18 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             draw.text((50,50), f"{config.baseline_folder_name.upper()}", fill=(255,255,255) if image_name=="combined" else (0,0,0), font=font_baseline)
     else:
         image=Image.fromarray(all_images.astype(np.uint8)) 
-
+    
     final_image=np.array(image)
     final_image_object = Image.fromarray(final_image.astype(np.uint8))
-    if image_name=="combined":
-        store_path = os.path.join(save_path_root, "with_rgb", f"{step}.jpg")
+    if generate_video:
+        return final_image_object
     else:
-        store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
-    Path(store_path).parent.mkdir(parents=True, exist_ok=True)
-    final_image_object.save(store_path, quality=95)
-
+        if image_name=="combined":
+            store_path = os.path.join(save_path_root, "with_rgb", f"{step}.jpg")
+        else:
+            store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
+        Path(store_path).parent.mkdir(parents=True, exist_ok=True)
+        final_image_object.save(store_path, quality=95)
 
 def is_ready_to_save(epoch, iteration, data_loader, merged_config):
     """Returns if the iteration is a iteration for saving a checkpoint"""
