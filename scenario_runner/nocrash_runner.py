@@ -72,7 +72,8 @@ class StatisticsManager:
                 self.finished_tasks[row["town"]][
                     (
                         str(row["baseline"]),
-                        int(row["head"]),
+                        int(row["bev"]),
+                        int(row["detectboxes"]),
                         int(row["speed"]),
                         int(row["prevnum"]),
                         str(row["backbone"]),

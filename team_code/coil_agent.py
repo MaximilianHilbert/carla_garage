@@ -266,14 +266,19 @@ class CoILAgent(AutonomousAgent):
         self.prev_rgb_queue.append(current_image)
         self.prev_speeds_queue.append(vehicle_speed)
         
+        #TODO test if reversal is correct also for ablations @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        prev_speeds=list(self.prev_speeds_queue)[::-self.config.data_save_freq]
+        prev_speeds.reverse()
+        prev_speeds=torch.tensor(prev_speeds, dtype=torch.float32).unsqueeze(0).cuda("cuda:0")
 
-        #TODO if this line is correct revert all queues!
-        prev_speeds=torch.tensor(list(self.prev_speeds_queue)[::-self.config.data_save_freq], dtype=torch.float32).unsqueeze(0).cuda("cuda:0")
         image_input_queue=list(self.prev_rgb_queue)[::-self.config.data_save_freq]
         image_input_queue.reverse()
+
         all_images = self._process_sensors(image_input_queue)
         if self.config.prevnum>0:
-            vehicle_prev_positions=torch.tensor(np.array([inverse_conversion_2d(wp, current_location, current_yaw_ego_system) for wp in list(self.prev_location_queue)[::-self.config.data_save_freq]], dtype=np.float32)).unsqueeze(0).to("cuda:0")
+            prev_locations=list(self.prev_location_queue)[::-self.config.data_save_freq]
+            prev_locations.reverse()
+            vehicle_prev_positions=torch.tensor(np.array([inverse_conversion_2d(wp, current_location, current_yaw_ego_system) for wp in prev_locations], dtype=np.float32)).unsqueeze(0).to("cuda:0")
         else:
             vehicle_prev_positions=None
         if self.config.baseline_folder_name == "arp":
@@ -299,7 +304,7 @@ class CoILAgent(AutonomousAgent):
                     )
         current_predictions_wp=pred_dict["wp_predictions"].squeeze().detach().cpu().numpy()
         if len(self.replay_current_predictions_queue)!=0:
-            previous_waypoints=[pred["wp_predictions"] for pred in list(self.replay_current_predictions_queue)][-1].squeeze().detach().cpu().numpy()
+            previous_waypoints=list(self.replay_current_predictions_queue)[-1]["wp_predictions"].squeeze().detach().cpu().numpy()
         else:
             previous_waypoints=None
         if previous_waypoints is not None:
@@ -313,8 +318,7 @@ class CoILAgent(AutonomousAgent):
                 image_sequence=image_sequence
             else:
                 image_sequence=np.concatenate(image_input_queue, axis=0)
-            root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
-                                  "debug",self.config.eval_id)
+ 
 
             if self.config.detectboxes:
                 if "arp" in self.config.baseline_folder_name:
@@ -366,7 +370,7 @@ class CoILAgent(AutonomousAgent):
                 "current_predictions": list(self.replay_current_predictions_queue)[::-self.config.data_save_freq],
                 "target_points": list(self.replay_target_points_queue)[::-self.config.data_save_freq],
                 "roads": list(self.replay_road_queue)[::-self.config.data_save_freq],
-                "pred_residual": list(self.replay_pred_residual_queue)[::-self.config.data_save_freq]},self.model if self.config.baseline_folder_name!="arp" else self._policy 
+                "pred_residual": list(self.replay_pred_residual_queue)[::-self.config.data_save_freq]},self.model if self.config.baseline_folder_name!="arp" else self._policy,image_to_save
 
     def control_pid(self, waypoints, speed):
         """
