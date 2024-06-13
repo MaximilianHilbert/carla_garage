@@ -309,13 +309,12 @@ class CoILAgent(AutonomousAgent):
             if self.config.baseline_folder_name=="bcso":
                 empties=np.concatenate([np.zeros_like(current_image)]*(7-self.config.img_seq_len), axis=0)
                 image_sequence=np.concatenate([empties, current_image], axis=0)
-                image_sequence=image_sequence*255
+                image_sequence=image_sequence
             else:
-                image_sequence=np.concatenate(image_input_queue, axis=0)*255
+                image_sequence=np.concatenate(image_input_queue, axis=0)
             root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
                                   "debug",self.config.eval_id)
 
-            #if np.round(timestamp,2)%2==0.0:
             if self.config.detectboxes:
                 if "arp" in self.config.baseline_folder_name:
                     batch_of_bbs_pred=self._policy.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
@@ -331,7 +330,7 @@ class CoILAgent(AutonomousAgent):
             visualize_model(rgb=image_sequence,config=self.config,closed_loop=True,
                             save_path_root=root,
                             target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(), pred_wp=pred_dict["wp_predictions"].squeeze().detach().cpu().numpy(),
-                            pred_bb=batch_of_bbs_pred,step=timestamp,
+                            pred_bb=batch_of_bbs_pred,step=f"{self.scenario_identifier}_{timestamp:.2f}",
                             pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
                             road=road, parameters={"pred_residual": prediction_residual}, pred_wp_prev=previous_waypoints, args=self.config)
         

@@ -485,12 +485,13 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     if not training:
             draw = ImageDraw.Draw(image)
             if closed_loop:
-                draw.text((distance_from_left,start), f"time {step:.2f}", fill=(0, 0, 0), font=font)
+                draw.text((distance_from_left,start), f"time {step}", fill=(0, 0, 0), font=font)
             else:
                 draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
             if parameters is not None:
                 if "pred_residual" in parameters.keys():
-                    draw.text((distance_from_left,start+40*3), f"pred. res.: {parameters['pred_residual']:.2f}", fill=firebrick, font=font)
+                    if parameters["pred_residual"] is not None:
+                        draw.text((distance_from_left,start+40*3), f"pred. res.: {parameters['pred_residual']:.2f}", fill=firebrick, font=font)
             else:
                 draw.text((distance_from_left,start+40*3), f"pred. res.: None", fill=firebrick, font=font)
             if not closed_loop:
@@ -529,9 +530,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     final_image=np.array(image)
     final_image_object = Image.fromarray(final_image.astype(np.uint8))
     if image_name=="combined":
-        store_path = os.path.join(save_path_root, "with_rgb", f"{step:.2f}.jpg")
+        store_path = os.path.join(save_path_root, "with_rgb", f"{step}.jpg")
     else:
-        store_path = os.path.join(save_path_root, "without_rgb", f"{step:.2f}.jpg")
+        store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
     Path(store_path).parent.mkdir(parents=True, exist_ok=True)
     final_image_object.save(store_path, quality=95)
 
