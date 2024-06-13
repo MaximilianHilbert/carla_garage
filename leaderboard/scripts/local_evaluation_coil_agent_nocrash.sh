@@ -1,7 +1,6 @@
 export CARLA_ROOT=/home/maximilian-hilbert/carla_garage/carla
 export WORK_DIR=/home/maximilian-hilbert/carla_garage
 
-export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
 export COIL_NETWORK=$WORK_DIR/coil_network
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
@@ -24,9 +23,8 @@ export RESUME=1
 export DATAGEN=0
 export SAVE_PATH=${WORK_DIR}/results
 export DIRECT=0
-export BENCHMARK=longest6
 #uni pc
-export COIL_MODEL_CHECKPOINT=/home/maximilian-hilbert/carla_garage/_logs/bcoh/bcoh_nospeed_data_rep_3/repetition_0/02_withheld/checkpoints/30.pth
+export COIL_MODEL_CHECKPOINT=/home/maximilian-hilbert/carla_garage/_logs/bcso/bcso_bev-0_detectboxes-0_speed-0_prevnum-0_backbone-unrolling_lossweights-0.33,0.33,0.33/repetition_0/02_withheld/checkpoints/30.pth
 #home
 #export COIL_MODEL_CHECKPOINT=/home/maximilian/Master/carla_garage/_logs/arp/arp/repetition_0/all/checkpoints/30.pth
 
@@ -34,18 +32,18 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --coil_checkpoint=${COIL_MODEL_CHECKPOINT} \
 --track=${CHALLENGE_TRACK_CODENAME} \
 --agent=${TEAM_AGENT} \
---agent-config=${TEAM_CONFIG} \
---route=${WORK_DIR}/scenario_runner/suite/nocrash_Town01.txt \
+--route=${WORK_DIR}/scenario_runner/suite/nocrash_Town02.txt \
 --resume=${RESUME} \
 --timeout=600 \
---experiment=bcoh_nospeed_data_rep_3 \
---baseline-folder-name=bcoh \
+--eval_id=bcso_bev-0_detectboxes-0_speed-0_prevnum-0_backbone-unrolling_lossweights-0.33,0.33,0.33 \
+--baseline-folder-name=bcso \
 --norm=2 \
+--trafficManagerSeed=252534 \
+--debug=1 \
 --visualize-combined=1 \
 --visualize-without-rgb=0 \
 --setting=02_withheld \
 --resume=true \
---eval_id=id_000 \
---town=Town01 \
+--town=Town02 \
 --weather=train \
 --log_path=${WORK_DIR}/logs
