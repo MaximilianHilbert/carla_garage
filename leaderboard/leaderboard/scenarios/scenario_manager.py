@@ -112,7 +112,7 @@ class ScenarioManager(object):
         if self.scenario_class.agent.config.debug:
             import os
             import cv2
-            fps = self.scenario_class.agent.config.fps_closed_loop_full_debug
+            fps = 5
             root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop",  self.scenario_class.agent.config.baseline_folder_name,
                     "debug", self.scenario_class.agent.config.eval_id)
             os.makedirs(root,exist_ok=True)

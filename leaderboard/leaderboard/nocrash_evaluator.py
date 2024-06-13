@@ -392,7 +392,7 @@ class NoCrashEvaluator(object):
                 target_points.reverse()
                 roads.reverse()
                 pred_residual.reverse()
-                fps = self.config.fps_closed_loop_infractions
+                fps = 5
                 os.makedirs(root,exist_ok=True)
                 video_writer = cv2.VideoWriter(os.path.join(root,f"{self.manager.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (512,1080))
                 for iteration, (pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(curr_pred, target_points, roads,pred_residual)):
