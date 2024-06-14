@@ -97,7 +97,7 @@ def merge_with_command_line_args(config, args):
             setattr(config, key, value)
 
 def get_ablations_dict():
-    return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "backbone":0,"lossweights": [0, 0, 0]}
+    return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "backbone":0,"lossweights": [0, 0, 0], "datarep":0}
 
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
@@ -126,7 +126,7 @@ def merge_config(args, experiment_name, training=True):
     # init transfuser config file, necessary for the dataloader
     shared_configuration = GlobalConfig()
     if training:
-        shared_configuration.initialize(root_dir=shared_configuration.root_dir, setting=args.setting, num_repetitions=args.dataset_repetition)
+        shared_configuration.initialize(root_dir=shared_configuration.root_dir, setting=args.setting, num_repetitions=args.datarep)
     
     merge_with_command_line_args(shared_configuration, args)
     shared_configuration=set_baseline_specific_args(shared_configuration, experiment_name, args)

@@ -674,7 +674,7 @@ if __name__ == "__main__":
 
     )
 
-    parser.add_argument("--dataset-repetition",type=int, default=3)
+    parser.add_argument("--datarep",type=int, default=1)
 
     arguments = parser.parse_args()
 
