@@ -546,7 +546,25 @@ def is_ready_to_save(epoch, iteration, data_loader, merged_config):
         return True
     else:
         return False
-
+def save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch):
+    prior_epoch=epoch-merged_config_object.every_epoch
+    checkpoint_dir=os.path.join(
+        os.environ.get("WORK_DIR"),
+        "_logs",
+        merged_config_object.baseline_folder_name,
+        merged_config_object.experiment,
+        f"repetition_{str(args.training_repetition)}",
+        args.setting,
+        "checkpoints")
+    for checkpoint in os.listdir(checkpoint_dir):
+        if checkpoint==f"{prior_epoch}.pth":
+            os.remove(os.path.join(checkpoint_dir, checkpoint))
+    
+    torch.save(
+    state,
+    os.path.join(checkpoint_dir
+        ,f"{epoch}.pth")
+    )
 
 def get_latest_saved_checkpoint(basepath):
     """

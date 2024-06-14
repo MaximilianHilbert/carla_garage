@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 from copy import deepcopy
 from diskcache import Cache
-from coil_utils.baseline_helpers import get_copycat_criteria,generate_experiment_name, visualize_model
+from coil_utils.baseline_helpers import get_copycat_criteria,generate_experiment_name, visualize_model,save_checkpoint_and_delete_prior
 from team_code.data import CARLA_Data
 from team_code.timefuser_model import TimeFuser
 import csv
@@ -254,13 +254,7 @@ def main(args):
                                 "mem_extract_optimizer": mem_extract_optimizer.state_dict(),
                                 "best_loss_epoch": best_loss_epoch,
                             }
-                            torch.save(
-                                state,
-                                os.path.join(basepath,
-                                    "checkpoints",
-                                    str(epoch) + ".pth",
-                                ),
-                            )
+                            save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch)
                         if rank == 0 and iteration%100==0:
                             logger.add_scalar(
                                 "Policy_Loss_Iterations",
@@ -367,13 +361,7 @@ def main(args):
                                 "best_loss_epoch": best_loss_epoch,
                             }
 
-                            torch.save(
-                                state,
-                                os.path.join(basepath,
-                                    "checkpoints",
-                                    str(epoch) + ".pth",
-                                ),
-                            )
+                            save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch)
 
                         if loss.data < best_loss:
                             best_loss = loss.data.tolist()
