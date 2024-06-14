@@ -128,7 +128,8 @@ class NoCrashEvalScenario(RouteScenario):
         }
 
         car_amount = car_amounts[self.town_name][self.traffic_idx]
-        ped_amount = ped_amounts[self.town_name][self.traffic_idx]
+        #we set ped to zero, because we dont have them in our training dataset
+        ped_amount = 0
 
         new_actors = CarlaDataProvider.request_new_batch_actors(
             "vehicle.*",
