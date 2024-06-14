@@ -30,8 +30,12 @@ class StatisticsManager:
     def __init__(self, args, config):
         self.finished_tasks = {"Town01": {}, "Town02": {}}
         ablations_dict=get_ablations_dict()
-        setattr(config, "head", 1) if config.bev or config.detectboxes else setattr(config, "head", 0)
-        self.ablations_dict={ablation:getattr(config, ablation) for ablation in ablations_dict.keys()}
+        self.ablations_dict={}
+        for ablation in ablations_dict.keys():
+            try:
+                self.ablations_dict.update({ablation:getattr(config, ablation)})
+            except AttributeError:
+                self.ablations_dict.update({ablation:ablations_dict[ablation]})
         self.headers = [
         *ablations_dict,
         "eval_rep",
