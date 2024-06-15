@@ -226,10 +226,10 @@ class TimeFuser(nn.Module):
                 self.img_seq_len=self.config.max_img_seq_len_baselines+1
                 self.img_token_len=self.config.max_img_seq_len_baselines+1
                 
-    def compute_loss(self,params, logger=None, logging_step=None, rank=None, keyframes=False):
-        losses=[]
+    def compute_loss(self,params, keyframes=False):
+        losses={}
         main_loss = l1_loss(params["wp_predictions"], params["targets"])
-        losses.append(main_loss)
+        losses["wp_loss"]=main_loss
 
         if self.config.detectboxes:
             self.detailed_loss_weights={}
@@ -252,32 +252,15 @@ class TimeFuser(nn.Module):
                 # Set 0 class to ignore index -1
             visible_bev_semantic_label = (params["valid_bev_pixels"].squeeze(1).int() - 1) + visible_bev_semantic_label
             loss_bev=loss_bev_semantic(params["pred_bev_semantic"], visible_bev_semantic_label)
-            losses.append(loss_bev)
+            losses["bev_loss"]=loss_bev
             if self.config.detectboxes:
                 head_loss=self.head.loss(*params["pred_bb"], *params["targets_bb"])
                 sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
-                if rank == 0 and logging_step%1000==0:
-                    logger.add_scalar(
-                                    "bev",
-                                    loss_bev.data,
-                                    logging_step
-                                )
-                    logger.add_scalar(
-                                    "wp",
-                                    main_loss.data,
-                                    logging_step
-                                )
                 for key, value in head_loss.items():
                     sub_loss += self.detailed_loss_weights[key] * value
-                    if rank == 0 and logging_step%1000==0:
-                        logger.add_scalar(
-                                    key,
-                                    value.data,
-                                    logging_step
-                                )
-                losses.append(sub_loss.squeeze())
-        
-        final_loss= torch.sum(torch.stack(losses)*torch.tensor(self.config.lossweights, device=params["device_id"], dtype=torch.float32))
+                losses["detect_loss"]=sub_loss.squeeze()
+        #watch out with order of losses
+        final_loss= torch.sum(torch.stack(list(losses.values()))*torch.tensor(self.config.lossweights, device=params["device_id"], dtype=torch.float32))
 
         if keyframes:
             importance_sampling_method = params["importance_sampling_method"]

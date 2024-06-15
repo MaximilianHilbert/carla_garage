@@ -204,6 +204,13 @@ def main(args):
                 range(1 + already_trained_epochs, merged_config_object.epochs_baselines + 1),
                 disable=rank != 0,
             ):
+                if "arp" in merged_config_object.baseline_folder_name:
+                    combined_losses_policy=[]
+                    combined_losses_memory=[]
+                else:
+                    combined_losses=[]
+                detailed_losses=[]
+  
                 for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
                     # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
                     #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
@@ -240,7 +247,7 @@ def main(args):
                             "device_id": device_id,
                             
                         }
-                        policy_loss,_= policy.module.compute_loss(params=loss_function_params_policy, logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank)
+                        policy_loss,plotable_losses= policy.module.compute_loss(params=loss_function_params_policy)
                         policy_loss.backward()
                         policy_optimizer.step()
                         if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
@@ -253,28 +260,14 @@ def main(args):
                                 "policy_optimizer": policy_optimizer.state_dict(),
                                 "mem_extract_optimizer": mem_extract_optimizer.state_dict(),
                                 "best_loss_epoch": best_loss_epoch,
+                                "timing": np.array(timing).mean()
                             }
                             save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch)
-                        if rank == 0 and iteration%100==0:
-                            logger.add_scalar(
-                                "Policy_Loss_Iterations",
-                                policy_loss.data,
-                                (epoch - 1) * len(data_loader) + iteration,
-                            )
-                            logger.add_scalar("Policy_Loss_Epochs", policy_loss.data, (epoch - 1))
-                            logger.add_scalar(
-                                "Mem_Extract_Loss_Iterations",
-                                mem_extract_loss.data,
-                                (epoch - 1) * len(data_loader) + iteration,
-                            )
-                            logger.add_scalar(
-                                "Mem_Extract_Loss_Epochs",
-                                mem_extract_loss.data,
-                                (epoch - 1),
-                            )
-                        if policy_loss.data < best_loss:
-                            best_loss = policy_loss.data.tolist()
-                            best_loss_epoch = epoch
+                        if rank == 0:
+                            combined_losses_policy.append(policy_loss.data.cpu())
+                            combined_losses_memory.append(mem_extract_loss.data.cpu())
+                            detailed_losses.append(plotable_losses)
+                        
                         accumulated_time += time.time() - capture_time
                         if iteration % args.printing_step == 0 and rank == 0:
                             print(f"Epoch: {epoch} // Iteration: {iteration} // Policy_Loss: {policy_loss.data}")
@@ -312,13 +305,15 @@ def main(args):
                             
                         }
                         if "keyframes" in merged_config_object.baseline_folder_name:
-                            loss,_ = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank, keyframes=True)
+                            loss,plotable_losses = model.module.compute_loss(params=loss_function_params, keyframes=True)
                         else:
-                            loss,_ = model.module.compute_loss(params=loss_function_params,logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration,rank=rank)
+                            loss,plotable_losses = model.module.compute_loss(params=loss_function_params)
                         loss.backward()
                         optimizer.step()
                         scheduler.step()
-                        
+                        if rank == 0:
+                            combined_losses.append(loss.data.cpu())
+                            detailed_losses.append(plotable_losses)
                     if args.debug and epoch%1==0:
                         if merged_config_object.detectboxes:
                             if "arp" in merged_config_object.baseline_folder_name:
@@ -367,19 +362,38 @@ def main(args):
                             best_loss = loss.data.tolist()
                             best_loss_epoch = epoch
                         accumulated_time += time.time() - capture_time
-                        if rank == 0:
-                            if iteration % args.printing_step == 0:
-                                print(f"Epoch: {epoch} // Iteration: {iteration} // Loss:{loss.data}")
-                                logger.add_scalar(
-                                    f"{merged_config_object.baseline_folder_name}_loss",
-                                    loss.data,
-                                    (epoch - 1) * len(data_loader) + iteration,
-                                )
-                                logger.add_scalar(
-                                    f"{merged_config_object.baseline_folder_name}_loss_Epochs",
-                                    loss.data,
+                if "arp" in merged_config_object.baseline_folder_name:
+                    logger.add_scalar(
+                                    f"{merged_config_object.baseline_folder_name}_policy_loss_epochs",
+                                    np.array(combined_losses_policy).mean(),
                                     (epoch - 1),
                                 )
+                    logger.add_scalar(
+                                    f"{merged_config_object.baseline_folder_name}_memory_loss_epochs",
+                                    np.array(combined_losses_memory).mean(),
+                                    (epoch - 1),
+                                )
+                else:
+                    logger.add_scalar(
+                                    f"{merged_config_object.baseline_folder_name}_loss_epochs",
+                                    np.array(combined_losses).mean(),
+                                    (epoch - 1),
+                                )
+
+                if merged_config_object.detectboxes and merged_config_object.bev:
+                    sums=dict.fromkeys(detailed_losses[0].keys(), 0)
+                    counts=dict.fromkeys(detailed_losses[0].keys(), 0)
+                    for dic in detailed_losses:
+                        for key, value in dic.items():
+                            sums[key]+=value
+                            counts[key] += 1
+                    for key, value in sums.items():
+                        sums[key]=sums[key]/counts[key]
+                        logger.add_scalar(
+                                        f"{merged_config_object.baseline_folder_name}_{key}_loss",
+                                        sums[key],
+                                        (epoch - 1),
+                                    )
                 torch.cuda.empty_cache()
             with open(os.path.join(basepath,"config_training.pkl"), "wb") as file:
                 pickle.dump(merged_config_object, file)
