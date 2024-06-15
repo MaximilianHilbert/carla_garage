@@ -133,7 +133,7 @@ def make_jobsub_file(root,commands, exp_name, exp_root_name, filename, partition
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=6
-#SBATCH --mem=60gb
+#SBATCH --mem=40gb
 #SBATCH --time=00-10:00
 #SBATCH --gres=gpu:1
 """
