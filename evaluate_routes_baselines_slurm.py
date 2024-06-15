@@ -85,14 +85,20 @@ export REPETITION={eval_rep}
 export RESUME=1
 export SETTING={setting}
 export ROUTE={route}
-source /home/hilbert/.bashrc
-eval "$(conda shell.bash hook)"
-conda activate garage
-"""
-        )
-#mcloud 
-#source ~/.bashrc
-#conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+""")
+        if args.cluster=="tcml":
+            rsh.write(
+                f"""
+    source /home/hilbert/.bashrc
+    eval "$(conda shell.bash hook)"
+    conda activate garage
+    """)
+        else:
+            rsh.write(
+                f""" 
+source ~/.bashrc
+conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+    """)
         rsh.write(
             """
 python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
@@ -161,7 +167,7 @@ def get_num_jobs(job_name, username):
     return num_running_jobs, max_num_parallel_jobs
 
 
-def main():
+def main(args):
     single_test = False
     settings_to_be_tested = ["02_withheld"]  # only set when single test is True
     training_reps_to_be_tested = ["repetition_0"]  # only set when single test is True
@@ -172,12 +178,17 @@ def main():
     weathers = {"train": [14], "test": [8]}
     weather_conditions=["train"]
     traffics_len = 3
-    partition = "day"
-    username = "hilbert"
+    if args.cluster=="tcml":
+        partition = "day"
+        username = "hilbert"
+        code_root="/home/hilbert/carla_garage"
+    else:
+        partition = "2080-galvani"
+        username = "gwb629"
+        code_root="/mnt/qb/work/geiger/gwb629/carla_garage"
     epochs = ["30"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3
-    code_root="/home/hilbert/carla_garage"
     benchmark = "nocrash"
     model_dir = os.path.join(code_root, "_logs")
     carla_root = os.path.join(code_root, "carla")
@@ -517,4 +528,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--cluster",
+        type=str,
+    )
+    args = parser.parse_args()
+    main(args)
