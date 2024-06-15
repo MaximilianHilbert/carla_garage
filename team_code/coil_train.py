@@ -232,7 +232,7 @@ def main(args):
                             "device_id": device_id,
                         }
 
-                        mem_extract_loss,_= mem_extract.module.compute_loss(params=loss_function_params_memory, logger=logger, logging_step=(epoch - 1) * len(data_loader) + iteration, rank=rank)
+                        mem_extract_loss,_= mem_extract.module.compute_loss(params=loss_function_params_memory)
                         mem_extract_loss.backward()
                         mem_extract_optimizer.step()
                         policy.zero_grad()
