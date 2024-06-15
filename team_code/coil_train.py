@@ -655,6 +655,13 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
+        "--augment",
+        type=int,
+        choices=[0,1],
+        default=0
+
+    )
+    parser.add_argument(
         "--detectboxes",
         type=int,
         choices=[0,1],
