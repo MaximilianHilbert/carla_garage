@@ -54,7 +54,6 @@ class GlobalConfig:
         self.learning_rate_multi_obs=1e-4
         self.reduced_channel_dimension=256
         self.use_color_aug= 0
-        self.augment=0 
         self.every_epoch = 2
         self.loss_function_baselines = "L1"
         # keyframes

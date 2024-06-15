@@ -252,6 +252,10 @@ if __name__ == "__main__":
         type=str,
         default="tcml"
     )
-
+    parser.add_argument(
+        "--augment",
+        type=int,
+        default=0
+    )
     args = parser.parse_args()
     main(args)
