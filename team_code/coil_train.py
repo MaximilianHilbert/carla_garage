@@ -360,9 +360,6 @@ def main(args):
 
                             save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch)
 
-                        if loss.data < best_loss:
-                            best_loss = loss.data.tolist()
-                            best_loss_epoch = epoch
                         accumulated_time += time.time() - capture_time
                 if "arp" in merged_config_object.baseline_folder_name:
                     logger.add_scalar(
