@@ -86,6 +86,12 @@ if __name__ == "__main__":
         choices=[0,1],
         default=0,
     )
+
+    parser.add_argument(
+        "--datarep",
+        type=int,
+        default=1,
+    )
     parser.add_argument(
         "--seeds",
         dest="seeds",
