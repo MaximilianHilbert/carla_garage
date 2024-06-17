@@ -4,6 +4,7 @@ from pathlib import Path
 from copy import deepcopy
 from leaderboard.nocrash_evaluator import NoCrashEvaluator
 from coil_utils.baseline_helpers import get_ablations_dict
+import pandas as pd
 
 class NoCrashEvalRunner:
     def __init__(self, args, config,town, weather, port=1000, tm_port=1002, debug=False):
@@ -28,7 +29,7 @@ class NoCrashEvalRunner:
 
 class StatisticsManager:
     def __init__(self, args, config):
-        self.finished_tasks = {"Town01": {}, "Town02": {}}
+        self.finished_tasks=pd.DataFrame()
         ablations_dict=get_ablations_dict()
         self.ablations_dict={}
         for ablation in ablations_dict.keys():
@@ -70,36 +71,8 @@ class StatisticsManager:
                 csv_writer.writeheader()
 
     def load(self, logdir):
-        with open(logdir, "r") as file:
-            log = csv.DictReader(file)
-            for row in log:
-                self.finished_tasks[row["town"]][
-                    (
-                        str(row["baseline"]),
-                        int(row["bev"]),
-                        int(row["detectboxes"]),
-                        int(row["speed"]),
-                        int(row["prevnum"]),
-                        str(row["backbone"]),
-                        str(row["lossweights"]),
-                        int(row["traffic"]),
-                        int(row["eval_rep"]),
-                        int(row["training_rep"]),
-                        str(row["experiment"]),
-                        int(row["weather"]),
-                        int(row["start"]),
-                        int(row["target"]),
-                    )
-                ] = [
-                    float(row["route_completion"]),
-                    float(row["outside_route"]),
-                    int(row["stops_ran"]),
-                    float(row["inroute"]),
-                    int(row["lights_ran"]),
-                    int(row["collision"]),
-                    float(row["duration"]),
-                    float(row["timeout_blocked"])
-                ]
+        self.finished_tasks=pd.read_csv(logdir, index_col=[*[ablation for ablation in self.ablations_dict.keys()],
+                                                       "town","traffic", "weather", "start", "target"])
 
     def log(
         self,
@@ -150,5 +123,5 @@ class StatisticsManager:
 
     def is_finished(self, args, route,weather, traffic):
         start, target = route
-        key = (str(args.baseline_folder_name), str(args.eval_id), int(traffic), int(weather), int(start), int(target))
-        return key in self.finished_tasks[args.town]
+        key = (*[ablation_value for _, ablation_value in self.ablations_dict.items()], args.town,int(traffic), int(weather), int(start), int(target))
+        return key in self.finished_tasks.index
