@@ -411,7 +411,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             images_lidar = t_u.draw_box(
                 images_lidar,
                 box,
-                color=(0, 255, 255),
+                color=(0, 100, 0),
                 pixel_per_meter=loc_pixels_per_meter,
             )
 
