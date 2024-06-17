@@ -124,6 +124,4 @@ class StatisticsManager:
     def is_finished(self, args, route,weather, traffic):
         start, target = route
         key = (*[ablation_value for _, ablation_value in self.ablations_dict.items()], args.town,int(traffic), int(weather), int(start), int(target))
-        if isinstance(key, list):
-            key = tuple(key)
         return key in self.finished_tasks.index
