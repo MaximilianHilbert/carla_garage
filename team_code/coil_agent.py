@@ -10,7 +10,7 @@ from team_code.transfuser_utils import non_maximum_suppression
 from leaderboard.envs.sensor_interface import SensorInterface
 from leaderboard.autoagents.autonomous_agent import AutonomousAgent
 from leaderboard.autoagents.autonomous_agent import Track
-from coil_utils.baseline_helpers import norm
+from coil_utils.copycat_helper import norm
 from coil_utils.baseline_helpers import visualize_model
 from nav_planner import RoutePlanner
 from srunner.scenariomanager.timer import GameTime

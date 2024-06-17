@@ -1,51 +1,15 @@
-import yaml
 import torch
 from team_code.config import GlobalConfig
 from PIL import Image, ImageDraw, ImageFont
 import os
-import heapq
 import numpy as np
 from PIL import Image
 import cv2
 from team_code import transfuser_utils as t_u
 from pathlib import Path
 from copy import deepcopy
+from torch.utils.data import Sampler
 
-def norm(differences, ord):
-    if ord==1:
-        return np.sum(np.absolute(differences))
-    if ord==2:
-        return np.sqrt(np.sum(np.absolute(differences)**2))
-    
-def get_copycat_criteria(data_lst,prev_predictions_aligned,prev_gt_aligned_lst, which_norm):
-    differences_pred=[]
-    differences_gt=[]
-    differences_loss=[]
-    for index,(current, previous_pred_aligned,prev_gt_aligned) in enumerate(zip(data_lst, prev_predictions_aligned,prev_gt_aligned_lst)):
-        try:
-            differences_pred.append(norm(previous_pred_aligned-current["pred"], ord=which_norm))
-            differences_gt.append(norm(prev_gt_aligned-current["gt"], ord=which_norm))
-            differences_loss.append(norm(data_lst[index-1]["loss"]-current["loss"], ord=which_norm))
-        except TypeError:
-            differences_pred.append(np.nan)
-            differences_gt.append(np.nan)
-            differences_loss.append(np.nan)
-
-    differences_pred=np.array(differences_pred)
-    differences_gt=np.array(differences_gt)
-    differences_loss=np.array(differences_loss)
-
-    std_value_gt=np.nanstd(differences_gt)
-    std_value_pred=np.nanstd(differences_pred)
-
-    mean_value_gt=np.nanmean(differences_gt)
-    mean_value_pred=np.nanmean(differences_pred)
-
-    mean_value_loss=np.nanmean(differences_loss)
-    std_value_loss=np.nanstd(differences_loss)
-
-    return {"mean_pred": mean_value_pred,"mean_gt": mean_value_gt, "std_pred":std_value_pred,
-            "std_gt":std_value_gt, "loss_mean": mean_value_loss, "loss_std": std_value_loss}
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -61,7 +25,43 @@ def generate_experiment_name(args, distributed_baseline_folder_name=None):
         return f"{args_dict['baseline_folder_name']}_"+"_".join([f'{ablation}-{",".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()]),ablations_dict
     else:
         return f"{distributed_baseline_folder_name}_"+"_".join([f'{ablation}-{",".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()]),ablations_dict
+def extract_and_normalize_data(args, device_id, merged_config_object, data):
+    all_images = data["rgb"].to(device_id).to(torch.float32)/255.0
+                   
+    
+    if merged_config_object.speed:
+        all_speeds = data["speed"].to(device_id)
+    else:
+        all_speeds = None
+    target_point = data["target_point"].to(device_id)
+    wp_targets = data["ego_waypoints"].to(device_id)
+    if merged_config_object.number_previous_waypoints>0:
+        previous_wp_targets = data["previous_ego_waypoints"].to(device_id)
+    else:
+        previous_wp_targets=None
+    if merged_config_object.prevnum>0:
+        additional_previous_wp_targets = torch.flatten(data["additional_waypoints_ego_system"].to(device_id), start_dim=1)
+    else:
+        additional_previous_wp_targets=None
 
+    bev_semantic_labels=data["bev_semantic"].to(torch.long).to(device_id)
+    if merged_config_object.detectboxes:
+        bb=data["bounding_boxes"].to(device_id, dtype=torch.float32)
+        gt_bb=(
+data["center_heatmap"].to(device_id, dtype=torch.float32),
+data["wh"].to(device_id, dtype=torch.float32),
+data["yaw_class"].to(device_id, dtype=torch.long),
+data["yaw_res"].to(device_id, dtype=torch.float32),
+data["offset"].to(device_id, dtype=torch.float32),
+data["velocity"].to(device_id, dtype=torch.float32),
+data["brake_target"].to(device_id, dtype=torch.long),
+data["pixel_weight"].to(device_id, dtype=torch.float32),
+data["avg_factor"].to(device_id, dtype=torch.float32)
+        )
+    else:
+        gt_bb=None
+        bb=None
+    return all_images,all_speeds,target_point,wp_targets,previous_wp_targets,additional_previous_wp_targets,bev_semantic_labels, gt_bb,bb
 def find_free_port():
     """https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number"""
     import socket
@@ -73,18 +73,32 @@ def find_free_port():
         return str(s.getsockname()[1])
 
 
-def merge_with_yaml(transfuser_config_object, baseline_name, experiment):
-    with open(
-        os.path.join(os.environ.get("CONFIG_ROOT"), baseline_name, experiment + ".yaml"),
-        "r",
-    ) as f:
-        yaml_config = yaml.safe_load(f)
-    for key, value in yaml_config.items():
-        if not hasattr(transfuser_config_object, key):
-            raise ValueError("Wrong Attribute set in yaml of baseline")
-        setattr(transfuser_config_object, key, value)
+def align_previous_prediction(pred, matrix_previous, matrix_current):
+    matrix_prev = matrix_previous[:3]
+    translation_prev = matrix_prev[:, 3:4].flatten()
+    rotation_prev = matrix_prev[:, :3]
 
+    matrix_curr = matrix_current[:3]
+    translation_curr = matrix_curr[:, 3:4].flatten()
+    rotation_curr = matrix_curr[:, :3]
 
+    waypoints=[]
+    for waypoint in pred:
+        waypoint_3d=np.append(waypoint, 0)
+        waypoint_world_frame = (rotation_prev@waypoint_3d) + translation_prev
+        waypoint_aligned_frame=rotation_curr.T @(waypoint_world_frame-translation_curr)
+        waypoints.append(waypoint_aligned_frame[:-1])
+    return np.array(waypoints)
+
+class SequentialSampler(Sampler):
+    def __init__(self, data_source):
+        self.data_source = data_source
+
+    def __iter__(self):
+        return iter(range(len(self.data_source)))
+
+    def __len__(self):
+        return len(self.data_source)
 def merge_with_command_line_args(config, args):
     args_dict = vars(args)
     for key, value in args_dict.items():
@@ -581,21 +595,3 @@ def get_latest_saved_checkpoint(basepath):
     else:
         checkpoint_files=sorted([int(x.strip(".pth")) for x in checkpoint_files])
         return checkpoint_files[-1]
-
-
-def get_controls_from_data(data, batch_size, device_id):
-    one_hot_tensor = data["command"].to(device_id)
-    indices = torch.argmax(one_hot_tensor, dim=1)
-    controls = indices.reshape(batch_size, 1)
-    return controls
-
-
-def get_action_predict_loss_threshold(correlation_weights, ratio):
-    _action_predict_loss_threshold = {}
-    if ratio in _action_predict_loss_threshold:
-        return _action_predict_loss_threshold[ratio]
-    else:
-        action_predict_losses = correlation_weights
-        threshold = heapq.nlargest(int(len(action_predict_losses) * ratio), action_predict_losses)[-1]
-        _action_predict_loss_threshold[ratio] = threshold
-        return threshold
