@@ -193,12 +193,13 @@ def main(args):
             range(1 + already_trained_epochs, merged_config_object.epochs_baselines + 1),
             disable=rank != 0,
         ):
-            if "arp" in merged_config_object.baseline_folder_name:
-                combined_losses_policy=[]
-                combined_losses_memory=[]
-            else:
-                combined_losses=[]
-            detailed_losses=[]
+            if rank==0:
+                if "arp" in merged_config_object.baseline_folder_name:
+                    combined_losses_policy=[]
+                    combined_losses_memory=[]
+                else:
+                    combined_losses=[]
+                detailed_losses=[]
 
             for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
                 # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
@@ -359,38 +360,40 @@ def main(args):
                         save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch)
 
                     accumulated_time += time.time() - capture_time
-            if "arp" in merged_config_object.baseline_folder_name:
-                logger.add_scalar(
-                                f"{merged_config_object.baseline_folder_name}_policy_loss_epochs",
-                                np.array(combined_losses_policy).mean(),
-                                (epoch - 1),
-                            )
-                logger.add_scalar(
-                                f"{merged_config_object.baseline_folder_name}_memory_loss_epochs",
-                                np.array(combined_losses_memory).mean(),
-                                (epoch - 1),
-                            )
-            else:
-                logger.add_scalar(
-                                f"{merged_config_object.baseline_folder_name}_loss_epochs",
-                                np.array(combined_losses).mean(),
-                                (epoch - 1),
-                            )
-
-            if merged_config_object.detectboxes and merged_config_object.bev:
-                sums=dict.fromkeys(detailed_losses[0].keys(), 0)
-                counts=dict.fromkeys(detailed_losses[0].keys(), 0)
-                for dic in detailed_losses:
-                    for key, value in dic.items():
-                        sums[key]+=value
-                        counts[key] += 1
-                for key, value in sums.items():
-                    sums[key]=sums[key]/counts[key]
+            if rank==0:
+                if "arp" in merged_config_object.baseline_folder_name:
                     logger.add_scalar(
-                                    f"{merged_config_object.baseline_folder_name}_{key}_loss",
-                                    sums[key],
+                                    f"{merged_config_object.baseline_folder_name}_policy_loss_epochs",
+                                    np.array(combined_losses_policy).mean(),
                                     (epoch - 1),
                                 )
+                    logger.add_scalar(
+                                    f"{merged_config_object.baseline_folder_name}_memory_loss_epochs",
+                                    np.array(combined_losses_memory).mean(),
+                                    (epoch - 1),
+                                )
+                else:
+                    logger.add_scalar(
+                                    f"{merged_config_object.baseline_folder_name}_loss_epochs",
+                                    np.array(combined_losses).mean(),
+                                    (epoch - 1),
+                                )
+
+            if merged_config_object.detectboxes and merged_config_object.bev:
+                if rank==0:
+                    sums=dict.fromkeys(detailed_losses[0].keys(), 0)
+                    counts=dict.fromkeys(detailed_losses[0].keys(), 0)
+                    for dic in detailed_losses:
+                        for key, value in dic.items():
+                            sums[key]+=value
+                            counts[key] += 1
+                    for key, value in sums.items():
+                        sums[key]=sums[key]/counts[key]
+                        logger.add_scalar(
+                                        f"{merged_config_object.baseline_folder_name}_{key}_loss",
+                                        sums[key],
+                                        (epoch - 1),
+                                    )
             torch.cuda.empty_cache()
         with open(os.path.join(basepath,"config_training.pkl"), "wb") as file:
             pickle.dump(merged_config_object, file)
