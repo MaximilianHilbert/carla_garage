@@ -1,9 +1,9 @@
 import os
 import subprocess
 import numpy as np
-
+from coil_utils.baseline_helpers import get_ablations_dict
+import pickle
 from coil_utils.baseline_helpers import get_latest_saved_checkpoint, generate_experiment_name
-import itertools
 max_img_seq_len_baselines=6
 def generate_batch_script(
     args,
@@ -111,14 +111,17 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
 
 def place_batch_scripts():
     root = os.path.join(os.environ.get("WORK_DIR"), "job_files")
-    for file in os.listdir(root):
-        full_path = os.path.join(root, file)
-        out = subprocess.check_output(f'chmod u+x {full_path}', shell=True)
-        out = subprocess.check_output(f'sbatch {full_path}', shell=True)
-        print(out)
-
+    if os.path.isdir(root):
+        for file in os.listdir(root):
+            full_path = os.path.join(root, file)
+            out = subprocess.check_output(f'chmod u+x {full_path}', shell=True)
+            out = subprocess.check_output(f'sbatch {full_path}', shell=True)
+            print(out)
+    else:
+        print("nothing to submit")
 
 def main(args):
+    current_default_ablations=get_ablations_dict()
     for training_repetition, seed in enumerate(args.seeds):
         for baseline_folder_name, batch_size, walltime in zip(
             args.baseline_folder_names, args.batch_sizes, args.walltimes
@@ -142,21 +145,32 @@ def main(args):
                 else:
                     ablations_dict["prevnum"]=0
                 
-                final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, experiment_string,f"repetition_{training_repetition}", args.setting)
-                if os.path.isdir(final_log_dir):
-                    checkpoint=get_latest_saved_checkpoint(final_log_dir)
-                    if checkpoint==30:
-                        continue
-                generate_batch_script(
-                    args,
-                    seed,
-                    training_repetition,
-                    baseline_folder_name,
-                    ablations_dict,
-                    batch_size,
-                    walltime,
-                    experiment_string
-                )
+                baseline_path=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name)
+                for root, dirs, files in os.walk(baseline_path):
+                    for file in files:
+                        if file=="config_training.pkl":
+                            with open(os.path.join(root, "config_training.pkl"), "rb") as file:
+                                config=pickle.load(file)
+                                for ablation in ablations_dict.keys():
+                                    try:
+                                        getattr(config,ablation)
+                                    except:
+                                        print(f"ablation: {ablation} not in config file, adding...")
+                                        setattr(config, ablation, current_default_ablations[ablation])
+                                if np.array([ablations_dict[ablation]==getattr(config,ablation) for ablation in ablations_dict.keys()]).all():
+                                    print("training already ran in the past")
+                                    continue
+                                else:
+                                    generate_batch_script(
+                                        args,
+                                        seed,
+                                        training_repetition,
+                                        baseline_folder_name,
+                                        ablations_dict,
+                                        batch_size,
+                                        walltime,
+                                        experiment_string
+                                    )
     if not args.train_local:
         place_batch_scripts()
 
