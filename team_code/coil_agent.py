@@ -57,7 +57,8 @@ class CoILAgent(AutonomousAgent):
             k_d=config.speed_kd,
             n=config.speed_n,
         )
-        
+        #TODO remove after configs are correctly trained
+        self.config.replay_seq_len=100
         self.first_iter = True
         self.prev_rgb_queue = deque(maxlen=self.config.img_seq_len*self.config.data_save_freq)
         self.prev_speeds_queue = deque(maxlen=(self.config.max_img_seq_len_baselines+1)*self.config.data_save_freq) #we fuse the previous and the current timestep velocity
