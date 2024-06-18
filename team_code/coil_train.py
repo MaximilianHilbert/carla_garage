@@ -261,16 +261,12 @@ def main(args):
                         }
                         save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch)
                     if rank == 0:
-                        combined_losses_policy.append(policy_loss.data.cpu())
-                        combined_losses_memory.append(mem_extract_loss.data.cpu())
+                        combined_losses_policy.append(policy_loss.cpu().item())
+                        combined_losses_memory.append(mem_extract_loss.cpu().item())
                         detailed_losses.append(plotable_losses)
                     
                     accumulated_time += time.time() - capture_time
-                    if iteration % args.printing_step == 0 and rank == 0:
-                        print(f"Epoch: {epoch} // Iteration: {iteration} // Policy_Loss: {policy_loss.data}")
-                        print(
-                            f"Epoch: {epoch} // Iteration: {iteration} // Mem_Extract_Loss: {mem_extract_loss.data}"
-                        )
+                   
                     policy_scheduler.step()
                     mem_extract_scheduler.step()
 
@@ -313,7 +309,7 @@ def main(args):
                     optimizer.step()
                     scheduler.step()
                     if rank == 0:
-                        combined_losses.append(loss.data.cpu())
+                        combined_losses.append(loss.cpu().item())
                         detailed_losses.append(plotable_losses)
                 if args.debug and epoch%1==0:
                     if merged_config_object.detectboxes:
