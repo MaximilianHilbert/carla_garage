@@ -25,22 +25,21 @@
 # export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
 
 #uni pc
-export WORK_DIR=/home/maximilian-hilbert/carla_garage
-export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-export CARLA_ROOT=${WORK_DIR}/carla
-export DATASET_ROOT=/home/maximilian-hilbert/datasets/tf_dataset
-export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
-export TEAM_CODE=$WORK_DIR/team_code
-export COIL_NETWORK=${WORK_DIR}/coil_network
-#mlcloud
-# export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+# export WORK_DIR=/home/maximilian-hilbert/carla_garage
 # export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 # export CARLA_ROOT=${WORK_DIR}/carla
-# export DATASET_ROOT=/mnt/lustre/work/geiger/bjaeger25/old_repos/datasets/hb_dataset_v08_2023_05_10
-# #export DATASET_ROOT=/mnt/qb/work/geiger/gwb629/datasets/one_curve
+# export DATASET_ROOT=/home/maximilian-hilbert/datasets/tf_dataset
 # export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 # export TEAM_CODE=$WORK_DIR/team_code
 # export COIL_NETWORK=${WORK_DIR}/coil_network
+#mlcloud
+export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+export CONFIG_ROOT=${WORK_DIR}/coil_configuration
+export CARLA_ROOT=${WORK_DIR}/carla
+export DATASET_ROOT=/mnt/lustre/work/geiger/bjaeger25/old_repos/datasets/hb_dataset_v08_2023_05_10
+export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+export TEAM_CODE=$WORK_DIR/team_code
+export COIL_NETWORK=${WORK_DIR}/coil_network
 
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
@@ -53,12 +52,12 @@ export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
 #mlcloud
-# source ~/.bashrc
-# conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+source ~/.bashrc
+conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 #tcml
 # source /home/hilbert/.bashrc
 # eval "$(conda shell.bash hook)"
 # conda activate garage
-export OMP_NUM_THREADS=12  # Limits pytorch to spawn at most num cpus cores threads
+export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=1 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 10214 --baseline-folder-name bcso --freeze 1 --number-of-workers 12 --training-repetition 0 --batch-size 10 --setting 02_withheld --dataset-repetition 1 --bev 0 --detectboxes 0
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 10214 --baseline-folder-name bcso --number-of-workers 8 --batch-size 18 --setting 02_withheld --bev 1 --detectboxes 1 --freeze 1
