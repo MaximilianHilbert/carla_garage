@@ -111,7 +111,7 @@ def merge_with_command_line_args(config, args):
             setattr(config, key, value)
 
 def get_ablations_dict():
-    return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "backbone": "unrolling", "datarep":1, "augment": 0}
+    return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "backbone": "unrolling", "datarep":1, "augment": 0, "freeze": 0}
 
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
