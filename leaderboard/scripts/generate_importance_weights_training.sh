@@ -57,5 +57,6 @@ export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 
 # source ~/.bashrc
 # conda activate /mnt/qb/work/geiger/gwb629/conda/garage
-
+export OMP_NUM_THREADS=12  # Limits pytorch to spawn at most num cpus cores threads
+export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
 python $WORK_DIR/keyframes/get_importance_weights_training.py --seeds 111 --training-repetition 0 --number-of-workers 12 --neurons 300 --batch-size 512 --setting 02_withheld
