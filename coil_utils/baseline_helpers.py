@@ -184,6 +184,8 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     ego_speed=None,
     correlation_weight=None,
     generate_video=False,
+    loss_brake=None,
+    loss_velocity=None
 ):
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
@@ -485,6 +487,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     font_baseline = ImageFont.truetype("Ubuntu-B.ttf", 100)
     font_copycat=ImageFont.truetype("Ubuntu-B.ttf", 70)
     distance_from_left=600
+    distance_from_left_left_side=50
     options=[]
     if args.visualize_without_rgb:
         options.append("lidar_only")
@@ -510,9 +513,18 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             else:
                 draw.text((distance_from_left,start+40*3), f"pred. res.: None", fill=firebrick, font=font)
             if not closed_loop:
+                if loss_velocity is not None:
+                    draw.text((distance_from_left_left_side,start+40*3), f"velocity_loss: {loss_velocity:.2f}", fill=firebrick, font=font)
+                else:
+                    draw.text((distance_from_left_left_side,start+40*3), f"velocity_loss: None", fill=firebrick, font=font)
+                if loss_brake is not None:
+                    draw.text((distance_from_left_left_side,start+40*4), f"accel._loss: {loss_brake:.2f}", fill=firebrick, font=font)
+                else:
+                    draw.text((distance_from_left_left_side,start+40*4), f"accel._loss: None", fill=firebrick, font=font)
+
                 draw.text((distance_from_left,start+40*4), f"gt. res.: {parameters['gt_residual']:.2f}", fill=firebrick, font=font)
                 draw.text((distance_from_left,start+40*5), f"loss: {loss:.2f}", fill=firebrick, font=font)
-
+    
                 draw.text((distance_from_left,start+40*6), f"previous ground truth", fill=prev_gt_wp_color, font=font)
                 draw.text((distance_from_left,start+40*7), f"current ground truth", fill=gt_wp_color, font=font)
                 draw.text((distance_from_left,start+40*16), f"condition: {condition}", fill=firebrick, font=font)

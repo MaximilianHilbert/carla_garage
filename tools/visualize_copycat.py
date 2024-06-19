@@ -92,7 +92,8 @@ def main(args):
                 )
                 keyframes_cc_positions=[]
                 our_cc_positions=[]
-                
+                velocity_losses=[]
+                accel_losses=[]
                 
                 assert len(params["keyframes_correlations"])==len(data_loader_val.dataset) , "wrong correlation weights selected!"
                 for data_loader_position, (data, image_path, keyframe_correlation) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images, params["keyframes_correlations"])):
@@ -114,6 +115,9 @@ def main(args):
                         keyframes_cc_positions.append(data_loader_position)
                     if detection_ours:
                         our_cc_positions.append(data_loader_position)
+                    if predictions_lst[current_index]["head_loss"] is not None:
+                        velocity_losses.append(predictions_lst[current_index]["head_loss"]["loss_velocity"])
+                        accel_losses.append(predictions_lst[current_index]["head_loss"]["loss_brake"])
                     if args.save_whole_scene:
                         if config.img_seq_len<7:
                             empties=np.concatenate([np.zeros_like(Image.open(predictions_lst[0]["image"]))]*(7-config.img_seq_len))
@@ -128,7 +132,9 @@ def main(args):
                                             gt_wp=torch.squeeze(data["ego_waypoints"], dim=0),parameters=copycat_information,
                                             detect_our=False, detect_kf=False,frame=current_index,
                                             prev_gt=previous_gt_lst[current_index],loss=predictions_lst[current_index]["loss"], condition=args.second_cc_condition,
-                                            ego_speed=data["speed"].numpy()[0], correlation_weight=params["keyframes_correlations"][current_index])
+                                            ego_speed=data["speed"].numpy()[0], correlation_weight=params["keyframes_correlations"][current_index],
+                                            loss_brake=predictions_lst[current_index]["head_loss"]["loss_brake"] if predictions_lst[current_index]["head_loss"] is not None else None,
+                                            loss_velocity=predictions_lst[current_index]["head_loss"]["loss_velocity"] if predictions_lst[current_index]["head_loss"] is not None else None)
                     
                     if detection_ours or detection_keyframes:
                         for i in range(-args.num_surrounding_frames,args.num_surrounding_frames+1):
@@ -166,9 +172,17 @@ def main(args):
                                         pred_bb=batch_of_bbs_pred,
                                         gt_bbs=data["bounding_boxes"] if config.detectboxes else None,
                                         prev_gt=previous_gt_lst[current_index],loss=predictions_lst[current_index]["loss"], condition=args.second_cc_condition,
-                                        ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index])
+                                        ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index],
+                                        loss_brake=predictions_lst[current_index]["head_loss"]["loss_brake"] if predictions_lst[current_index]["head_loss"] is not None else None,
+                                        loss_velocity=predictions_lst[current_index]["head_loss"]["loss_velocity"] if predictions_lst[current_index]["head_loss"] is not None else None)
                 for metric, count, pos in zip(["our", "kf"], [len(our_cc_positions), len(keyframes_cc_positions)], [our_cc_positions,keyframes_cc_positions]):
-                    results=results.append({"baseline":config.baseline_folder_name, "experiment": config.experiment,"metric":metric, "length": count, "positions": pos}, ignore_index=True)
+                    results=results.append({"baseline":config.baseline_folder_name,
+                                            "experiment": config.experiment,
+                                            "metric":metric, "length": count, "positions": pos,
+                                             "velocity_mean": np.array(velocity_losses).mean() if velocity_losses else None,
+                                             "velocity_std": np.array(velocity_losses).std() if velocity_losses else None,
+                                             "accel_mean": np.array(accel_losses).mean() if accel_losses else None,
+                                             "accel_std": np.array(accel_losses).std() if accel_losses else None}, ignore_index=True)
             if args.save_whole_scene:
                 generate_video_stacked(args.baselines, os.path.join(os.environ.get("WORK_DIR"), "visualisation"))
                 os.makedirs(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop"),exist_ok=True)

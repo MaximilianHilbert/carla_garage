@@ -3,6 +3,7 @@ import heapq
 import os
 import pickle
 import numpy as np
+from pathlib import Path
 from tqdm import tqdm
 import torch
 import os
@@ -179,9 +180,9 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                     model.to("cuda:0")
                     model = DDP(model, device_ids=["cuda:0"])
                     model.load_state_dict(checkpoint["state_dict"])
-                # if Path(os.path.join(basepath,f"predictions_all.pkl")).exists():
-                #     print("already ran experiment")
-                #     continue
+                if Path(os.path.join(basepath,f"predictions_all.pkl")).exists():
+                    print("already ran experiment")
+                    continue
                 val_set = CARLA_Data(root=config.val_data, config=config, shared_dict=None, rank=0,baseline=config.baseline_folder_name)
 
                 if "keyframes" in config.baseline_folder_name:
@@ -226,7 +227,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                             "device_id": "cuda:0",
                         }
 
-                        mem_extract_loss, detailed_losses= mem_extract.module.compute_loss(params=loss_function_params_memory)
+                        mem_extract_loss, detailed_losses,head_losses= mem_extract.module.compute_loss(params=loss_function_params_memory)
                         pred_dict = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1:,...] if all_speeds is not None else None, target_point=target_point, prev_wp=None, memory_to_fuse=pred_dict_memory["memory"].detach())
                             
                         loss_function_params_policy = {
@@ -237,7 +238,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                             "device_id": "cuda:0",
                             
                         }
-                        policy_loss,detailed_losses= policy.module.compute_loss(params=loss_function_params_policy)
+                        policy_loss,detailed_losses,head_losses= policy.module.compute_loss(params=loss_function_params_policy)
                     else:
                         if "bcso" in config.baseline_folder_name or "bcoh" in config.baseline_folder_name or "keyframes" in config.baseline_folder_name:
                             with torch.no_grad():
@@ -263,12 +264,14 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                             "device_id": "cuda:0",
                             
                         }
-                        model_loss,detailed_losses= model.module.compute_loss(params=loss_function_params)
+                        model_loss,detailed_losses,head_losses= model.module.compute_loss(params=loss_function_params)
                         
                     #this is only a viable comparison, if the batch_size is set to 1, because it will be marginalized over the batch dimension before the loss is returned!
                     cc_lst.append({"image": image, "pred":{key: value.squeeze().cpu().detach().numpy() for key, value in pred_dict.items() if not isinstance(value,tuple)},
                                    "pred_bb":{key: value for key, value in pred_dict.items() if isinstance(value,tuple)},
                                                 "gt":targets.squeeze().cpu().detach().numpy(), "loss":detailed_losses["wp_loss"].cpu().detach().numpy(),
+                                                "detailed_loss": {key: value.cpu().detach().numpy() for key, value in detailed_losses.items()},
+                                                "head_loss": {key: value.cpu().detach().numpy() for key, value in head_losses.items()} if head_losses is not None else None,
                                                 "previous_matrix": data["ego_matrix_previous"].detach().cpu().numpy()[0],
                                                 "current_matrix": data["ego_matrix_current"].detach().cpu().numpy()[0]})
                 prev_predictions_aligned_lst=[]
