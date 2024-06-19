@@ -157,7 +157,7 @@ def main(args):
                                     except:
                                         print(f"ablation: {ablation} not in config file, adding...")
                                         setattr(config, ablation, current_default_ablations[ablation])
-                                if np.array([ablations_dict[ablation]==getattr(config,ablation) for ablation in ablations_dict.keys()]).all():
+                                if np.array([ablations_dict[ablation]==getattr(config,ablation) for ablation in ablations_dict.keys()]).all() and getattr(config, "training_repetition")==training_repetition:
                                     print("training already ran in the past")
                                     continue
                                 else:
