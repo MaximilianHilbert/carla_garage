@@ -43,7 +43,7 @@ if __name__ == "__main__":
         "--baseline-folder-name",
         dest="baseline_folder_name",
         type=str,
-        default="keyframes",
+        default="waypoint_weight_generation",
         help="name of the folder that gets created for the baseline",
     )
 
@@ -91,6 +91,16 @@ if __name__ == "__main__":
         "--datarep",
         type=int,
         default=1,
+    )
+    parser.add_argument(
+        "--augment",
+        type=int,
+        default=0,
+    )
+    parser.add_argument(
+        "--freeze",
+        type=int,
+        default=0,
     )
     parser.add_argument(
         "--seeds",

@@ -73,7 +73,7 @@ if __name__ == "__main__":
         "--baseline-folder-name",
         dest="baseline_folder_name",
         type=str,
-        default="keyframes",
+        default="waypoint_weight_generation",
         help="name of the folder that gets created for the baseline",
     )
     parser.add_argument(
@@ -113,6 +113,22 @@ if __name__ == "__main__":
         choices=[0,1],
         default=0,
         help="n-1 is considered"
+    )
+
+    parser.add_argument(
+        "--datarep",
+        type=int,
+        default=1,
+    )
+    parser.add_argument(
+        "--augment",
+        type=int,
+        default=0,
+    )
+    parser.add_argument(
+        "--freeze",
+        type=int,
+        default=0,
     )
     parser.add_argument("--batch-size", dest="batch_size", type=int, default=1, help="batch")
     parser.add_argument(

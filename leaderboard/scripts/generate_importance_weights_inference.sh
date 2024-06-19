@@ -58,4 +58,4 @@ export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 # source ~/.bashrc
 # conda activate /mnt/qb/work/geiger/gwb629/conda/garage
 
-python $WORK_DIR/keyframes/get_importance_weights_inference.py --use-case copycat --training-repetition 0 --baseline-folder-name waypoint_weight_generation --number-of-workers 12 --setting 02_withheld
+python $WORK_DIR/keyframes/get_importance_weights_inference.py --use-case training --training-repetition 0 --number-of-workers 12 --setting 02_withheld
