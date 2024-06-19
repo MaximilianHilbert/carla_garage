@@ -153,7 +153,7 @@ def main(args):
         else:
             model = TimeFuser(merged_config_object.baseline_folder_name, merged_config_object)
             model.to(device_id)
-            model = DDP(model, device_ids=[device_id])
+            model = DDP(model, device_ids=[device_id],find_unused_parameters=True if args.freeze else False)
 
         if "arp" in merged_config_object.baseline_folder_name:
             policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate_multi_obs)
@@ -189,6 +189,8 @@ def main(args):
             accumulated_time = 0
             already_trained_epochs = 0
         print("Before the loss")
+        if args.freeze:
+            setattr(merged_config_object, "epochs_baselines", merged_config_object.epochs_baselines+merged_config_object.additional_epochs_after_freeze)
         for epoch in tqdm(
             range(1 + already_trained_epochs, merged_config_object.epochs_baselines + 1),
             disable=rank != 0,
@@ -272,6 +274,34 @@ def main(args):
                     mem_extract_scheduler.step()
 
                 else:
+                    if args.freeze:
+                        #if we freeze the backbone, we first turn off the bev head and queries, train for the given amount of epochs and later turn off everything, afterwards turning on only bev head and 
+                        detector_components=[model.module.head.parameters(),
+                                            model.module.change_channel_bev_to_bb_and_upscale.parameters(),
+                                           model.module.bev_semantic_decoder.parameters(),
+                
+                                           ]
+                        wp_components=[model.module.wp_gru.parameters(), model.module.transformer_decoder.parameters()]
+                        if epoch==1:
+                            model.module.bev_query.requires_grad=False
+                            for module in detector_components:
+                                for param in module:
+                                    param.requires_grad=False
+                        if epoch==merged_config_object.epochs_baselines-merged_config_object.additional_epochs_after_freeze+1:
+                            #first we set every param to be frozen, afterwards we reactivate the detector head, that is easier than picking our individual components of the model
+                            #turn of everything
+                            for param in model.module.parameters():
+                                param.requires_grad=False
+                            #turn on wp_predictions
+                            model.module.wp_query.requires_grad=True
+                            model.module.bev_query.requires_grad=True
+                            for module in wp_components:
+                                for param in module:
+                                    param.requires_grad=True
+                            #turn on detector head
+                            for module in detector_components:
+                                for param in module:
+                                    param.requires_grad=True
                     model.zero_grad()
                     optimizer.zero_grad()
                 
