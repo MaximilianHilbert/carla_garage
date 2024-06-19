@@ -259,6 +259,10 @@ class TimeFuser(nn.Module):
                 for key, value in head_loss.items():
                     sub_loss += self.detailed_loss_weights[key] * value
                 losses["detect_loss"]=sub_loss.squeeze()
+            else:
+                head_loss=None
+        else:
+            head_loss=None
         #watch out with order of losses
         final_loss= torch.sum(torch.stack(list(losses.values()))*torch.tensor(self.config.lossweights, device=params["device_id"], dtype=torch.float32))
 
@@ -281,7 +285,7 @@ class TimeFuser(nn.Module):
                 else:
                     raise ValueError
                 final_loss = torch.mean(weighted_loss_function)
-        return final_loss, losses
+        return final_loss, losses, head_loss
     def convert_features_to_bb_metric(self, bb_predictions):
         bboxes = self.head.get_bboxes(
             bb_predictions[0],

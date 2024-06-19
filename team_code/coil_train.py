@@ -227,7 +227,7 @@ def main(args):
                         "device_id": device_id,
                     }
 
-                    mem_extract_loss,_= mem_extract.module.compute_loss(params=loss_function_params_memory)
+                    mem_extract_loss,_, head_losses= mem_extract.module.compute_loss(params=loss_function_params_memory)
                     mem_extract_loss.backward()
                     mem_extract_optimizer.step()
                     policy.zero_grad()
@@ -247,7 +247,7 @@ def main(args):
                         "device_id": device_id,
                         
                     }
-                    policy_loss,plotable_losses= policy.module.compute_loss(params=loss_function_params_policy)
+                    policy_loss,plotable_losses,head_losses= policy.module.compute_loss(params=loss_function_params_policy)
                     policy_loss.backward()
                     policy_optimizer.step()
                     if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
@@ -333,9 +333,9 @@ def main(args):
                         
                     }
                     if "keyframes" in merged_config_object.baseline_folder_name:
-                        loss,plotable_losses = model.module.compute_loss(params=loss_function_params, keyframes=True)
+                        loss,plotable_losses,head_losses = model.module.compute_loss(params=loss_function_params, keyframes=True)
                     else:
-                        loss,plotable_losses = model.module.compute_loss(params=loss_function_params)
+                        loss,plotable_losses,head_losses = model.module.compute_loss(params=loss_function_params)
                     loss.backward()
                     optimizer.step()
                     scheduler.step()
