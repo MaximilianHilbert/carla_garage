@@ -144,6 +144,7 @@ def main(args):
                     checkpoint=get_latest_saved_checkpoint(final_log_dir)
                     if checkpoint==30:
                         continue
+                experiment_string=experiment_string+"tr_"+training_repetition
                 generate_batch_script(
                     args,
                     seed,
