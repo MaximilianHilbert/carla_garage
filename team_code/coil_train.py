@@ -225,6 +225,7 @@ def main(args):
                         "bev_targets": bev_semantic_labels,
                         "targets_bb": targets_bb,
                         "device_id": device_id,
+                        "epoch": epoch
                     }
 
                     mem_extract_loss,_, head_losses= mem_extract.module.compute_loss(params=loss_function_params_memory)
@@ -245,6 +246,7 @@ def main(args):
                         "bev_targets": bev_semantic_labels,
                         "targets_bb": targets_bb,
                         "device_id": device_id,
+                        "epoch": epoch
                         
                     }
                     policy_loss,plotable_losses,head_losses= policy.module.compute_loss(params=loss_function_params_policy)
@@ -330,6 +332,7 @@ def main(args):
                         "targets_bb": targets_bb,
                         **reweight_params,
                         "device_id": device_id,
+                        "epoch": epoch
                         
                     }
                     if "keyframes" in merged_config_object.baseline_folder_name:
@@ -409,7 +412,7 @@ def main(args):
                                     (epoch - 1),
                                 )
 
-            if merged_config_object.detectboxes and merged_config_object.bev:
+            if (merged_config_object.detectboxes and merged_config_object.bev) or (epoch>merged_config_object.epochs_baselines-merged_config_object.additional_epochs_after_freeze):
                 if rank==0:
                     sums=dict.fromkeys(detailed_losses[0].keys(), 0)
                     counts=dict.fromkeys(detailed_losses[0].keys(), 0)

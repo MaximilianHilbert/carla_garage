@@ -33,8 +33,8 @@ class GlobalConfig:
         self.number_future_waypoints = 1
         self.closed_loop_previous_waypoint_predictions=5
         self.waypoint_weight_generation = False
-        self.epochs_baselines =5
-        self.additional_epochs_after_freeze=5
+        self.epochs_baselines =30
+        self.additional_epochs_after_freeze=10
         self.lidar_seq_len = 1
         self.rgb_input_channels=3
         self.width_rgb=1024
