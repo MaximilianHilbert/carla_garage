@@ -189,8 +189,6 @@ def main(args):
             accumulated_time = 0
             already_trained_epochs = 0
         print("Before the loss")
-        if args.freeze:
-            setattr(merged_config_object, "epochs_baselines", merged_config_object.epochs_baselines+merged_config_object.additional_epochs_after_freeze)
         for epoch in tqdm(
             range(1 + already_trained_epochs, merged_config_object.epochs_baselines + 1),
             disable=rank != 0,
@@ -289,7 +287,7 @@ def main(args):
                             for module in detector_components:
                                 for param in module:
                                     param.requires_grad=False
-                        if epoch==merged_config_object.epochs_baselines-merged_config_object.additional_epochs_after_freeze+1:
+                        if epoch==merged_config_object.epochs_baselines-merged_config_object.epochs_after_freeze+1:
                             #first we set every param to be frozen, afterwards we reactivate the detector head, that is easier than picking our individual components of the model
                             #turn of everything
                             for param in model.module.parameters():

@@ -231,14 +231,14 @@ class TimeFuser(nn.Module):
         main_loss = l1_loss(params["wp_predictions"], params["targets"])
         losses["wp_loss"]=main_loss
 
-        if (self.config.detectboxes and not self.config.freeze) or (self.config.freeze and (params["epoch"]>self.config.epochs_baselines-self.config.additional_epochs_after_freeze)):
+        if (self.config.detectboxes and not self.config.freeze) or (self.config.freeze and (params["epoch"]>self.config.epochs_baselines-self.config.epochs_after_freeze)):
             self.detailed_loss_weights={}
             factor = 1.0 / sum(self.config.detailed_loss_weights.values())
             for k in self.config.detailed_loss_weights:
                 self.detailed_loss_weights[k] = self.config.detailed_loss_weights[k] * factor
         
         
-        if (self.config.bev and not self.config.freeze) or (self.config.freeze and (params["epoch"]>self.config.epochs_baselines-self.config.additional_epochs_after_freeze)):
+        if (self.config.bev and not self.config.freeze) or (self.config.freeze and (params["epoch"]>self.config.epochs_baselines-self.config.epochs_after_freeze)):
             if self.config.use_label_smoothing:
                 label_smoothing =self.config.label_smoothing_alpha
             else:
