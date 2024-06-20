@@ -76,10 +76,9 @@ def main(args):
                 sampler_val=SequentialSampler(val_set)
                 val_set.set_correlation_weights(path=os.path.join(
                     os.environ.get("WORK_DIR"),
-                    "_logs",
-                    "waypoint_weight_generation",
-                    f"repetition_0",
-                    f"bcoh_weights_copycat_prev9_rep0_neurons300.npy",
+                    "keyframes",
+                    "importance_weights",
+                    "bcoh_weights_copycat_prev9_rep0_neurons300.npy",
                 ))
                 data_loader_val = torch.utils.data.DataLoader(
                     val_set,
