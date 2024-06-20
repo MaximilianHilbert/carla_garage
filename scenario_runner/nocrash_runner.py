@@ -58,7 +58,7 @@ class StatisticsManager:
         "timeout_blocked",
 ]
         logdir = Path(args.log_path)
-        filename = f"{config.baseline_folder_name}_{args.eval_id}.csv"
+        filename = f"{args.eval_id}.csv"
         self.path_to_file = os.path.join(logdir, filename)
         if args.resume and os.path.exists(self.path_to_file):
             self.load(self.path_to_file)
