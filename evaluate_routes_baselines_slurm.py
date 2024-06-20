@@ -316,7 +316,7 @@ def main(args):
                                             route_stem = Path(route).stem
                                           
                                               
-                                            eval_filename = (baseline+"_"+
+                                            eval_filename = (
                                             experiment_name_stem
                                           + f"_e-{experiment}_w-{weather}_t-{town}_r-{evaluation_repetition}_t-{repetition}_s-{setting}_o-{route_stem}")
                                           
