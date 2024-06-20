@@ -250,7 +250,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         alpha = np.ones_like(bev_semantic_indices) * 0.33
         alpha = alpha.astype(np.float)
         alpha[bev_semantic_indices == 0] = 0.0
-        alpha[bev_semantic_indices == 1] = 0.1
+        #alpha[bev_semantic_indices == 1] = 0.1
 
         alpha = cv2.resize(
             alpha,
