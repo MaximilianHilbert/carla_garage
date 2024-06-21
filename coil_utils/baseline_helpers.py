@@ -565,7 +565,13 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
         Path(store_path).parent.mkdir(parents=True, exist_ok=True)
         final_image_object.save(store_path, quality=95)
-
+def set_not_included_ablation_args(config):
+    ablations_default_dict=get_ablations_dict()
+    for ablation, default_value in ablations_default_dict.items():
+        try:
+            getattr(config, ablation)
+        except:
+            setattr(config, ablation, default_value)
 def is_ready_to_save(epoch, iteration, data_loader, merged_config):
     """Returns if the iteration is a iteration for saving a checkpoint"""
     if epoch % merged_config.every_epoch == 0 and epoch != 0 and iteration == len(data_loader):

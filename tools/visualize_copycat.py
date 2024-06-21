@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm
 import torch
 from PIL import Image
-from coil_utils.baseline_helpers import visualize_model
+from coil_utils.baseline_helpers import visualize_model,set_not_included_ablation_args
 import os
 import pickle
 from tools.video_generation import generate_video_stacked
@@ -49,6 +49,7 @@ def main(args):
                     config = pickle.load(f)
                 config.number_previous_waypoints=1
                 config.visualize_copycat=True
+                set_not_included_ablation_args(config)
                 if "arp" in config.baseline_folder_name:
                     policy = TimeFuser("arp-policy", config)
                     policy.to("cuda:0")
