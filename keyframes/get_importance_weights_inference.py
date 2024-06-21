@@ -59,7 +59,7 @@ def main(args):
         os.path.join(
             os.environ.get("WORK_DIR"),
             "keyframes",
-            "waypoint_weight_generation",
+            "importance_weights",
             f"bcoh_weights_{args.use_case}_prev{number_previous_actions}_rep{repetition}_neurons{neurons}.npy",
         ),
         action_predict_losses,

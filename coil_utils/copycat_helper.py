@@ -98,9 +98,8 @@ def preprocess(args):
     baseline_dict={}
     keyframe_correlations=np.load(os.path.join(
             os.environ.get("WORK_DIR"),
-            "_logs",
-            "waypoint_weight_generation",
-            f"repetition_0",
+            "keyframes",
+            "importance_weights",
             f"bcoh_weights_copycat_prev9_rep0_neurons300.npy",
         ))
     
