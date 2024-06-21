@@ -164,6 +164,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                     map_location=lambda storage, loc: storage,
                 )
                 print(f"loaded checkpoint_{checkpoint_file}")
+                print(basepath)
                 if "arp" in config.baseline_folder_name:
                     policy = TimeFuser("arp-policy", config)
                     policy.to("cuda:0")
@@ -215,8 +216,8 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                     all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=config, data=data)
                     
                     if "arp" in config.baseline_folder_name:
-                        with torch.no_grad():
-                            pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
+                       
+                        pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
 
                         mem_extract_targets = targets - previous_targets
                         loss_function_params_memory = {
@@ -226,7 +227,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                             "targets_bb": targets_bb,
                             "device_id": "cuda:0",
                         }
-
+                        
                         mem_extract_loss, detailed_losses,head_losses= mem_extract.module.compute_loss(params=loss_function_params_memory)
                         pred_dict = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1:,...] if all_speeds is not None else None, target_point=target_point, prev_wp=None, memory_to_fuse=pred_dict_memory["memory"].detach())
                             
@@ -241,8 +242,8 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                         policy_loss,detailed_losses,head_losses= policy.module.compute_loss(params=loss_function_params_policy)
                     else:
                         if "bcso" in config.baseline_folder_name or "bcoh" in config.baseline_folder_name or "keyframes" in config.baseline_folder_name:
-                            with torch.no_grad():
-                                pred_dict= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
+                            
+                            pred_dict= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
 
                         if "keyframes" in config.baseline_folder_name:
                             reweight_params = {

@@ -20,7 +20,7 @@ def load_image_sequence(config,predictions_lst,current_iteration):
     index_in_dataset=int(os.path.basename(predictions_lst[current_iteration]["image"]).replace(".jpg",""))
     return np.concatenate([Image.open(os.path.join(root, "0"*(4-len(str(index_in_dataset-i)))+f"{index_in_dataset-i}.jpg"))  for i in reversed(range(config.img_seq_len))],axis=0), root
 
-
+@torch.no_grad()
 def main(args):
     path_of_baselines=os.path.join(os.path.join(os.environ.get("WORK_DIR"),
                 "_logs",
@@ -127,7 +127,9 @@ def main(args):
                             image_sequence,root=load_image_sequence(config,predictions_lst, data_loader_position)
                         visualize_model(args=args,config=config, save_path_root=cc_save_path, rgb=image_sequence, lidar_bev=torch.squeeze(data["lidar"], dim=0),
                                             pred_wp_prev=previous_predictions_lst[current_index],
-                                            gt_bev_semantic=torch.squeeze(data["bev_semantic"], dim=0), step=current_index,
+                                            gt_bev_semantic=torch.squeeze(data["bev_semantic"], dim=0) if not config.bev else None,
+                                            step=current_index,
+                                            pred_bev_semantic=predictions_lst[current_index]["pred"]["pred_bev_semantic"] if config.bev else None,
                                             target_point=torch.squeeze(data["target_point"], dim=0), pred_wp=predictions_lst[current_index]["pred"]["wp_predictions"],
                                             gt_wp=torch.squeeze(data["ego_waypoints"], dim=0),parameters=copycat_information,
                                             detect_our=False, detect_kf=False,frame=current_index,
@@ -165,11 +167,12 @@ def main(args):
                                     batch_of_bbs_pred=None
                                 visualize_model(args=args,config=config, save_path_root=cc_save_path, rgb=image_sequence, lidar_bev=data["lidar"],
                                         pred_wp_prev=previous_predictions_lst[current_index],
-                                        gt_bev_semantic=data["bev_semantic"], step=current_index,
+                                        gt_bev_semantic=data["bev_semantic"] if not config.bev else None, step=current_index,
                                         target_point=data["target_point"], pred_wp=predictions_lst[current_index]["pred"]["wp_predictions"],
                                         gt_wp=data["ego_waypoints"],parameters=copycat_information,
                                         detect_our=detection_ours, detect_kf=detection_keyframes,frame=current_index,
                                         pred_bb=batch_of_bbs_pred,
+                                        pred_bev_semantic=predictions_lst[current_index]["pred"]["pred_bev_semantic"] if config.bev else None,
                                         gt_bbs=data["bounding_boxes"] if config.detectboxes else None,
                                         prev_gt=previous_gt_lst[current_index],loss=predictions_lst[current_index]["loss"], condition=args.second_cc_condition,
                                         ego_speed=data["speed"], correlation_weight=params["keyframes_correlations"][current_index],
@@ -178,6 +181,7 @@ def main(args):
                 for metric, count, pos in zip(["our", "kf"], [len(our_cc_positions), len(keyframes_cc_positions)], [our_cc_positions,keyframes_cc_positions]):
                     results=results.append({"baseline":config.baseline_folder_name,
                                             "experiment": config.experiment,
+                                            "training_repetition": config.training_repetition,
                                             "metric":metric, "length": count, "positions": pos,
                                              "velocity_mean": np.array(velocity_losses).mean() if velocity_losses else None,
                                              "velocity_std": np.array(velocity_losses).std() if velocity_losses else None,
