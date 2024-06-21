@@ -148,6 +148,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                 basepath=root
                 with open(os.path.join(basepath, "config_training.pkl"),'rb') as file:
                     config=pickle.load(file)
+                set_not_included_ablation_args(config)
                 config.number_previous_waypoints=1
                 config.visualize_copycat=True
                 config.initialize(root_dir=os.environ.get("DATASET_ROOT"),
