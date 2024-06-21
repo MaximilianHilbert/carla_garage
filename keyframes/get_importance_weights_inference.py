@@ -19,9 +19,8 @@ def main(args):
     merged_config_object = merge_config(args, experiment_name)
     checkpoint_path = os.path.join(
         os.environ.get("WORK_DIR"),
-        "_logs",
+        "keyframes",
         "waypoint_weight_generation",
-        f"repetition_{str(args.repetition)}",
         "checkpoints",
     )
     checkpoint = os.listdir(checkpoint_path)[0]
