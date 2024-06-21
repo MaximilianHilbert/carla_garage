@@ -58,9 +58,8 @@ def main(args):
     np.save(
         os.path.join(
             os.environ.get("WORK_DIR"),
-            "_logs",
+            "keyframes",
             "waypoint_weight_generation",
-            f"repetition_{str(args.repetition)}",
             f"bcoh_weights_{args.use_case}_prev{number_previous_actions}_rep{repetition}_neurons{neurons}.npy",
         ),
         action_predict_losses,
