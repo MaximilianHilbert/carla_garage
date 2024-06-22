@@ -5,7 +5,7 @@
 #SBATCH --partition=day
 #SBATCH --time=00-12:00
 #SBATCH --gres=gpu:1
-#SBATCH --mem=250GB
+#SBATCH --mem=200GB
 #SBATCH --cpus-per-task=12
 #SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
 #SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
