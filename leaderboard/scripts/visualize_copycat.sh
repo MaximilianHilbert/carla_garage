@@ -1,14 +1,14 @@
 #!/bin/sh
-#SBATCH --job-name=arp_coil
+#SBATCH --job-name=generate_copycat
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --partition=gpu-2080ti,gpu-v100
+#SBATCH --partition=day
 #SBATCH --time=00-12:00
-#SBATCH --gres=gpu:8
-#SBATCH --mem=300GB
-#SBATCH --cpus-per-task=64
-#SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.out  # File to which STDOUT will be written
-#SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/%j.err   # File to which STDERR will be written
+#SBATCH --gres=gpu:1
+#SBATCH --mem=250GB
+#SBATCH --cpus-per-task=12
+#SBATCH --output=/home/hilbert/slurmlogs/%j.out  # File to which STDOUT will be written
+#SBATCH --error=/home/hilbert/slurmlogs/%j.err   # File to which STDERR will be written
 
 #local
 # export WORK_DIR=/home/maximilian/Master/carla_garage
@@ -18,20 +18,20 @@
 # export COIL_NETWORK=${WORK_DIR}/coil_network
 # export DATASET_ROOT=/home/maximilian/training_data_split
 #cluster tcml
-# export WORK_DIR=/home/hilbert/carla_garage
-# export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-# export TEAM_CODE=$WORK_DIR/team_code
-# export CARLA_ROOT=${WORK_DIR}/carla
-# export DATASET_ROOT=/home/hilbert/dataset_v08
-# export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
+export WORK_DIR=/home/hilbert/carla_garage
+export CONFIG_ROOT=${WORK_DIR}/coil_configuration
+export TEAM_CODE=$WORK_DIR/team_code
+export CARLA_ROOT=${WORK_DIR}/carla
+export DATASET_ROOT=/home/hilbert/dataset_v08
+export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
 
 #uni pc
-export WORK_DIR=/home/maximilian-hilbert/carla_garage
-export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-export CARLA_ROOT=${WORK_DIR}/carla
-export DATASET_ROOT=/home/maximilian-hilbert/datasets/tf_dataset
-export TEAM_CODE=$WORK_DIR/team_code
-export COIL_NETWORK=${WORK_DIR}/coil_network
+# export WORK_DIR=/home/maximilian-hilbert/carla_garage
+# export CONFIG_ROOT=${WORK_DIR}/coil_configuration
+# export CARLA_ROOT=${WORK_DIR}/carla
+# export DATASET_ROOT=/home/maximilian-hilbert/datasets/tf_dataset
+# export TEAM_CODE=$WORK_DIR/team_code
+# export COIL_NETWORK=${WORK_DIR}/coil_network
 #mlcloud
 # export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
 # export CONFIG_ROOT=${WORK_DIR}/coil_configuration
