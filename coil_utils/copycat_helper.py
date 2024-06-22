@@ -153,6 +153,8 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                 config.visualize_copycat=True
                 config.initialize(root_dir=os.environ.get("DATASET_ROOT"),
                                    setting=args.setting)
+                if getattr(config, "freeze")==1:
+                    continue
                 checkpoint_file = get_latest_saved_checkpoint(
                 basepath
             )

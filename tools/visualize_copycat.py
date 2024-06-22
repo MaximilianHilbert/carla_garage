@@ -50,6 +50,8 @@ def main(args):
                 config.number_previous_waypoints=1
                 config.visualize_copycat=True
                 set_not_included_ablation_args(config)
+                if getattr(config, "freeze")==1:
+                    continue
                 if "arp" in config.baseline_folder_name:
                     policy = TimeFuser("arp-policy", config)
                     policy.to("cuda:0")
