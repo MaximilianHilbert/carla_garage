@@ -32,20 +32,19 @@ def generate_video_stacked():
         if files:
             if files[0].endswith(".jpg"):
                 images=sorted(os.listdir(root), key=sort_key)
-                images_dict.update({os.path.basename(os.path.dirname(root)):
-                                    {os.path.basename(os.path.dirname(root)): [os.path.join(root, image_name) for image_name in images]
-                                    }})
-    collected_data={}
-    for baseline, scenarios in images_dict.items():
-        for scenario, values in scenarios.items():
-            if scenario not in collected_data:
-                collected_data[scenario] = []
-            collected_data[scenario].append(values)
-    for scenario, images in collected_data.items():
+                scenario=os.path.basename(os.path.dirname(root))
+                list_of_images=[os.path.join(root, image_name) for image_name in images]
+                if scenario in images_dict.keys():
+                    images_dict[scenario].append(
+                                        list_of_images
+                                        )
+                else:
+                    images_dict[scenario]=[list_of_images]
+    for scenario, images in images_dict.items():
         os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "visualisation", "videos"),exist_ok=True)
         video_writer = cv2.VideoWriter(os.path.join(os.environ.get("WORK_DIR"), "visualisation", "videos", scenario+"_comparison_video.avi"), cv2.VideoWriter_fourcc(*'XVID'),fps, (w, h))
         for stacked in zip(*images):
-            loaded_image=np.hstack([np.array(Image.open(image_path)) for image_path in stacked])
+            loaded_image=np.hstack([np.array(Image.open(img)) for img in stacked])
             image=Image.fromarray(loaded_image)
             image=np.array(image.resize(final_shape))
             video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
