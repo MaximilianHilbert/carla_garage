@@ -190,7 +190,7 @@ def main(args):
                                              "accel_mean": np.array(accel_losses).mean() if accel_losses else None,
                                              "accel_std": np.array(accel_losses).std() if accel_losses else None}, ignore_index=True)
             if args.save_whole_scene:
-                generate_video_stacked(args.baselines, os.path.join(os.environ.get("WORK_DIR"), "visualisation"))
+                generate_video_stacked(["arp", "bcoh", "bcso"], os.path.join(os.environ.get("WORK_DIR"), "visualisation"))
                 os.makedirs(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop"),exist_ok=True)
     results.to_csv(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", "metric_results.csv"), index=False)
     
