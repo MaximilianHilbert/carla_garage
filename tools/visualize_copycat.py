@@ -52,6 +52,10 @@ def main(args):
                 set_not_included_ablation_args(config)
                 if getattr(config, "freeze")==1:
                     continue
+                if getattr(config, "bev")==0 or getattr(config, "detectboxes")==0:
+                    continue
+                if getattr(config, "training_repetition")!=0:
+                    continue
                 if "arp" in config.baseline_folder_name:
                     policy = TimeFuser("arp-policy", config)
                     policy.to("cuda:0")
@@ -127,18 +131,27 @@ def main(args):
                             image_sequence=np.concatenate([empties, image_sequence], axis=0)
                         else:
                             image_sequence,root=load_image_sequence(config,predictions_lst, data_loader_position)
+                        if args.visualize_combined or args.visualize_without_rgb:
+                                if config.detectboxes:
+                                    if "arp" in config.baseline_folder_name:
+                                        batch_of_bbs_pred=policy.module.convert_features_to_bb_metric(predictions_lst[current_index]["pred_bb"]["pred_bb"])
+                                    else:
+                                        batch_of_bbs_pred=model.module.convert_features_to_bb_metric(predictions_lst[current_index]["pred_bb"]["pred_bb"])
+                                else:
+                                    batch_of_bbs_pred=None
                         visualize_model(args=args,config=config, save_path_root=cc_save_path, rgb=image_sequence, lidar_bev=torch.squeeze(data["lidar"], dim=0),
-                                            pred_wp_prev=previous_predictions_lst[current_index],
-                                            gt_bev_semantic=torch.squeeze(data["bev_semantic"], dim=0) if not config.bev else None,
-                                            step=current_index,
-                                            pred_bev_semantic=predictions_lst[current_index]["pred"]["pred_bev_semantic"] if config.bev else None,
-                                            target_point=torch.squeeze(data["target_point"], dim=0), pred_wp=predictions_lst[current_index]["pred"]["wp_predictions"],
-                                            gt_wp=torch.squeeze(data["ego_waypoints"], dim=0),parameters=copycat_information,
-                                            detect_our=False, detect_kf=False,frame=current_index,
-                                            prev_gt=previous_gt_lst[current_index],loss=predictions_lst[current_index]["loss"], condition=args.second_cc_condition,
-                                            ego_speed=data["speed"].numpy()[0], correlation_weight=params["keyframes_correlations"][current_index],
-                                            loss_brake=predictions_lst[current_index]["head_loss"]["loss_brake"] if predictions_lst[current_index]["head_loss"] is not None else None,
-                                            loss_velocity=predictions_lst[current_index]["head_loss"]["loss_velocity"] if predictions_lst[current_index]["head_loss"] is not None else None)
+                                        pred_wp_prev=previous_predictions_lst[current_index],
+                                        gt_bev_semantic=torch.squeeze(data["bev_semantic"],dim=0) if not config.bev else None, step=current_index,
+                                        target_point=torch.squeeze(data["target_point"],dim=0), pred_wp=predictions_lst[current_index]["pred"]["wp_predictions"],
+                                        gt_wp=torch.squeeze(data["ego_waypoints"],dim=0),parameters=copycat_information,
+                                        detect_our=False, detect_kf=False,frame=current_index,
+                                        pred_bb=batch_of_bbs_pred,
+                                        pred_bev_semantic=predictions_lst[current_index]["pred"]["pred_bev_semantic"] if config.bev else None,
+                                        gt_bbs=data["bounding_boxes"] if config.detectboxes else None,
+                                        prev_gt=previous_gt_lst[current_index],loss=predictions_lst[current_index]["loss"], condition=args.second_cc_condition,
+                                        ego_speed=data["speed"].numpy()[0], correlation_weight=params["keyframes_correlations"][current_index],
+                                        loss_brake=predictions_lst[current_index]["head_loss"]["loss_brake"] if predictions_lst[current_index]["head_loss"] is not None else None,
+                                        loss_velocity=predictions_lst[current_index]["head_loss"]["loss_velocity"] if predictions_lst[current_index]["head_loss"] is not None else None)
                     
                     if detection_ours or detection_keyframes:
                         for i in range(-args.num_surrounding_frames,args.num_surrounding_frames+1):
@@ -191,7 +204,6 @@ def main(args):
                                              "accel_std": np.array(accel_losses).std() if accel_losses else None}, ignore_index=True)
     if args.save_whole_scene:
         generate_video_stacked()
-        os.makedirs(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop"),exist_ok=True)
     results.to_csv(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", "metric_results.csv"), index=False)
     
 if __name__=="__main__":

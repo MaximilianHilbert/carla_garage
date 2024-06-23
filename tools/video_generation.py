@@ -31,8 +31,6 @@ def generate_video_stacked():
     for root, dirs, files in os.walk(os.path.join(os.environ.get("WORK_DIR"), "visualisation", "open_loop")):
         if files:
             if files[0].endswith(".jpg"):
-                os.makedirs(os.path.dirname(os.path.join(os.environ.get("WORK_DIR"), "visualisation", "videos")),exist_ok=True)
-                video_writer = cv2.VideoWriter(os.path.join(os.environ.get("WORK_DIR"), "visualisation", "videos", os.path.basename(os.path.dirname(root))+"_comparison_video.avi"), cv2.VideoWriter_fourcc(*'XVID'),fps, (w, h))
                 images=sorted(os.listdir(root), key=sort_key)
                 images_dict.update({os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(root)))):
                                     {os.path.basename(os.path.dirname(root)): [os.path.join(root, image_name) for image_name in images]
@@ -44,6 +42,8 @@ def generate_video_stacked():
                 collected_data[scenario] = []
             collected_data[scenario].append(values)
     for scenario, images in collected_data.items():
+        os.makedirs(os.path.join(os.environ.get("WORK_DIR"), "visualisation", "videos"),exist_ok=True)
+        video_writer = cv2.VideoWriter(os.path.join(os.environ.get("WORK_DIR"), "visualisation", "videos", scenario+"_"+os.path.basename(os.path.dirname(os.path.dirname(images[0][0])))+"_comparison_video.avi"), cv2.VideoWriter_fourcc(*'XVID'),fps, (w, h))
         for stacked in zip(*images):
             loaded_image=np.hstack([np.array(Image.open(image_path)) for image_path in stacked])
             image=Image.fromarray(loaded_image)
