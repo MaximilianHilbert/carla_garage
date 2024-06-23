@@ -21,26 +21,32 @@ def generate_video(path, save_path):
         video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
     video_writer.release()
 
-def generate_video_stacked(baselines,root_path):
+def generate_video_stacked():
     images_dict={}
     final_shape=(1920,1080)
     fps = 5
     w,h=final_shape
-    video_writer = cv2.VideoWriter(os.path.join(root_path, "comparison_video.avi"), cv2.VideoWriter_fourcc(*'XVID'),fps, (w, h))
     
-    for baseline in baselines:
-        full_path=os.path.join(root_path, "open_loop",baseline)
-        list_of_scenarios=os.listdir(full_path)
-        scenario_folder=list_of_scenarios[0]
-        subfolder=os.path.join(full_path, scenario_folder)
-        list_of_subfolders=os.listdir(subfolder)
-        rgb_folder=list_of_subfolders[0]
-        final_path=os.path.join(subfolder, rgb_folder)
-        images=sorted(os.listdir(final_path), key=sort_key)
-        images_dict.update({baseline: [os.path.join(final_path, image_name) for image_name in images]})
-    for stacked in zip(*images_dict.values()):
-        loaded_image=np.hstack([np.array(Image.open(image_path)) for image_path in stacked])
-        image=Image.fromarray(loaded_image)
-        image=np.array(image.resize(final_shape))
-        video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-    video_writer.release()
+    
+    for root, dirs, files in os.walk(os.path.join(os.environ.get("WORK_DIR"), "visualisation", "open_loop")):
+        if files:
+            if files[0].endswith(".jpg"):
+                os.makedirs(os.path.dirname(os.path.join(os.environ.get("WORK_DIR"), "visualisation", "videos")),exist_ok=True)
+                video_writer = cv2.VideoWriter(os.path.join(os.environ.get("WORK_DIR"), "visualisation", "videos", os.path.basename(os.path.dirname(root))+"_comparison_video.avi"), cv2.VideoWriter_fourcc(*'XVID'),fps, (w, h))
+                images=sorted(os.listdir(root), key=sort_key)
+                images_dict.update({os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(root)))):
+                                    {os.path.basename(os.path.dirname(root)): [os.path.join(root, image_name) for image_name in images]
+                                    }})
+    collected_data={}
+    for baseline, scenarios in images_dict.items():
+        for scenario, values in scenarios.items():
+            if scenario not in collected_data:
+                collected_data[scenario] = []
+            collected_data[scenario].append(values)
+    for scenario, images in collected_data.items():
+        for stacked in zip(*images):
+            loaded_image=np.hstack([np.array(Image.open(image_path)) for image_path in stacked])
+            image=Image.fromarray(loaded_image)
+            image=np.array(image.resize(final_shape))
+            video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+        video_writer.release()
