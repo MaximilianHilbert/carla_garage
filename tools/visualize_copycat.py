@@ -99,8 +99,7 @@ def main(args):
                 )
                 keyframes_cc_positions=[]
                 our_cc_positions=[]
-                velocity_losses=[]
-                accel_losses=[]
+                head_losses=[]
                 our_cc_losses=[]
                 assert len(params["keyframes_correlations"])==len(data_loader_val.dataset) , "wrong correlation weights selected!"
                 for data_loader_position, (data, image_path, keyframe_correlation) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images, params["keyframes_correlations"])):
@@ -127,8 +126,8 @@ def main(args):
                         else:
                             our_cc_losses.append(predictions_lst[current_index]["loss"].item())
                     if predictions_lst[current_index]["head_loss"] is not None:
-                        velocity_losses.append(predictions_lst[current_index]["head_loss"]["loss_velocity"])
-                        accel_losses.append(predictions_lst[current_index]["head_loss"]["loss_brake"])
+                        head_losses.append(predictions_lst[current_index]["head_loss"])
+         
                     if args.save_whole_scene:
                         if config.img_seq_len<7:
                             empties=np.concatenate([np.zeros_like(Image.open(predictions_lst[0]["image"]))]*(7-config.img_seq_len))
@@ -199,14 +198,18 @@ def main(args):
                                         loss_brake=predictions_lst[current_index]["head_loss"]["loss_brake"] if predictions_lst[current_index]["head_loss"] is not None else None,
                                         loss_velocity=predictions_lst[current_index]["head_loss"]["loss_velocity"] if predictions_lst[current_index]["head_loss"] is not None else None)
                 for metric, count, pos in zip(["our", "kf"], [len(our_cc_positions), len(keyframes_cc_positions)], [our_cc_positions,keyframes_cc_positions]):
+                    sum_dict={key: 0 for key in head_losses[0].keys()}
+                    count_dict={key: 0 for key in head_losses[0].keys()}
+                    for loss_dict in head_losses:
+                        for key, value in loss_dict.items():
+                            sum_dict[key]+=value
+                            count_dict[key]+=1
+                    mean_dict={key: sum_dict[key]/count_dict[key] for key in sum_dict}
                     results=results.append({"baseline":config.baseline_folder_name,
                                             "experiment": config.experiment,
                                             "training_repetition": config.training_repetition,
                                             "metric":metric, "length": count, "positions": pos,"weighted_copycat_score":len(our_cc_losses)*np.array(our_cc_losses).mean(),
-                                             "velocity_mean": np.array(velocity_losses).mean() if velocity_losses else None,
-                                             "velocity_std": np.array(velocity_losses).std() if velocity_losses else None,
-                                             "accel_mean": np.array(accel_losses).mean() if accel_losses else None,
-                                             "accel_std": np.array(accel_losses).std() if accel_losses else None}, ignore_index=True)
+                                            **mean_dict}, ignore_index=True)
     if args.save_whole_scene:
         generate_video_stacked()
     results.to_csv(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", "metric_results.csv"), index=False)
