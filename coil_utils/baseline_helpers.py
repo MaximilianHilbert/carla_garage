@@ -189,7 +189,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 ):
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
-        np.array([255, 165, 0]),
+        np.array([144, 238, 144]),
         np.array([0, 255, 0]),
         np.array([255, 0, 0]),
         np.array([250, 160, 160]),
