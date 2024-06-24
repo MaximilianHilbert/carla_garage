@@ -101,7 +101,7 @@ def main(args):
                 our_cc_positions=[]
                 velocity_losses=[]
                 accel_losses=[]
-                
+                our_cc_losses=[]
                 assert len(params["keyframes_correlations"])==len(data_loader_val.dataset) , "wrong correlation weights selected!"
                 for data_loader_position, (data, image_path, keyframe_correlation) in enumerate(zip(tqdm(data_loader_val),data_loader_val.dataset.images, params["keyframes_correlations"])):
                     
@@ -122,6 +122,10 @@ def main(args):
                         keyframes_cc_positions.append(data_loader_position)
                     if detection_ours:
                         our_cc_positions.append(data_loader_position)
+                        if "detailed_loss" in predictions_lst[current_index]:
+                            our_cc_losses.append(predictions_lst[current_index]["detailed_loss"]["wp_loss"].item())
+                        else:
+                            our_cc_losses.append(predictions_lst[current_index]["loss"].item())
                     if predictions_lst[current_index]["head_loss"] is not None:
                         velocity_losses.append(predictions_lst[current_index]["head_loss"]["loss_velocity"])
                         accel_losses.append(predictions_lst[current_index]["head_loss"]["loss_brake"])
@@ -198,14 +202,14 @@ def main(args):
                     results=results.append({"baseline":config.baseline_folder_name,
                                             "experiment": config.experiment,
                                             "training_repetition": config.training_repetition,
-                                            "metric":metric, "length": count, "positions": pos,
+                                            "metric":metric, "length": count, "positions": pos,"weighted_copycat_score":len(our_cc_losses)*np.array(our_cc_losses).mean(),
                                              "velocity_mean": np.array(velocity_losses).mean() if velocity_losses else None,
                                              "velocity_std": np.array(velocity_losses).std() if velocity_losses else None,
                                              "accel_mean": np.array(accel_losses).mean() if accel_losses else None,
                                              "accel_std": np.array(accel_losses).std() if accel_losses else None}, ignore_index=True)
     if args.save_whole_scene:
         generate_video_stacked()
-    # results.to_csv(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", "metric_results.csv"), index=False)
+    results.to_csv(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", "metric_results.csv"), index=False)
     
 if __name__=="__main__":
     import argparse

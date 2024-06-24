@@ -43,7 +43,10 @@ def determine_copycat(args,predictions_lst,current_waypoints_gt,previous_predict
         condition_keyframes=keyframe_correlation>condition_value_keyframes
     if args.second_cc_condition=="loss":
         condition_value_2=params["loss_avg_of_avg"]+params["loss_avg_of_std"]*args.tuning_parameter_2
-        condition_2=predictions_lst[current_index]["loss"]>condition_value_2
+        if "detailed_loss" in predictions_lst[current_index]:
+            condition_2=predictions_lst[current_index]["detailed_loss"]["wp_loss"]>condition_value_2
+        else:
+            condition_2=predictions_lst[current_index]["loss"]>condition_value_2
     else:
         condition_value_2=params["avg_gt"]+params["std_gt"]*args.tuning_parameter_2
         condition_2=gt_residual>condition_value_2
