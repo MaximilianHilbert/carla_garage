@@ -53,7 +53,7 @@ def main(args):
                 set_not_included_ablation_args(config)
                 if getattr(config, "freeze")==1:
                     continue
-                if getattr(config, "bev")==1 or getattr(config, "detectboxes")==1:
+                if getattr(config, "bev")==0 or getattr(config, "detectboxes")==0:
                     continue
                 if getattr(config, "training_repetition")!=0:
                     continue
