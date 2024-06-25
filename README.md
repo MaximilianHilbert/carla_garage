@@ -7,17 +7,15 @@
     
 
 
-> [**Hidden Biases of End-to-End Driving Models**](https://arxiv.org/abs/2306.07957) <br>
-> [Bernhard Jaeger](https://kait0.github.io/), [Kashyap Chitta](https://kashyap7x.github.io/), [Andreas Geiger](https://www.cvlibs.net/) <br>
-> International Conference on Computer Vision (ICCV), 2023
+> **Temporal Imitation Learning in End-to-End Driving Models** <br>
+> Maximilian Hilbert, [Bernhard Jaeger](https://kait0.github.io/), [Andreas Geiger](https://www.cvlibs.net/) <br>
 > 
-> This repo contains the code for the paper [**Hidden Biases of End-to-End Driving Models**](https://arxiv.org/abs/2306.07957) . \
-> We provide clean, configurable code with documentation as well as pre-trained weights with strong performance. \
-> The repository can serve as a good starting point for end-to-end autonomous driving research on [CARLA](https://github.com/carla-simulator/carla).
+> 
+> This repo contains the code for the master's thesis **Temporal Imitation Learning in End-to-End Driving Models**, which is based on the Carla Garage Repository of our research group https://github.com/autonomousvision/carla_garage by [Bernhard Jaeger](https://kait0.github.io/)
 
 ## Contents
 
-1. [Setup](#setup)
+1. [Overview](#overview)
 2. [Pre-Trained Models](#pre-trained-models)
 3. [Evaluation](#evaluation)
 4. [Dataset](#dataset)
@@ -26,31 +24,12 @@
 6. [Additional Documenation](#additional-documentation)
 7. [Citation](#citation)
 
-## Setup
+## Overview
 
-Clone the repo, setup CARLA 0.9.10.1, and build the conda environment:
-
-```Shell
-git clone https://github.com/autonomousvision/carla_garage.git
-cd carla_garage
-chmod +x setup_carla.sh
-./setup_carla.sh
-conda env create -f environment.yml
-conda activate garage
-```
-Before running the code, you will need to add the following paths to PYTHONPATH on your system:
-```Shell
-export CARLA_ROOT=/path/to/CARLA/root
-export WORK_DIR=/path/to/carla_garage
-export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
-export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI/carla
-export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg
-export SCENARIO_RUNNER_ROOT=${WORK_DIR}/scenario_runner
-export LEADERBOARD_ROOT=${WORK_DIR}/leaderboard
-export PYTHONPATH="${CARLA_ROOT}/PythonAPI/carla/":"${SCENARIO_RUNNER_ROOT}":"${LEADERBOARD_ROOT}":${PYTHONPATH}
-```
-You can add this in your shell scripts or directly integrate it into your favorite IDE. \
-E.g. in PyCharm: Settings -> Project -> Python Interpreter -> Show all -> garage (need to add from existing conda environment first) -> Show Interpreter Paths -> add all the absolute paths above (without pythonpath).
+The method implemented in this code is based on the InterFuser Architecture for non-temporal Information and has been reimplemented and modified for using temporal Frames in and End-to-End Learning setup.
+<p align="center">
+  <img src="(/assets/64252693/0d20c934-b8df-4885-9c63-94eac2c2e002" alt="TimeFuser" width="500"/>
+</p>
 
 ## Pre-Trained Models
 We provide a set of pretrained models [here](https://s3.eu-central-1.amazonaws.com/avg-projects-2/jaeger2023arxiv/models/pretrained_models.zip).
