@@ -28,7 +28,7 @@
 
 The method implemented in this code is based on the InterFuser Architecture for non-temporal Information and has been reimplemented and modified for using temporal Frames in and End-to-End Learning setup.
 <p align="center">
-  <img src="(/assets/64252693/0d20c934-b8df-4885-9c63-94eac2c2e002" alt="TimeFuser" width="500"/>
+  <img src="(assets/TimeFuser.png" alt="TimeFuser" width="500"/>
 </p>
 
 ## Pre-Trained Models
