@@ -1,12 +1,3 @@
-<p align="center">
-  <img src="assets/carla_garage_white.png" alt="CARLA garage" width="500"/>
-  <h3 align="center">
-        <a href="https://arxiv.org/abs/2306.07957.pdf"> Paper</a> | <a href="https://youtu.be/ChrPW8RdqQU">Video</a> | <a href="https://youtu.be/x_42Fji1Z2M?t=1073">Talk</a> | <a href="https://www.cvlibs.net/shared/common_misconceptions.pdf"> Slides</a> | <a href="https://github.com/autonomousvision/carla_garage/tree/main/assets/Jaeger2023ICCV_Poster.pdf">Poster</a>
-  </h3>
-</p>
-    
-
-
 > **Temporal Imitation Learning in End-to-End Driving Models** <br>
 > Maximilian Hilbert, [Bernhard Jaeger](https://kait0.github.io/), [Andreas Geiger](https://www.cvlibs.net/) <br>
 > 
@@ -15,8 +6,8 @@
 
 ## Contents
 
-1. [Overview](#overview)
-2. [Pre-Trained Models](#pre-trained-models)
+1. [Method](#method)
+2. [Performance](#performance)
 3. [Evaluation](#evaluation)
 4. [Dataset](#dataset)
 4. [Data generation](#data-generation)
@@ -24,18 +15,70 @@
 6. [Additional Documenation](#additional-documentation)
 7. [Citation](#citation)
 
-## Overview
+## Method
 
-The method implemented in this code is based on the InterFuser Architecture for non-temporal Information and has been reimplemented and modified for using temporal Frames in and End-to-End Learning setup.
+The method implemented in this code is based on the InterFuser Architecture for non-temporal Information and has been reimplemented and modified for using temporal Frames in an End-to-End Learning setup.
 <p align="center">
-  <img src="(assets/TimeFuser.png" alt="TimeFuser" width="500"/>
+  <img src="assets/TimeFuser.png" alt="TimeFuser" width="500"/>
 </p>
 
-## Pre-Trained Models
-We provide a set of pretrained models [here](https://s3.eu-central-1.amazonaws.com/avg-projects-2/jaeger2023arxiv/models/pretrained_models.zip).
-The models are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0).
-These are the final model weights used in the paper, the folder indicates the benchmark.
-For the training and validation towns, we provide 3 models which correspond to 3 different training seeds. The format is `approach_trainingsetting_seed`. Each folder has an `args.txt` containing the training settings in text, a `config.pickle` containing all hyperparameters for the code and a `model_0030.pth` containing the model weights. Additionally, there are training logs for most models.
+## Performance
+The Method in this code achieves State of the Art Performance on the Carla NoCrash Benchmark
+<table>
+    <thead>
+        <tr>
+            <th>Baseline</th>
+            <th>BEV aux. loss.</th>
+            <th>Original Success in %</th>
+            <th>TimeFuser Success in %</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>BCSO</td>
+            <td>✘</td>
+            <td>37 ± 13</td>
+            <td>58.67 ± 4.58</td>
+        </tr>
+        <tr>
+            <td>BCSO</td>
+            <td>✔</td>
+            <td>-</td>
+            <td>70.5 ± 6.02</td>
+        </tr>
+        <tr>
+            <td>BCOH</td>
+            <td>✘</td>
+            <td>39 ± 4</td>
+            <td>32.67 ± 7.62</td>
+        </tr>
+        <tr>
+            <td>BCOH</td>
+            <td>✔</td>
+            <td>-</td>
+            <td>34.67 ± 4.0</td>
+        </tr>
+        <tr>
+            <td>ARP</td>
+            <td>✘</td>
+            <td>49 ± 9</td>
+            <td>55.56 ± 12.03</td>
+        </tr>
+        <tr>
+            <td>ARP</td>
+            <td>✔</td>
+            <td>-</td>
+            <td>76.0 ± 6.32</td>
+        </tr>
+        <tr>
+            <td>Rails</td>
+            <td>✘</td>
+            <td>74</td>
+            <td>-</td>
+        </tr>
+    </tbody>
+</table>
+
 
 ## Evaluation
 
