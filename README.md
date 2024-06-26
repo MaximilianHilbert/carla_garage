@@ -1,4 +1,4 @@
-> **Temporal Imitation Learning in End-to-End Driving Models** <br>
+> **Temporal Imitation Learning in End-to-End Driving Models (WORK IN PROGRESS)** <br>
 > Maximilian Hilbert, [Bernhard Jaeger](https://kait0.github.io/), [Andreas Geiger](https://www.cvlibs.net/) <br>
 > 
 > 
