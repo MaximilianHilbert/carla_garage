@@ -88,7 +88,7 @@ The Method in this code achieves State of the Art Performance on the Carla NoCra
 
 ## Copycat Metric
 The following video showcases the copycat problem, by detection two consecutive repeating actions while the producing a high loss.
-<iframe width="560" height="315" src="https://www.youtube.com/embed/wt6SxrGrTvE?si=OwjBQn8J-f7WkjJu" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[Copycat Metric Video](https://youtu.be/wt6SxrGrTvE?si=O63vYZzIe6PPFffM)
 ## Details
 
 coming soon
