@@ -86,11 +86,10 @@ The Method in this code achieves State of the Art Performance on the Carla NoCra
 
 [3] Chuang, C.-C., Yang, D., Wen, C., & Gao, Y. (2022). Resolving Copycat Problems in Visual Imitation Learning via Residual Action Prediction
 
-## Copycat Metric
+## Copycat Metric (Open-Loop)
 The following video showcases the copycat problem, by detection two consecutive repeating actions while the producing a high loss.
 [Copycat Metric Video](https://youtu.be/wt6SxrGrTvE?si=O63vYZzIe6PPFffM)
 ## Details
-
 coming soon
 
 ## Acknowledgements
