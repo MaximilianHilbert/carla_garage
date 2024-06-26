@@ -178,6 +178,9 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                     mem_extract = TimeFuser("arp-memory", config)
                     mem_extract.to("cuda:0")
                     mem_extract = DDP(mem_extract, device_ids=["cuda:0"])
+                    del checkpoint["policy_state_dict"]["module.time_position_embedding"]
+                    del checkpoint["mem_extract_state_dict"]["module.time_position_embedding"]
+
                     policy.load_state_dict(checkpoint["policy_state_dict"])
                     mem_extract.load_state_dict(checkpoint["mem_extract_state_dict"])
                    
@@ -185,6 +188,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                     model = TimeFuser(config.baseline_folder_name, config)
                     model.to("cuda:0")
                     model = DDP(model, device_ids=["cuda:0"])
+                    del checkpoint["state_dict"]["module.time_position_embedding"]
                     model.load_state_dict(checkpoint["state_dict"])
                 if Path(os.path.join(basepath,f"predictions_all.pkl")).exists():
                     print("already ran experiment")

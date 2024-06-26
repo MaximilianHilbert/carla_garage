@@ -65,6 +65,8 @@ def main(args):
                     mem_extract = TimeFuser("arp-memory", config)
                     mem_extract.to("cuda:0")
                     mem_extract = DDP(mem_extract, device_ids=["cuda:0"])
+                    del checkpoint["policy_state_dict"]["module.time_position_embedding"]
+                    del checkpoint["mem_extract_state_dict"]["module.time_position_embedding"]
                     policy.load_state_dict(checkpoint["policy_state_dict"])
                     mem_extract.load_state_dict(checkpoint["mem_extract_state_dict"])
                    
@@ -72,6 +74,7 @@ def main(args):
                     model = TimeFuser(config.baseline_folder_name, config)
                     model.to("cuda:0")
                     model = DDP(model, device_ids=["cuda:0"])
+                    del checkpoint["state_dict"]["module.time_position_embedding"]
                     model.load_state_dict(checkpoint["state_dict"])
                 with open(os.path.join(root,"predictions_all.pkl"), 'rb') as f:
                     predictions_lst = pickle.load(f)
