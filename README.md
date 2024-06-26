@@ -29,7 +29,7 @@ The Method in this code achieves State of the Art Performance on the Carla NoCra
         <tr>
             <th>Baseline</th>
             <th>BEV aux. loss.</th>
-            <th>Original Success in %</th>
+            <th>Reproduced Success in %</th>
             <th>TimeFuser Success in %</th>
         </tr>
     </thead>
