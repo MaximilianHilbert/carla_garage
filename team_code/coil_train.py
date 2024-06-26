@@ -342,7 +342,7 @@ def main(args):
                     if rank == 0:
                         combined_losses.append(loss.cpu().item())
                         detailed_losses.append(plotable_losses)
-                if args.debug and epoch%1==0:
+                if args.debug and epoch%100==0:
                     if merged_config_object.detectboxes:
                         if "arp" in merged_config_object.baseline_folder_name:
                             batch_of_bbs_pred=policy.module.convert_features_to_bb_metric(pred_dict_policy["pred_bb"])
@@ -365,7 +365,7 @@ def main(args):
                                 )
                     else:
                         visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images.squeeze(0)],axis=1).permute(1, 2, 0).detach().cpu().numpy()*255,config=merged_config_object,
-                                        save_path_root=os.path.join(os.environ.get("WORK_DIR"), "test"),
+                                        save_path_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "training"),
                                         gt_bev_semantic=None,lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
                                         target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
                                         pred_wp=torch.squeeze(pred_dict["wp_predictions"],0).detach().cpu().numpy(),
