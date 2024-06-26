@@ -8,7 +8,7 @@
 
 1. [Method](#method)
 2. [Performance](#performance)
-3. [Evaluation](#evaluation)
+3. [Copycat Metric](#cc)
 4. [Dataset](#dataset)
 4. [Data generation](#data-generation)
 5. [Training](#training)
@@ -86,7 +86,9 @@ The Method in this code achieves State of the Art Performance on the Carla NoCra
 
 [3] Chuang, C.-C., Yang, D., Wen, C., & Gao, Y. (2022). Resolving Copycat Problems in Visual Imitation Learning via Residual Action Prediction
 
-
+## Copycat Metric
+The following video showcases the copycat problem, by detection two consecutive repeating actions while the producing a high loss.
+<iframe width="560" height="315" src="https://www.youtube.com/embed/wt6SxrGrTvE?si=OwjBQn8J-f7WkjJu" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 ## Details
 
 coming soon
