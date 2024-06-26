@@ -1172,3 +1172,21 @@ class PositionEmbeddingSine(nn.Module):
         pos_y = torch.stack((pos_y[:, :, :, 0::2].sin(), pos_y[:, :, :, 1::2].cos()), dim=4).flatten(3)
         pos = torch.cat((pos_y, pos_x), dim=3).permute(0, 3, 1, 2)
         return pos
+def get_sinusoidal_positional_embedding_image_order(tensor):
+    """
+    Generate sinusoidal positional embeddings for positions using vectorized operations.
+    
+    Args:
+    - n_positions (int): The number of positions to encode.
+    - d_model (int): The dimension of the model (embedding size).
+    
+    Returns:
+    - A tensor of shape (n_positions, d_model) containing positional embeddings.
+    """
+    B, N, C, W,H=tensor.shape
+    position = torch.arange(N, dtype=torch.float, device=tensor.device).unsqueeze(1)
+    div_term = torch.exp(torch.arange(0, C, 2, dtype=torch.float, device=tensor.device) * -(torch.log(torch.tensor(10000.0)) / C))
+    pos_enc = torch.zeros((N, C), dtype=torch.float, device=tensor.device)
+    pos_enc[:, 0::2] = torch.sin(position * div_term)
+    pos_enc[:, 1::2] = torch.cos(position * div_term)
+    return pos_enc

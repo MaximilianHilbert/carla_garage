@@ -4,7 +4,7 @@ from team_code.aim import AIMBackbone
 import team_code.transfuser_utils as t_u
 from torch.nn.functional import l1_loss
 from torch.nn import CrossEntropyLoss
-from team_code.model import PositionEmbeddingSine, GRUWaypointsPredictorTransFuser
+from team_code.model import PositionEmbeddingSine, GRUWaypointsPredictorTransFuser, get_sinusoidal_positional_embedding_image_order
 from team_code.center_net import LidarCenterNetHead
 import random
 class TimeFuser(nn.Module):
@@ -28,7 +28,8 @@ class TimeFuser(nn.Module):
                     self.channel_dimension,
                     kernel_size=1,
                 )
-        self.time_position_embedding = nn.Parameter(torch.zeros(self.img_token_len, self.channel_dimension,self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
+        #self.time_position_embedding = nn.Parameter(torch.zeros(self.img_token_len, self.channel_dimension,self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
+        self.time_position_embedding=get_sinusoidal_positional_embedding_image_order
         self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
 
         if self.config.speed:
@@ -169,7 +170,10 @@ class TimeFuser(nn.Module):
             prev_wp_enc=None
         for image_index in range(self.img_token_len):
             x[:,image_index,...]=x[:,image_index,...]+self.spatial_position_embedding_per_image(x[:,image_index,...])
-            x[:,image_index,...]=x[:,image_index,...]+self.time_position_embedding[image_index,...].repeat(bs, 1, 1, 1)
+            
+        time_positional_embeddung=self.time_position_embedding(x).unsqueeze(0).unsqueeze(3).unsqueeze(4)
+        time_positional_embeddung=time_positional_embeddung.expand(*x.shape)
+        x=x+time_positional_embeddung
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
             generated_memory=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
