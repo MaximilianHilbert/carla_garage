@@ -213,6 +213,17 @@ def main(args):
                                             "training_repetition": config.training_repetition,
                                             "metric":metric, "length": count, "positions": pos,"weighted_copycat_score":len(our_cc_losses)*np.array(our_cc_losses).mean(),
                                             **mean_dict}, ignore_index=True)
+    
+    positions_bcso=results[(results["baseline"]=="bcso") & (results["metric"]=="our")]["positions"]
+    def remove_matching_entries(values_list, reference_list):
+        return [item for item in values_list if item not in reference_list.item()]
+
+    # Apply the function to all lists in the DataFrame except the specific index
+    results["positions"] = results.apply(
+        lambda row: remove_matching_entries(row['positions'], positions_bcso) if row["baseline"] != "bcso" else row['positions'],
+        axis=1
+    )
+    results["length"]=results.apply(lambda row: len(row["positions"]), axis=1)
     if args.save_whole_scene:
         generate_video_stacked()
     results.to_csv(os.path.join(os.environ.get("WORK_DIR"),"visualisation", "open_loop", "metric_results.csv"), index=False)
