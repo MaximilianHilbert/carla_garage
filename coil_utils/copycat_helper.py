@@ -314,3 +314,4 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                     pickle.dump(criterion_dict, file)
                 with open(os.path.join(basepath,"config_cc.pkl"), "wb") as file:
                     pickle.dump(config, file)
+    return policy if "arp" in config.baseline_folder_name else model
