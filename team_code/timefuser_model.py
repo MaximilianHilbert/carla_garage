@@ -19,7 +19,7 @@ class TimeFuser(nn.Module):
         self.extra_sensor_memory_contribution=sum([measurement_contribution, previous_wp_contribution,memory_contribution])
         self.set_img_token_len_and_channels_and_seq_len()
         
-        if self.config.use_swin:
+        if self.config.swin:
             self.image_encoder=SwinTransformer3D(depths=(1, 3, 1),
         num_heads=(1, 2, 4))
             self.channel_dimension=self.image_encoder.num_features
@@ -51,7 +51,7 @@ class TimeFuser(nn.Module):
             #we input the previous waypoints in our ablations only in the memory stream of arp
             self.previous_wp_layer = nn.Linear(in_features=self.config.target_point_size*self.config.prevnum, out_features=self.channel_dimension)
         decoder_norm=nn.LayerNorm(self.channel_dimension)
-        if not self.config.use_swin:
+        if not self.config.swin:
             transformer_encoder_layer=nn.TransformerEncoderLayer(d_model=self.channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
             self.transformer_encoder=nn.TransformerEncoder(encoder_layer=transformer_encoder_layer,num_layers=self.config.numtransformerlayers, norm=decoder_norm)
         transformer_decoder_layer=nn.TransformerDecoderLayer(d_model=self.channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
@@ -139,7 +139,7 @@ class TimeFuser(nn.Module):
                     align_corners=False,
                 ),
                 )
-        if not self.config.use_swin:
+        if not self.config.swin:
             for m in self.modules():
                 if isinstance(m, nn.Linear):
                     nn.init.xavier_uniform_(m.weight)
@@ -160,7 +160,7 @@ class TimeFuser(nn.Module):
             x=self.change_channel(x)
             x=x.unsqueeze(1)
         else:
-            if not self.config.use_swin:
+            if not self.config.swin:
                 encodings=[]
                 for image_index in range(self.img_token_len):
                     #this is done to save gpu memory for gradients
@@ -187,7 +187,7 @@ class TimeFuser(nn.Module):
             prev_wp_enc = self.previous_wp_layer(prev_wp).unsqueeze(1)
         else:
             prev_wp_enc=None
-        if not self.config.use_swin:
+        if not self.config.swin:
             for image_index in range(self.img_token_len):
                 x[:,image_index,...]=x[:,image_index,...]+self.spatial_position_embedding_per_image(x[:,image_index,...])
             
@@ -196,21 +196,21 @@ class TimeFuser(nn.Module):
             x=x+time_positional_embeddung
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
-            if not self.config.use_swin:
+            if not self.config.swin:
                 generated_memory=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
             else:
                 generated_memory=x
             pred_dict.update({"memory": generated_memory})
         additional_inputs=[input for input in [memory_to_fuse, measurement_enc, prev_wp_enc] if input is not None]
-        if len(additional_inputs)!=0 and not self.config.use_swin:
+        if len(additional_inputs)!=0 and not self.config.swin:
             additional_inputs=torch.cat(additional_inputs, dim=1)
             x=torch.cat((x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3),additional_inputs), axis=1).contiguous()
-        if len(additional_inputs)==0 and not self.config.use_swin:
+        if len(additional_inputs)==0 and not self.config.swin:
             x=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
-        if len(additional_inputs)!=0 and self.config.use_swin:
+        if len(additional_inputs)!=0 and self.config.swin:
             additional_inputs=torch.cat(additional_inputs, dim=1)
             x=torch.cat((x,additional_inputs), axis=1).contiguous()
-        if not self.config.use_swin:
+        if not self.config.swin:
             x=self.transformer_encoder(x)
         if self.config.bev:
             queries=torch.cat((self.wp_query, self.bev_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
