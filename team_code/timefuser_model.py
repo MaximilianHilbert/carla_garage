@@ -20,8 +20,8 @@ class TimeFuser(nn.Module):
         self.set_img_token_len_and_channels_and_seq_len()
         
         if self.config.use_swin:
-            self.image_encoder=SwinTransformer3D(depths=(1, 1, 3, 1),
-        num_heads=(1, 2, 4, 8))
+            self.image_encoder=SwinTransformer3D(depths=(1, 3, 1),
+        num_heads=(1, 2, 4))
             self.channel_dimension=self.image_encoder.num_features
     
         else:
