@@ -255,5 +255,10 @@ if __name__ == "__main__":
         type=int,
         default=0
     )
+    parser.add_argument(
+        "--swin",
+        type=int,
+        default=0
+    )
     args = parser.parse_args()
     main(args)
