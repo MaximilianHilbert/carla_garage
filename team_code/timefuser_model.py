@@ -196,15 +196,20 @@ class TimeFuser(nn.Module):
             x=x+time_positional_embeddung
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
-            generated_memory=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
+            if not self.config.use_swin:
+                generated_memory=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
+            else:
+                generated_memory=x
             pred_dict.update({"memory": generated_memory})
         additional_inputs=[input for input in [memory_to_fuse, measurement_enc, prev_wp_enc] if input is not None]
-        if additional_inputs:
+        if len(additional_inputs)!=0 and not self.config.use_swin:
             additional_inputs=torch.cat(additional_inputs, dim=1)
             x=torch.cat((x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3),additional_inputs), axis=1).contiguous()
-        else:
-            if not self.config.use_swin:
-                x=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
+        if len(additional_inputs)==0 and not self.config.use_swin:
+            x=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
+        if len(additional_inputs)!=0 and self.config.use_swin:
+            additional_inputs=torch.cat(additional_inputs, dim=1)
+            x=torch.cat((x,additional_inputs), axis=1).contiguous()
         if not self.config.use_swin:
             x=self.transformer_encoder(x)
         if self.config.bev:
