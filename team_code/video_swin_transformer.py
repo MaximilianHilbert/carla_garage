@@ -627,7 +627,7 @@ class SwinTransformer3D(nn.Module):
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
 
         # add a norm layer for each output
-        self.norm = CustomNorm(norm_layer, self.num_features)
+        #self.norm = CustomNorm(norm_layer, self.num_features)
 
         self.return_layers = {
             "pos_drop": 0,

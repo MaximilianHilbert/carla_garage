@@ -551,7 +551,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--datarep",type=int, default=1)
-
+    parser.add_argument("--use-swin",type=int, default=0)
     arguments = parser.parse_args()
 
     main(arguments)

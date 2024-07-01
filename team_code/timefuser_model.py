@@ -6,6 +6,7 @@ from torch.nn.functional import l1_loss
 from torch.nn import CrossEntropyLoss
 from team_code.model import PositionEmbeddingSine, GRUWaypointsPredictorTransFuser, get_sinusoidal_positional_embedding_image_order
 from team_code.center_net import LidarCenterNetHead
+from team_code.video_swin_transformer import SwinTransformer3D
 import random
 class TimeFuser(nn.Module):
     def __init__(self, name,config):
@@ -18,19 +19,24 @@ class TimeFuser(nn.Module):
         self.extra_sensor_memory_contribution=sum([measurement_contribution, previous_wp_contribution,memory_contribution])
         self.set_img_token_len_and_channels_and_seq_len()
         
-        
-        self.image_encoder=AIMBackbone(config, channels=self.input_channels)
+        if self.config.use_swin:
+            self.image_encoder=SwinTransformer3D(depths=(1, 1, 3, 1),
+        num_heads=(1, 2, 4, 8))
+            self.channel_dimension=self.image_encoder.num_features
+    
+        else:
+            self.image_encoder=AIMBackbone(config, channels=self.input_channels)
 
-        original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
-        self.channel_dimension=self.config.reduced_channel_dimension
-        self.change_channel = nn.Conv2d(
-                    original_channel_dimension,
-                    self.channel_dimension,
-                    kernel_size=1,
-                )
-        #self.time_position_embedding = nn.Parameter(torch.zeros(self.img_token_len, self.channel_dimension,self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
-        self.time_position_embedding=get_sinusoidal_positional_embedding_image_order
-        self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
+            original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
+            self.channel_dimension=self.config.reduced_channel_dimension
+            self.change_channel = nn.Conv2d(
+                        original_channel_dimension,
+                        self.channel_dimension,
+                        kernel_size=1,
+                    )
+            #self.time_position_embedding = nn.Parameter(torch.zeros(self.img_token_len, self.channel_dimension,self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
+            self.time_position_embedding=get_sinusoidal_positional_embedding_image_order
+            self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
 
         if self.config.speed:
             if self.name=="arp-policy":
@@ -45,9 +51,9 @@ class TimeFuser(nn.Module):
             #we input the previous waypoints in our ablations only in the memory stream of arp
             self.previous_wp_layer = nn.Linear(in_features=self.config.target_point_size*self.config.prevnum, out_features=self.channel_dimension)
         decoder_norm=nn.LayerNorm(self.channel_dimension)
-        transformer_encoder_layer=nn.TransformerEncoderLayer(d_model=self.channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
-        self.transformer_encoder=nn.TransformerEncoder(encoder_layer=transformer_encoder_layer,num_layers=self.config.numtransformerlayers, norm=decoder_norm)
-
+        if not self.config.use_swin:
+            transformer_encoder_layer=nn.TransformerEncoderLayer(d_model=self.channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
+            self.transformer_encoder=nn.TransformerEncoder(encoder_layer=transformer_encoder_layer,num_layers=self.config.numtransformerlayers, norm=decoder_norm)
         transformer_decoder_layer=nn.TransformerDecoderLayer(d_model=self.channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
         self.transformer_decoder=nn.TransformerDecoder(decoder_layer=transformer_decoder_layer, num_layers=self.config.numtransformerlayers, norm=decoder_norm)
         self.wp_query = nn.Parameter(
@@ -133,33 +139,46 @@ class TimeFuser(nn.Module):
                     align_corners=False,
                 ),
                 )
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                nn.init.constant_(m.bias, 0.1)
+        if not self.config.use_swin:
+            for m in self.modules():
+                if isinstance(m, nn.Linear):
+                    nn.init.xavier_uniform_(m.weight)
+                    nn.init.constant_(m.bias, 0.1)
+        else:
+            #TODO check initialisation of additional inputs in case of swin
+            for m in self.bev_semantic_decoder.modules():
+                if isinstance(m, nn.Linear):
+                    nn.init.xavier_uniform_(m.weight)
+                    nn.init.constant_(m.bias, 0.1)
 
     def forward(self, x, speed=None, target_point=None, prev_wp=None, memory_to_fuse=None):
         pred_dict={}
-        bs=x.shape[0]
+        bs, time, channel,height, width=x.shape
         if self.config.backbone=="stacking":
             x=torch.cat([x[:,i,:,:] for i in range(len(x[0,:,0,0]))], axis=1)
             x= self.image_encoder(x)
             x=self.change_channel(x)
             x=x.unsqueeze(1)
         else:
-            encodings=[]
-            for image_index in range(self.img_token_len):
-                #this is done to save gpu memory for gradients
-                if image_index!=self.img_token_len-1:
-                    with torch.no_grad():
+            if not self.config.use_swin:
+                encodings=[]
+                for image_index in range(self.img_token_len):
+                    #this is done to save gpu memory for gradients
+                    if image_index!=self.img_token_len-1:
+                        with torch.no_grad():
+                            single_frame_encoding=self.image_encoder(x[:,image_index,...])
+                            single_frame_encoding=self.change_channel(single_frame_encoding)
+                    else:
                         single_frame_encoding=self.image_encoder(x[:,image_index,...])
                         single_frame_encoding=self.change_channel(single_frame_encoding)
-                else:
-                    single_frame_encoding=self.image_encoder(x[:,image_index,...])
-                    single_frame_encoding=self.change_channel(single_frame_encoding)
-                encodings.append(single_frame_encoding)
-            x=torch.stack(encodings, dim=1)
-        
+                    encodings.append(single_frame_encoding)
+                x=torch.stack(encodings, dim=1)
+            else:
+                x=x.permute(0,2,1,3,4)
+                x=self.image_encoder.patch_embed(x)
+                for layer in self.image_encoder.layers.values():
+                    x=layer(x)
+                x=x.flatten(start_dim=2, end_dim=4).permute(0,2,1).contiguous()
         if self.config.speed:
             measurement_enc = self.speed_layer(speed).unsqueeze(1) #we add the token dimension here
         else:
@@ -168,12 +187,13 @@ class TimeFuser(nn.Module):
             prev_wp_enc = self.previous_wp_layer(prev_wp).unsqueeze(1)
         else:
             prev_wp_enc=None
-        for image_index in range(self.img_token_len):
-            x[:,image_index,...]=x[:,image_index,...]+self.spatial_position_embedding_per_image(x[:,image_index,...])
+        if not self.config.use_swin:
+            for image_index in range(self.img_token_len):
+                x[:,image_index,...]=x[:,image_index,...]+self.spatial_position_embedding_per_image(x[:,image_index,...])
             
-        time_positional_embeddung=self.time_position_embedding(x).unsqueeze(0).unsqueeze(3).unsqueeze(4)
-        time_positional_embeddung=time_positional_embeddung.expand(*x.shape)
-        x=x+time_positional_embeddung
+            time_positional_embeddung=self.time_position_embedding(x).unsqueeze(0).unsqueeze(3).unsqueeze(4)
+            time_positional_embeddung=time_positional_embeddung.expand(*x.shape)
+            x=x+time_positional_embeddung
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
             generated_memory=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
@@ -183,8 +203,10 @@ class TimeFuser(nn.Module):
             additional_inputs=torch.cat(additional_inputs, dim=1)
             x=torch.cat((x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3),additional_inputs), axis=1).contiguous()
         else:
-            x=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
-        x=self.transformer_encoder(x)
+            if not self.config.use_swin:
+                x=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
+        if not self.config.use_swin:
+            x=self.transformer_encoder(x)
         if self.config.bev:
             queries=torch.cat((self.wp_query, self.bev_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
         else:
