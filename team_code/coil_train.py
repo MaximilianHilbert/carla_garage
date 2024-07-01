@@ -199,7 +199,7 @@ def main(args):
                 else:
                     combined_losses=[]
                 detailed_losses=[]
-
+                head_losses_lst=[]
             for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
                 # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
                 #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
@@ -342,6 +342,7 @@ def main(args):
                     if rank == 0:
                         combined_losses.append(loss.cpu().item())
                         detailed_losses.append(plotable_losses)
+                        head_losses_lst.append(head_losses)
                 if args.debug and epoch%100==0:
                     if merged_config_object.detectboxes:
                         if "arp" in merged_config_object.baseline_folder_name:
@@ -416,13 +417,30 @@ def main(args):
                         for key, value in dic.items():
                             sums[key]+=value
                             counts[key] += 1
-                    for key, value in sums.items():
                         sums[key]=sums[key]/counts[key]
+                    for key, value in sums.items():
                         logger.add_scalar(
-                                        f"{merged_config_object.baseline_folder_name}_{key}_loss",
-                                        sums[key],
-                                        (epoch - 1),
-                                    )
+                                            f"{merged_config_object.baseline_folder_name}_{key}_loss",
+                                            value.item(),
+                                            (epoch - 1),
+                                        )
+                        logger.flush()
+                    sums=dict.fromkeys(head_losses_lst[0].keys(), 0)
+                    counts=dict.fromkeys(head_losses_lst[0].keys(), 0)
+                    for dic in head_losses_lst:
+                        for key, value in dic.items():
+                            sums[key]+=value
+                            counts[key] += 1
+                        sums[key]=sums[key]/counts[key]
+                        
+                    for key, value in sums.items():
+                        logger.add_scalar(
+                                            f"{merged_config_object.baseline_folder_name}_{key}_loss",
+                                            value.item(),
+                                            (epoch - 1),
+                                        )
+                        logger.flush()
+            
             torch.cuda.empty_cache()
         with open(os.path.join(basepath,"config_training.pkl"), "wb") as file:
             pickle.dump(merged_config_object, file)

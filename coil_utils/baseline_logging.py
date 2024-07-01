@@ -17,6 +17,10 @@ class Logger:
 
     def add_scalar(self, name, scalar, step):
         self.writer.add_scalar(name, scalar, step)
+    def flush(self):
+        self.writer.flush()
+    def close(self):
+        self.writer.close()
 
     def create_tensorboard_logs(self):
         self.writer = SummaryWriter(log_dir=self.full_name)
