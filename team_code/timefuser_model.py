@@ -7,6 +7,7 @@ from torch.nn import CrossEntropyLoss
 from team_code.model import PositionEmbeddingSine, GRUWaypointsPredictorTransFuser, get_sinusoidal_positional_embedding_image_order
 from team_code.center_net import LidarCenterNetHead
 from team_code.video_swin_transformer import SwinTransformer3D
+import os
 import random
 class TimeFuser(nn.Module):
     def __init__(self, name,config):
@@ -21,7 +22,8 @@ class TimeFuser(nn.Module):
         
         if self.config.swin:
             self.image_encoder=SwinTransformer3D(depths=(1, 3, 1),
-        num_heads=(1, 2, 4))
+        num_heads=(1, 2, 4), pretrained=os.path.join(os.environ.get("WORK_DIR"), "swin_pretrain", "swin_base_patch4_window7_224_22k.pth"))
+            
             self.channel_dimension=self.image_encoder.num_features
     
         else:
@@ -144,12 +146,12 @@ class TimeFuser(nn.Module):
                 if isinstance(m, nn.Linear):
                     nn.init.xavier_uniform_(m.weight)
                     nn.init.constant_(m.bias, 0.1)
-        else:
+        # else:
             #TODO check initialisation of additional inputs in case of swin
-            for m in self.bev_semantic_decoder.modules():
-                if isinstance(m, nn.Linear):
-                    nn.init.xavier_uniform_(m.weight)
-                    nn.init.constant_(m.bias, 0.1)
+            # for m in self.bev_semantic_decoder.modules():
+            #     if isinstance(m, nn.Linear):
+            #         nn.init.xavier_uniform_(m.weight)
+            #         nn.init.constant_(m.bias, 0.1)
 
     def forward(self, x, speed=None, target_point=None, prev_wp=None, memory_to_fuse=None):
         pred_dict={}
