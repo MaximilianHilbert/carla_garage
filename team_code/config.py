@@ -43,7 +43,7 @@ class GlobalConfig:
         self.speed_factor = 12
         # Training
         #TimeFuser
-        self.numtransformerlayers=3
+        self.numtransformerlayers=2
         self.img_encoding_remaining_spatial_dim=(8,32)
         self.transformer_heads=4
         self.num_bev_query=8
