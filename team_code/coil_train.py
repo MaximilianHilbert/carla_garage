@@ -360,8 +360,7 @@ def main(args):
                                 gt_wp=targets.squeeze(0),
                                 pred_bb=batch_of_bbs_pred,
                                 gt_bbs=bb.detach().cpu().numpy(),
-                                pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
-                                
+                                pred_bev_semantic=pred_dict_policy["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict_policy.keys() else None,
                                 )
                     else:
                         visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images.squeeze(0)],axis=1).permute(1, 2, 0).detach().cpu().numpy()*255,config=merged_config_object,
