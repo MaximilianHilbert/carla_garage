@@ -89,9 +89,9 @@ export ROUTE={route}
         if args.cluster=="tcml":
             rsh.write(
                 f"""
-    source /home/hilbert/.bashrc
-    eval "$(conda shell.bash hook)"
-    conda activate garage
+source /home/hilbert/.bashrc
+eval "$(conda shell.bash hook)"
+conda activate garage
     """)
         else:
             rsh.write(
