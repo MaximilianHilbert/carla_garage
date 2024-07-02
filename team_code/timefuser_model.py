@@ -11,7 +11,7 @@ import os
 from coil_utils.baseline_helpers import download_file
 import random
 class TimeFuser(nn.Module):
-    def __init__(self, name,config):
+    def __init__(self, name,config, rank):
         super().__init__()
         self.config = config
         self.name=name
@@ -22,8 +22,9 @@ class TimeFuser(nn.Module):
         self.set_img_token_len_and_channels_and_seq_len()
         
         if self.config.swin:
-            pretrained_path=os.path.join(os.environ.get("WORK_DIR"), "swin_pretrain", "swin_base_patch4_window7_224_22k.pth")
-            download_file("https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_base_patch4_window7_224_22k.pth", pretrained_path)
+            if rank==0:
+                pretrained_path=os.path.join(os.environ.get("WORK_DIR"), "swin_pretrain", "swin_base_patch4_window7_224_22k.pth")
+                download_file("https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_base_patch4_window7_224_22k.pth", pretrained_path)
 
             self.image_encoder=SwinTransformer3D(depths=(1, 3, 1),
         num_heads=(1, 2, 4), pretrained=pretrained_path)

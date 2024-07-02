@@ -142,15 +142,15 @@ def main(args):
             sampler=sampler,
         )
         if "arp" in merged_config_object.baseline_folder_name:
-            policy = TimeFuser("arp-policy", merged_config_object)
+            policy = TimeFuser("arp-policy", merged_config_object, rank=rank)
             policy.to(device_id)
             policy = DDP(policy, device_ids=[device_id])
 
-            mem_extract = TimeFuser("arp-memory", merged_config_object)
+            mem_extract = TimeFuser("arp-memory", merged_config_object, rank=rank)
             mem_extract.to(device_id)
             mem_extract = DDP(mem_extract, device_ids=[device_id])
         else:
-            model = TimeFuser(merged_config_object.baseline_folder_name, merged_config_object)
+            model = TimeFuser(merged_config_object.baseline_folder_name, merged_config_object, rank=rank)
             model.to(device_id)
             model = DDP(model, device_ids=[device_id],find_unused_parameters=True if args.freeze else False)
 
