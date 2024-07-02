@@ -22,8 +22,8 @@ class TimeFuser(nn.Module):
         self.set_img_token_len_and_channels_and_seq_len()
         
         if self.config.swin:
+            pretrained_path=os.path.join(os.environ.get("WORK_DIR"), "swin_pretrain", "swin_base_patch4_window7_224_22k.pth")
             if rank==0:
-                pretrained_path=os.path.join(os.environ.get("WORK_DIR"), "swin_pretrain", "swin_base_patch4_window7_224_22k.pth")
                 download_file("https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_base_patch4_window7_224_22k.pth", pretrained_path)
 
             self.image_encoder=SwinTransformer3D(depths=(1, 3, 1),
