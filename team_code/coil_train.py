@@ -417,6 +417,7 @@ def main(args):
                         for key, value in dic.items():
                             sums[key]+=value
                             counts[key] += 1
+                    for key in sums.keys():
                         sums[key]=sums[key]/counts[key]
                     for key, value in sums.items():
                         logger.add_scalar(
@@ -431,8 +432,9 @@ def main(args):
                         for key, value in dic.items():
                             sums[key]+=value
                             counts[key] += 1
+                    for key in sums.keys():
                         sums[key]=sums[key]/counts[key]
-                        
+
                     for key, value in sums.items():
                         logger.add_scalar(
                                             f"{merged_config_object.baseline_folder_name}_{key}_loss",
