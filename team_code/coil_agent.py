@@ -30,18 +30,18 @@ class CoILAgent(AutonomousAgent):
         self.config = config
         
         if baseline in ["bcoh", "bcso", "keyframes"]:
-            model = TimeFuser(baseline, self.config)
+            model = TimeFuser(baseline, self.config, training=False)
             model.to("cuda:0")
             self.model = DDP(model, device_ids=["cuda:0"])
             self.model.load_state_dict(checkpoint["state_dict"])
             self.model.cuda()
             self.model.eval()
         else:
-            policy = TimeFuser("arp-policy", self.config)
+            policy = TimeFuser("arp-policy", self.config, training=False)
             policy.to("cuda:0")
             self._policy = DDP(policy, device_ids=["cuda:0"])
 
-            mem_extract = TimeFuser("arp-memory", self.config)
+            mem_extract = TimeFuser("arp-memory", self.config, training=False)
             mem_extract.to("cuda:0")
             self._mem_extract = DDP(mem_extract, device_ids=["cuda:0"])
             self._policy.load_state_dict(checkpoint["policy_state_dict"])
