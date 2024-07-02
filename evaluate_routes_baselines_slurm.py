@@ -19,7 +19,7 @@ import pandas as pd
 
 # Our centOS is missing some c libraries.
 # Usually miniconda has them, so we tell the linker to look there as well.
-# newlib = '/mnt/qb/work/geiger/gwb629/conda/garage/lib'
+# newlib = '/mnt/lustre/work/geiger/gwb629/conda/garage/lib'
 # if not newlib in os.environ['LD_LIBRARY_PATH']:
 #   os.environ['LD_LIBRARY_PATH'] += ':' + newlib
 
@@ -97,7 +97,7 @@ conda activate garage
             rsh.write(
                 f""" 
 source ~/.bashrc
-conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+conda activate /mnt/lustre/work/geiger/gwb629/conda/garage
     """)
         rsh.write(
             """
@@ -185,7 +185,7 @@ def main(args):
     else:
         partition = "2080-galvani"
         username = "gwb629"
-        code_root="/mnt/qb/work/geiger/gwb629/carla_garage"
+        code_root="/mnt/lustre/work/geiger/gwb629/carla_garage"
     epochs = ["30"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3

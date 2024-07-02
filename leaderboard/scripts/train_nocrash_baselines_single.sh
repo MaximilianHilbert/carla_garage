@@ -6,8 +6,8 @@
 #SBATCH --time=00-72:00
 #SBATCH --gres=gpu:8
 #SBATCH --cpus-per-task=64
-#SBATCH --output=/mnt/qb/work/geiger/gwb629/slurmlogs/bcso_test.out  # File to which STDOUT will be written
-#SBATCH --error=/mnt/qb/work/geiger/gwb629/slurmlogs/bcso_test.err   # File to which STDERR will be written
+#SBATCH --output=/mnt/lustre/work/geiger/gwb629/slurmlogs/bcso_test.out  # File to which STDOUT will be written
+#SBATCH --error=/mnt/lustre/work/geiger/gwb629/slurmlogs/bcso_test.err   # File to which STDERR will be written
 
 #local
 # export WORK_DIR=/home/maximilian/Master/carla_garage
@@ -29,15 +29,15 @@
 # export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 # export CARLA_ROOT=${WORK_DIR}/carla
 # export DATASET_ROOT=/home/maximilian-hilbert/datasets/tf_dataset
-# export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+# export LD_LIBRARY_PATH="/mnt/lustre/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 # export TEAM_CODE=$WORK_DIR/team_code
 # export COIL_NETWORK=${WORK_DIR}/coil_network
 #mlcloud
-export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+export WORK_DIR=/mnt/lustre/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export CARLA_ROOT=${WORK_DIR}/carla
 export DATASET_ROOT=/mnt/lustre/work/geiger/bjaeger25/old_repos/datasets/hb_dataset_v08_2023_05_10
-export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/mnt/lustre/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 export TEAM_CODE=$WORK_DIR/team_code
 export COIL_NETWORK=${WORK_DIR}/coil_network
 
@@ -53,7 +53,7 @@ export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 
 #mlcloud
 source ~/.bashrc
-conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+conda activate /mnt/lustre/work/geiger/gwb629/conda/garage
 #tcml
 # source /home/hilbert/.bashrc
 # eval "$(conda shell.bash hook)"

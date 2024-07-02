@@ -78,15 +78,15 @@ torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
 #SBATCH --gres=gpu:8
 #SBATCH --partition=2080-galvani
 #SBATCH --cpus-per-task=64
-#SBATCH --output="/mnt/qb/work/geiger/gwb629/slurmlogs/{complete_string}.out"
-#SBATCH --error="/mnt/qb/work/geiger/gwb629/slurmlogs/{complete_string}.err"
+#SBATCH --output="/mnt/lustre/work/geiger/gwb629/slurmlogs/{complete_string}.out"
+#SBATCH --error="/mnt/lustre/work/geiger/gwb629/slurmlogs/{complete_string}.err"
 
 
-export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+export WORK_DIR=/mnt/lustre/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=$WORK_DIR/coil_configuration
 export CARLA_ROOT=$WORK_DIR/carla
 export DATASET_ROOT=/mnt/lustre/work/geiger/bjaeger25/old_repos/datasets/hb_dataset_v08_2023_05_10
-export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/mnt/lustre/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 export TEAM_CODE=$WORK_DIR/team_code
 
 
@@ -101,7 +101,7 @@ export PYTHONPATH=$PYTHONPATH:$TEAM_CODE
 export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 
 source ~/.bashrc
-conda activate /mnt/qb/work/geiger/gwb629/conda/garage
+conda activate /mnt/lustre/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
 torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --use-disk-cache {args.use_disk_cache} --setting {args.setting} --seed {seed} --batch-size {batch_size} --number-of-workers 8 --baseline-folder-name {baseline_folder_name} --training-repetition {training_repetition} \

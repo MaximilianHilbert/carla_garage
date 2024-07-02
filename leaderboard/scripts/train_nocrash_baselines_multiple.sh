@@ -5,11 +5,11 @@
 # export COIL_NETWORK=${WORK_DIR}/coil_network
 # export DATASET_ROOT=/home/maximilian/training_data_split
 #mlcloud
-export WORK_DIR=/mnt/qb/work/geiger/gwb629/carla_garage
+export WORK_DIR=/mnt/lustre/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export CARLA_ROOT=${WORK_DIR}/carla
 export DATASET_ROOT=/mnt/lustre/work/geiger/bjaeger25/old_repos/datasets/hb_dataset_v08_2023_05_10
-export LD_LIBRARY_PATH="/mnt/qb/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/mnt/lustre/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 export TEAM_CODE=$WORK_DIR/team_code
 export CARLA_ROOT=${WORK_DIR}/carla
 export COIL_NETWORK=${WORK_DIR}/coil_network
