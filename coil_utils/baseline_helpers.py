@@ -10,7 +10,19 @@ from pathlib import Path
 from copy import deepcopy
 from torch.utils.data import Sampler
 
+import os
+import requests
 
+def download_file(url, destination):
+    if os.path.exists(destination):
+        print(f"File already exists at {destination}. Skipping download.")
+        return
+    print("Pretrained file is being downloaded...")
+    os.makedirs(os.path.dirname(destination), exist_ok=True)
+    response = requests.get(url)
+    with open(destination, 'wb') as file:
+        file.write(response.content)
+    print(f"File downloaded and saved to {destination}.")
 def set_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
