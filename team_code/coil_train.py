@@ -266,6 +266,7 @@ def main(args):
                         combined_losses_policy.append(policy_loss.cpu().item())
                         combined_losses_memory.append(mem_extract_loss.cpu().item())
                         detailed_losses.append(plotable_losses)
+                        head_losses_lst.append(head_losses)
                     
                     accumulated_time += time.time() - capture_time
                    
