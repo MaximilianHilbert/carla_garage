@@ -24,7 +24,7 @@ export DATAGEN=0
 export SAVE_PATH=${WORK_DIR}/results
 export DIRECT=0
 #uni pc
-export COIL_MODEL_CHECKPOINT=/home/maximilian-hilbert/carla_garage/_logs/bcso/bcso_bev-0_detectboxes-0_speed-0_prevnum-0_backbone-unrolling_lossweights-0.33,0.33,0.33/repetition_0/02_withheld/checkpoints/30.pth
+export COIL_MODEL_CHECKPOINT=/home/maximilian-hilbert/carla_garage/_logs/bcso/bcso_bev-1_detectboxes-1_speed-0_prevnum-0_backbone-unrolling_datarep-1_augment-0_freeze-0_swin-1/repetition_0/02_withheld/checkpoints/30.pth
 #home
 #export COIL_MODEL_CHECKPOINT=/home/maximilian/Master/carla_garage/_logs/arp/arp/repetition_0/all/checkpoints/30.pth
 
@@ -35,7 +35,7 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --route=${WORK_DIR}/scenario_runner/suite/nocrash_Town02.txt \
 --resume=${RESUME} \
 --timeout=600 \
---eval_id=bcso_bev-0_detectboxes-0_speed-0_prevnum-0_backbone-unrolling_lossweights-0.33,0.33,0.33 \
+--eval_id=bcso_bev-1_detectboxes-1_speed-0_prevnum-0_backbone-unrolling_datarep-1_augment-0_freeze-0_swin-1 \
 --baseline-folder-name=bcso \
 --norm=2 \
 --trafficManagerSeed=252534 \
