@@ -394,18 +394,18 @@ def main(args):
             if rank==0:
                 if "arp" in merged_config_object.baseline_folder_name:
                     logger.add_scalar(
-                                    f"{merged_config_object.baseline_folder_name}_policy_loss_epochs",
+                                    "policy_loss_epochs",
                                     np.array(combined_losses_policy).mean(),
                                     (epoch - 1),
                                 )
                     logger.add_scalar(
-                                    f"{merged_config_object.baseline_folder_name}_memory_loss_epochs",
+                                    "memory_loss_epochs",
                                     np.array(combined_losses_memory).mean(),
                                     (epoch - 1),
                                 )
                 else:
                     logger.add_scalar(
-                                    f"{merged_config_object.baseline_folder_name}_loss_epochs",
+                                    "loss_epochs",
                                     np.array(combined_losses).mean(),
                                     (epoch - 1),
                                 )
@@ -422,7 +422,7 @@ def main(args):
                         sums[key]=sums[key]/counts[key]
                     for key, value in sums.items():
                         logger.add_scalar(
-                                            f"{merged_config_object.baseline_folder_name}_{key}_loss",
+                                            f"{key}_loss",
                                             value.item(),
                                             (epoch - 1),
                                         )
@@ -438,7 +438,7 @@ def main(args):
 
                     for key, value in sums.items():
                         logger.add_scalar(
-                                            f"{merged_config_object.baseline_folder_name}_{key}_loss",
+                                            f"{key}_loss",
                                             value.item(),
                                             (epoch - 1),
                                         )
