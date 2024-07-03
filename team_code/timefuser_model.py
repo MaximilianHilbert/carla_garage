@@ -28,8 +28,8 @@ class TimeFuser(nn.Module):
                     download_file("https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_base_patch4_window7_224_22k.pth", pretrained_path)
             else:
                 pretrained_path=None
-            self.image_encoder=SwinTransformer3D(depths=(1, 3, 1),
-        num_heads=(1, 2, 4), pretrained=pretrained_path)
+            self.image_encoder=SwinTransformer3D(depths=(2, 2, 6,2),
+        num_heads=(3, 6, 12, 24), pretrained=pretrained_path)
             
             self.channel_dimension=self.image_encoder.num_features
     
