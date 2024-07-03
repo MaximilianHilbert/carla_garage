@@ -635,11 +635,10 @@ def normalize_imagenet(x):
     (0.456, 0.224),
     (0.406, 0.225)
 ]
-
-    # Apply the normalization to every third dimension
-    for i in range(len(x[0,:])):
+    channel_dim=x.shape[2]
+    for i in range(channel_dim):
         mean, std = norm_params[i % 3]
-        x[:, i] = ((x[:, i] / 255.0) - mean) / std
+        x[:,:, i] = ((x[:,:, i] / 255.0) - mean) / std
     return x
 
 
