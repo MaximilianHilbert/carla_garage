@@ -38,7 +38,11 @@ def generate_experiment_name(args, distributed_baseline_folder_name=None):
     else:
         return f"{distributed_baseline_folder_name}_"+"_".join([f'{ablation}-{",".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()]),ablations_dict
 def extract_and_normalize_data(args, device_id, merged_config_object, data):
-    all_images = data["rgb"].to(device_id).to(torch.float32)/255.0
+    if merged_config_object.normalize_imagenet:
+        all_images=data["rgb"].to(device_id).to(torch.float32)
+        all_images = t_u.normalize_imagenet(all_images)
+    else:
+        all_images = data["rgb"].to(device_id).to(torch.float32)/255.0
                    
     
     if merged_config_object.speed:
