@@ -25,6 +25,10 @@ This study reproduces and modernises known approaches for tackling this problem 
 <p align="center">
   <img src="assets/TimeFuser.png" alt="TimeFuser" width="500"/>
 </p>
+We currently also experiment with multiple Video Encoder Backbones like Swin-TransFormer or Video Resnet
+<p align="center">
+  <img src="assets/TimeFuser_SwinT.png" alt="TimeFuser" width="500"/>
+</p>
 
 ## Performance
 The Method in this code achieves State of the Art Performance on the Carla NoCrash Benchmark
