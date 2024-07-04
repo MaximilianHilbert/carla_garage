@@ -37,8 +37,8 @@ def load_model_and_checkpoint(config, root):
 
         return policy, mem_extract, checkpoint
     else:
-        model = TimeFuser(config.baseline_folder_name, config)
-        del checkpoint["state_dict"]["module.time_position_embedding"]
+        model = TimeFuser(config.baseline_folder_name, config, rank=0)
+        #del checkpoint["state_dict"]["module.time_position_embedding"]
         return model,None, checkpoint
 
 
