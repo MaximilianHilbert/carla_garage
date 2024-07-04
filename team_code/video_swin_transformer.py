@@ -660,7 +660,7 @@ class SwinTransformer3D(nn.Module):
     def load_pretrained(self):
         checkpoint = torch.load(self.pretrained, map_location='cpu')
         state_dict = checkpoint['state_dict']
-
+        state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
         # delete relative_position_index since we always re-init it
         relative_position_index_keys = [k for k in state_dict.keys() if "relative_position_index" in k]
         for k in relative_position_index_keys:
@@ -678,14 +678,13 @@ class SwinTransformer3D(nn.Module):
 
         # bicubic interpolate relative_position_bias_table if not match
         relative_position_bias_table_keys = [k for k in state_dict.keys() if "relative_position_bias_table" in k]
-        relative_position_bias_table_keys_our=[k.replace("backbone.", "") for k in relative_position_bias_table_keys]
-        for k_pre, k_our in zip(relative_position_bias_table_keys,relative_position_bias_table_keys_our):
-            relative_position_bias_table_pretrained = state_dict[k_pre]
-            relative_position_bias_table_current = self.state_dict()[k_our]
+        for k in relative_position_bias_table_keys:
+            relative_position_bias_table_pretrained = state_dict[k]
+            relative_position_bias_table_current = self.state_dict()[k]
             L1, nH1 = relative_position_bias_table_pretrained.size()
             L2, nH2 = relative_position_bias_table_current.size()
             if nH1 != nH2:
-               print(f"Error in loading {k_our}, passing......")
+               print(f"Error in loading {k}, passing......")
             else:
                 if L1 != L2:
                     # bicubic interpolate relative_position_bias_table if not match
@@ -694,7 +693,7 @@ class SwinTransformer3D(nn.Module):
                     relative_position_bias_table_pretrained_resized = torch.nn.functional.interpolate(
                         relative_position_bias_table_pretrained.permute(1, 0).view(1, nH1, S1, S1), size=(S2, S2),
                         mode='bicubic')
-                    state_dict[k_pre] = relative_position_bias_table_pretrained_resized.view(nH2, L2).permute(1, 0)
+                    state_dict[k] = relative_position_bias_table_pretrained_resized.view(nH2, L2).permute(1, 0)
 
         # bicubic interpolate absolute_pos_embed if not match
         absolute_pos_embed_keys = [k for k in state_dict.keys() if "absolute_pos_embed" in k]
