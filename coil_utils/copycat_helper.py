@@ -185,10 +185,10 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                     mem_extract.load_state_dict(checkpoint["mem_extract_state_dict"])
                    
                 else:
-                    model = TimeFuser(config.baseline_folder_name, config)
+                    model = TimeFuser(config.baseline_folder_name, config, rank=rank)
                     model.to("cuda:0")
                     model = DDP(model, device_ids=["cuda:0"])
-                    del checkpoint["state_dict"]["module.time_position_embedding"]
+                    #del checkpoint["state_dict"]["module.time_position_embedding"]
                     model.load_state_dict(checkpoint["state_dict"])
                 if Path(os.path.join(basepath,f"predictions_all.pkl")).exists():
                     print("already ran experiment")
