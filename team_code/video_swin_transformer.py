@@ -622,7 +622,7 @@ class SwinTransformer3D(nn.Module):
                 downsample=PatchMerging if i_layer < self.num_layers - 1 else None,
                 use_checkpoint=use_checkpoint,
             )
-            self.layers[f"layer{i_layer}"] = layer
+            self.layers[f"{i_layer}"] = layer
 
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
 
@@ -659,7 +659,7 @@ class SwinTransformer3D(nn.Module):
         )
     def load_pretrained(self):
         checkpoint = torch.load(self.pretrained, map_location='cpu')
-        state_dict = checkpoint['model']
+        state_dict = checkpoint['state_dict']
 
         # delete relative_position_index since we always re-init it
         relative_position_index_keys = [k for k in state_dict.keys() if "relative_position_index" in k]
@@ -677,23 +677,24 @@ class SwinTransformer3D(nn.Module):
             del state_dict[k]
 
         # bicubic interpolate relative_position_bias_table if not match
-        # relative_position_bias_table_keys = [k for k in state_dict.keys() if "relative_position_bias_table" in k]
-        # for k in relative_position_bias_table_keys:
-        #     relative_position_bias_table_pretrained = state_dict[k]
-        #     relative_position_bias_table_current = self.state_dict()[k]
-        #     L1, nH1 = relative_position_bias_table_pretrained.size()
-        #     L2, nH2 = relative_position_bias_table_current.size()
-        #     if nH1 != nH2:
-        #        print(f"Error in loading {k}, passing......")
-        #     else:
-        #         if L1 != L2:
-        #             # bicubic interpolate relative_position_bias_table if not match
-        #             S1 = int(L1 ** 0.5)
-        #             S2 = int(L2 ** 0.5)
-        #             relative_position_bias_table_pretrained_resized = torch.nn.functional.interpolate(
-        #                 relative_position_bias_table_pretrained.permute(1, 0).view(1, nH1, S1, S1), size=(S2, S2),
-        #                 mode='bicubic')
-        #             state_dict[k] = relative_position_bias_table_pretrained_resized.view(nH2, L2).permute(1, 0)
+        relative_position_bias_table_keys = [k for k in state_dict.keys() if "relative_position_bias_table" in k]
+        relative_position_bias_table_keys_our=[k.replace("backbone.", "") for k in relative_position_bias_table_keys]
+        for k_pre, k_our in zip(relative_position_bias_table_keys,relative_position_bias_table_keys_our):
+            relative_position_bias_table_pretrained = state_dict[k_pre]
+            relative_position_bias_table_current = self.state_dict()[k_our]
+            L1, nH1 = relative_position_bias_table_pretrained.size()
+            L2, nH2 = relative_position_bias_table_current.size()
+            if nH1 != nH2:
+               print(f"Error in loading {k_our}, passing......")
+            else:
+                if L1 != L2:
+                    # bicubic interpolate relative_position_bias_table if not match
+                    S1 = int(L1 ** 0.5)
+                    S2 = int(L2 ** 0.5)
+                    relative_position_bias_table_pretrained_resized = torch.nn.functional.interpolate(
+                        relative_position_bias_table_pretrained.permute(1, 0).view(1, nH1, S1, S1), size=(S2, S2),
+                        mode='bicubic')
+                    state_dict[k_pre] = relative_position_bias_table_pretrained_resized.view(nH2, L2).permute(1, 0)
 
         # bicubic interpolate absolute_pos_embed if not match
         absolute_pos_embed_keys = [k for k in state_dict.keys() if "absolute_pos_embed" in k]
@@ -735,7 +736,7 @@ class SwinTransformer3D(nn.Module):
         #         torch.nn.init.constant_(self.head.weight, 0.)
         #         del state_dict['head.weight']
         #         del state_dict['head.bias']
-                
+        self.load_state_dict(state_dict, strict=False)
         del checkpoint
         torch.cuda.empty_cache()
     def init_weights(self, pretrained=None):  # pylint: disable=locally-disabled, unused-argument

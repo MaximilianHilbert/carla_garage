@@ -23,9 +23,9 @@ class TimeFuser(nn.Module):
         
         if self.config.swin:
             if training:
-                pretrained_path=os.path.join(os.environ.get("WORK_DIR"), "swin_pretrain", "swin_base_patch4_window7_224_22k.pth")
+                pretrained_path=os.path.join(os.environ.get("WORK_DIR"), "swin_pretrain", "swin_tiny_patch244_window877_kinetics400_1k.pth")
                 if rank==0:
-                    download_file("https://github.com/SwinTransformer/storage/releases/download/v1.0.0/swin_base_patch4_window7_224_22k.pth", pretrained_path)
+                    download_file("https://github.com/SwinTransformer/storage/releases/download/v1.0.4/swin_tiny_patch244_window877_kinetics400_1k.pth", pretrained_path)
             else:
                 pretrained_path=None
             self.image_encoder=SwinTransformer3D(depths=(2, 2, 6,2),
