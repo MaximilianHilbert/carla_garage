@@ -640,7 +640,24 @@ def normalize_imagenet(x):
         mean, std = norm_params[i % 3]
         x[:,:, i] = ((x[:,:, i] / 255.0) - mean) / std
     return x
-
+def unnormalize_imagenet(x):
+    """Unnormalize input images according to ImageNet standards.
+    Args:
+        x (tensor): normalized input images
+    """
+    x = x.copy()
+    norm_params = [
+        (0.485, 0.229),
+        (0.456, 0.224),
+        (0.406, 0.225)
+    ]
+    channel_dim = x.shape[2]
+    
+    for i in range(channel_dim):
+        mean, std = norm_params[i % 3]
+        x[:, :, i] = (x[:, :, i] * std + mean) * 255.0
+    
+    return x
 
 class CarlaActorDummy(object):
     """
