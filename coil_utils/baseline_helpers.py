@@ -611,15 +611,16 @@ def save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch):
         f"repetition_{str(args.training_repetition)}",
         args.setting,
         "checkpoints")
-    for checkpoint in os.listdir(checkpoint_dir):
-        if checkpoint==f"{prior_epoch}.pth":
-            os.remove(os.path.join(checkpoint_dir, checkpoint))
-    
     torch.save(
     state,
     os.path.join(checkpoint_dir
         ,f"{epoch}.pth")
     )
+    for checkpoint in os.listdir(checkpoint_dir):
+        if checkpoint==f"{prior_epoch}.pth":
+            os.remove(os.path.join(checkpoint_dir, checkpoint))
+    
+    
 
 def get_latest_saved_checkpoint(basepath):
     """
