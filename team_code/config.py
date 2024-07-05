@@ -455,7 +455,7 @@ class GlobalConfig:
         self.predict_checkpoint_len = 10
 
         # Whether to normalize the camera image by the imagenet distribution
-        self.normalize_imagenet = True
+        self.normalize_imagenet = False
 
         # Semantic Segmentation
         self.use_semantic = False  # Whether to use semantic segmentation as auxiliary loss
