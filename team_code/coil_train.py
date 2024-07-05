@@ -14,6 +14,7 @@ from coil_utils.baseline_helpers import generate_experiment_name, visualize_mode
 from coil_utils.copycat_helper import get_action_predict_loss_threshold
 from team_code.data import CARLA_Data
 from team_code.timefuser_model import TimeFuser
+from coil_utils.baseline_helpers import determine_normalization_strategy
 from pytictoc import TicToc
 
 from torch.optim.lr_scheduler import MultiStepLR
@@ -53,7 +54,7 @@ def main(args):
     experiment_name,ablations_dict=generate_experiment_name(args)
 
     merged_config_object = merge_config(args, experiment_name)
-    
+    determine_normalization_strategy(merged_config_object)
     basepath=os.path.join(os.environ.get("WORK_DIR"),
                     "_logs",
                     merged_config_object.baseline_folder_name,
@@ -571,7 +572,12 @@ if __name__ == "__main__":
         default=[0.33, 0.33, 0.33]
 
     )
+    parser.add_argument(
+        "--pretrained",
+        type=int,
+        required=1
 
+    )
     parser.add_argument("--datarep",type=int, default=1)
     parser.add_argument("--backbone",type=str, default="resnet")
     arguments = parser.parse_args()

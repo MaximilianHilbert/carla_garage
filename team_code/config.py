@@ -454,9 +454,6 @@ class GlobalConfig:
         # Number of route checkpoints to predict. Needs to be smaller than num_route_points!
         self.predict_checkpoint_len = 10
 
-        # Whether to normalize the camera image by the imagenet distribution
-        self.normalize_imagenet = False
-
         # Semantic Segmentation
         self.use_semantic = False  # Whether to use semantic segmentation as auxiliary loss
         self.num_semantic_classes = 7

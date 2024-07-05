@@ -623,42 +623,27 @@ def calculate_intrinsic_matrix(fov, height, width):
 
     return intrinsics
 
-
-def normalize_imagenet(x):
-    """Normalize input images according to ImageNet standards.
-    Args:
-        x (tensor): input images
-    """
-    x = x.clone()
-    norm_params = [
+def normalization_wrapper(x, dataset_name="imagenet",type="normalize"):
+    if dataset_name=="imagenet":
+        norm_params = [
     (0.485, 0.229),
     (0.456, 0.224),
     (0.406, 0.225)
 ]
+    if dataset_name=="kinetics":
+       norm_params=[(0.43216, 0.22803) ,(0.394666,0.22145) , (0.37645,0.216989)]
+    if dataset_name=="default":
+        norm_params=[(0,1), (0,1), (0,1)]
     channel_dim=x.shape[2]
-    for i in range(channel_dim):
-        mean, std = norm_params[i % 3]
-        x[:,:, i] = ((x[:,:, i] / 255.0) - mean) / std
+    if type=="normalize":
+        for i in range(channel_dim):
+            mean, std = norm_params[i % 3]
+            x[:,:, i] = ((x[:,:, i] / 255.0) - mean) / std
+    else:
+        for i in range(channel_dim):
+            mean, std = norm_params[i % 3]
+            x[:, :, i] = (x[:, :, i] * std + mean) * 255.0
     return x
-def unnormalize_imagenet(x):
-    """Unnormalize input images according to ImageNet standards.
-    Args:
-        x (tensor): normalized input images
-    """
-    x = x.copy()
-    norm_params = [
-        (0.485, 0.229),
-        (0.456, 0.224),
-        (0.406, 0.225)
-    ]
-    channel_dim = x.shape[2]
-    
-    for i in range(channel_dim):
-        mean, std = norm_params[i % 3]
-        x[:, :, i] = (x[:, :, i] * std + mean) * 255.0
-    
-    return x
-
 class CarlaActorDummy(object):
     """
     Actor dummy structure used to simulate a CARLA actor for data augmentation

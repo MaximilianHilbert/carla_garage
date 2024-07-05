@@ -12,11 +12,11 @@ class AIMBackbone(nn.Module):
     Processes an image with an ImageNet architecture and returns features (grid).
     """
 
-    def __init__(self, config, channels):
+    def __init__(self, config, channels, pretrained=False):
         super().__init__()
         self.config = config
 
-        self.image_encoder = timm.create_model(config.image_architecture, pretrained=True, features_only=True, in_chans=channels)
+        self.image_encoder = timm.create_model(config.image_architecture, pretrained=pretrained, features_only=True, in_chans=channels)
 
         
         start_index = 0
@@ -29,10 +29,6 @@ class AIMBackbone(nn.Module):
 
     def forward(self, image):
         """standard forward pass"""
-        if self.config.normalize_imagenet:
-            image_features = t_u.normalize_imagenet(image)
-        else:
-            image_features = image
 
         # Generate an iterator for all the layers in the network that one can loop through.
         image_layers = iter(self.image_encoder.items())
@@ -40,15 +36,15 @@ class AIMBackbone(nn.Module):
         # Stem layer.
         # In some architectures the stem is not a return layer, so we need to skip it.
         if len(self.image_encoder.return_layers) > 4:
-            image_features = self.forward_layer_block(image_layers, self.image_encoder.return_layers, image_features)
+            image = self.forward_layer_block(image_layers, self.image_encoder.return_layers, image)
 
         # Loop through the 4 blocks of the network.
         for _ in range(4):
-            image_features = self.forward_layer_block(image_layers, self.image_encoder.return_layers, image_features)
+            image = self.forward_layer_block(image_layers, self.image_encoder.return_layers, image)
 
    
 
-        return image_features
+        return image
 
     def forward_layer_block(self, layers, return_layers, features):
         """

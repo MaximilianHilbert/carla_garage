@@ -28,20 +28,20 @@ class TimeFuser(nn.Module):
         self.set_img_token_len_and_channels_and_seq_len()
         
         if self.config.backbone=="swin":
-            # if training:
-            #     pretrained_path=os.path.join(os.environ.get("WORK_DIR"), "swin_pretrain", "swin_tiny_patch244_window877_kinetics400_1k.pth")
-            #     download_file("https://github.com/SwinTransformer/storage/releases/download/v1.0.4/swin_tiny_patch244_window877_kinetics400_1k.pth", pretrained_path)
-            # else:
-            pretrained_path=None
+            if training and config.pretrained==1:
+                pretrained_path=os.path.join(os.environ.get("WORK_DIR"), "swin_pretrain", "swin_tiny_patch244_window877_kinetics400_1k.pth")
+                download_file("https://github.com/SwinTransformer/storage/releases/download/v1.0.4/swin_tiny_patch244_window877_kinetics400_1k.pth", pretrained_path)
+            else:
+                pretrained_path=None
             self.image_encoder=SwinTransformer3D(depths=(2, 2, 6,2),
         num_heads=(3, 6, 12, 24), pretrained=pretrained_path)
             
             self.channel_dimension=self.image_encoder.num_features
         if self.config.backbone=="videoresnet":
-            self.image_encoder=VideoResNet(in_channels=3, pretrained="R2Plus1D_18_Weights.KINETICS400_V1")
+            self.image_encoder=VideoResNet(in_channels=3, pretrained="R2Plus1D_18_Weights.KINETICS400_V1" if self.config.pretrained else None)
             self.channel_dimension=self.image_encoder.feature_info.info[-1]["num_chs"]
         if self.config.backbone=="resnet":
-            self.image_encoder=AIMBackbone(config, channels=self.input_channels)
+            self.image_encoder=AIMBackbone(config, channels=self.input_channels, pretrained=True if self.config.pretrained else False)
 
             original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
             self.channel_dimension=self.config.reduced_channel_dimension
