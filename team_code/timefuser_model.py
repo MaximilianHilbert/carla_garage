@@ -71,54 +71,55 @@ class TimeFuser(nn.Module):
                         )
                     )
         # positional embeddings with respect to themselves (between individual tokens of the same type)
-        if self.config.bev:
+        if self.config.bev or self.config.detectboxes:
             self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len, self.channel_dimension))
      
 
         self.wp_gru = GRUWaypointsPredictorTransFuser(config, pred_len=self.config.pred_len, hidden_size=self.config.gru_hidden_size,target_point_size=self.config.target_point_size)
-        if self.config.bev:
+        if self.config.bev or self.config.detectboxes:
             self.bev_query=nn.Parameter(
                             torch.zeros(
                                 self.config.num_bev_query**2,
                                 self.channel_dimension,
                             )
                         )
-            # Computes which pixels are visible in the camera. We mask the others.
-            _, valid_voxels = t_u.create_projection_grid(self.config)
-            valid_bev_pixels = torch.max(valid_voxels, dim=3, keepdim=False)[0].unsqueeze(1)
-            # Conversion from CARLA coordinates x depth, y width to image coordinates x width, y depth.
-            # Analogous to transpose after the LiDAR histogram
-            valid_bev_pixels = torch.transpose(valid_bev_pixels, 2, 3)
-            # Register as parameter so that it will automatically be moved to the correct GPU with the rest of the network
-            self.valid_bev_pixels = nn.Parameter(valid_bev_pixels, requires_grad=False)
-           
-            self.bev_semantic_decoder = nn.Sequential(
-                nn.Conv2d(
-                    self.channel_dimension,
-                    self.channel_dimension,
-                    kernel_size=(3, 3),
-                    stride=1,
-                    padding=(1, 1),
-                    bias=True,
-                ),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(
-                    self.channel_dimension,
-                    self.config.num_bev_semantic_classes,
-                    kernel_size=(1, 1),
-                    stride=1,
-                    padding=0,
-                    bias=True,
-                ),
-                nn.Upsample(
-                    size=(
-                        self.config.bev_height,
-                        self.config.bev_width,
+            if self.config.bev:
+                # Computes which pixels are visible in the camera. We mask the others.
+                _, valid_voxels = t_u.create_projection_grid(self.config)
+                valid_bev_pixels = torch.max(valid_voxels, dim=3, keepdim=False)[0].unsqueeze(1)
+                # Conversion from CARLA coordinates x depth, y width to image coordinates x width, y depth.
+                # Analogous to transpose after the LiDAR histogram
+                valid_bev_pixels = torch.transpose(valid_bev_pixels, 2, 3)
+                # Register as parameter so that it will automatically be moved to the correct GPU with the rest of the network
+                self.valid_bev_pixels = nn.Parameter(valid_bev_pixels, requires_grad=False)
+            
+                self.bev_semantic_decoder = nn.Sequential(
+                    nn.Conv2d(
+                        self.channel_dimension,
+                        self.channel_dimension,
+                        kernel_size=(3, 3),
+                        stride=1,
+                        padding=(1, 1),
+                        bias=True,
                     ),
-                    mode="bilinear",
-                    align_corners=False,
-                ),
-            )
+                    nn.ReLU(inplace=True),
+                    nn.Conv2d(
+                        self.channel_dimension,
+                        self.config.num_bev_semantic_classes,
+                        kernel_size=(1, 1),
+                        stride=1,
+                        padding=0,
+                        bias=True,
+                    ),
+                    nn.Upsample(
+                        size=(
+                            self.config.bev_height,
+                            self.config.bev_width,
+                        ),
+                        mode="bilinear",
+                        align_corners=False,
+                    ),
+                )
             if self.config.detectboxes:
                 self.head=LidarCenterNetHead(config=config)
                 self.change_channel_bev_to_bb_and_upscale= nn.Sequential( nn.Conv2d(
@@ -130,7 +131,7 @@ class TimeFuser(nn.Module):
                     bias=True,
                 ),
                 nn.ReLU(inplace=True),
-                 nn.Conv2d(
+                nn.Conv2d(
                     self.channel_dimension,
                     self.config.bb_feature_channel,
                     kernel_size=(1, 1),
@@ -220,16 +221,17 @@ class TimeFuser(nn.Module):
             x=torch.cat((x,additional_inputs), axis=1).contiguous()
         if not self.config.swin:
             x=self.transformer_encoder(x)
-        if self.config.bev:
+        if self.config.bev or self.config.detectboxes:
             queries=torch.cat((self.wp_query, self.bev_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
         else:
             queries=self.wp_query.repeat(bs,1,1)
         all_tokens_output=self.transformer_decoder(queries, x)
         wp_tokens=self.wp_gru(all_tokens_output[:, :self.wp_query.shape[0],...], target_point)
         pred_dict.update({"wp_predictions": wp_tokens})
-        if self.config.bev:
+        if self.config.bev or self.config.detectboxes:
             bev_tokens=all_tokens_output[:, self.wp_query.shape[0]:,...]
             bev_tokens=bev_tokens.permute(0,2,1).reshape(bs, self.channel_dimension, self.config.num_bev_query, self.config.num_bev_query).contiguous()
+        if self.config.bev:
             pred_bev_grid=self.bev_semantic_decoder(bev_tokens)
             pred_bev_semantic = pred_bev_grid * self.valid_bev_pixels
             pred_dict.update({"pred_bev_semantic": pred_bev_semantic})
@@ -292,14 +294,12 @@ class TimeFuser(nn.Module):
             visible_bev_semantic_label = (params["valid_bev_pixels"].squeeze(1).int() - 1) + visible_bev_semantic_label
             loss_bev=loss_bev_semantic(params["pred_bev_semantic"], visible_bev_semantic_label)
             losses["bev_loss"]=loss_bev
-            if self.config.detectboxes:
-                head_loss=self.head.loss(*params["pred_bb"], *params["targets_bb"])
-                sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
-                for key, value in head_loss.items():
-                    sub_loss += self.detailed_loss_weights[key] * value
-                losses["detect_loss"]=sub_loss.squeeze()
-            else:
-                head_loss=None
+        if self.config.detectboxes:
+            head_loss=self.head.loss(*params["pred_bb"], *params["targets_bb"])
+            sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
+            for key, value in head_loss.items():
+                sub_loss += self.detailed_loss_weights[key] * value
+            losses["detect_loss"]=sub_loss.squeeze()
         else:
             head_loss=None
         #watch out with order of losses

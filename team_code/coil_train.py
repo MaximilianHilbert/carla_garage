@@ -361,7 +361,7 @@ def main(args):
                                 step=iteration,
                                 gt_wp=targets.squeeze(0),
                                 pred_bb=batch_of_bbs_pred,
-                                gt_bbs=bb.detach().cpu().numpy(),
+                                gt_bbs=bb.detach().cpu().numpy() if bb is not None else None,
                                 pred_bev_semantic=pred_dict_policy["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict_policy.keys() else None,
                                 )
                     else:
@@ -373,7 +373,7 @@ def main(args):
                                         step=iteration,
                                         gt_wp=targets.squeeze(0),
                                         pred_bb=batch_of_bbs_pred,
-                                        gt_bbs=bb.detach().cpu().numpy(),
+                                        gt_bbs=bb.detach().cpu().numpy() if bb is not None else None,
                                         pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
                                         )
                 if merged_config_object.baseline_folder_name!="arp":
@@ -410,23 +410,24 @@ def main(args):
                                     (epoch - 1),
                                 )
 
-            if (merged_config_object.detectboxes and merged_config_object.bev) or (epoch>merged_config_object.epochs_baselines-merged_config_object.additional_epochs_after_freeze):
-                if rank==0:
-                    sums=dict.fromkeys(detailed_losses[0].keys(), 0)
-                    counts=dict.fromkeys(detailed_losses[0].keys(), 0)
-                    for dic in detailed_losses:
-                        for key, value in dic.items():
-                            sums[key]+=value
-                            counts[key] += 1
-                    for key in sums.keys():
-                        sums[key]=sums[key]/counts[key]
-                    for key, value in sums.items():
-                        logger.add_scalar(
-                                            f"{key}_loss",
-                                            value.item(),
-                                            (epoch - 1),
-                                        )
-                        logger.flush()
+
+            
+                sums=dict.fromkeys(detailed_losses[0].keys(), 0)
+                counts=dict.fromkeys(detailed_losses[0].keys(), 0)
+                for dic in detailed_losses:
+                    for key, value in dic.items():
+                        sums[key]+=value
+                        counts[key] += 1
+                for key in sums.keys():
+                    sums[key]=sums[key]/counts[key]
+                for key, value in sums.items():
+                    logger.add_scalar(
+                                        f"{key}_loss",
+                                        value.item(),
+                                        (epoch - 1),
+                                    )
+                    logger.flush()
+                if merged_config_object.detectboxes:
                     sums=dict.fromkeys(head_losses_lst[0].keys(), 0)
                     counts=dict.fromkeys(head_losses_lst[0].keys(), 0)
                     for dic in head_losses_lst:
