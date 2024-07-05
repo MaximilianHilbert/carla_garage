@@ -475,7 +475,7 @@ class NoCrashEvaluator(object):
         else:
             prev_images.append(current_image)
             image_sequence=np.concatenate(prev_images, axis=1)
-        image_sequence=np.transpose(image_sequence,(1,2,0))*255
+        image_sequence=np.transpose(image_sequence,(1,2,0))
         return image_sequence
     def run(self, args):
         """

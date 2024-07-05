@@ -16,6 +16,7 @@ from nav_planner import RoutePlanner
 from srunner.scenariomanager.timer import GameTime
 from team_code.timefuser_model import TimeFuser
 from team_code.transfuser_utils import preprocess_compass, inverse_conversion_2d
+import team_code.transfuser_utils as t_u
 import carla
 from team_code.transfuser_utils import PIDController
 
@@ -182,6 +183,11 @@ class CoILAgent(AutonomousAgent):
             control.throttle = 0.0
             current_image = current_data.get("CentralRGB")[1][..., :3]
             current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
+            current_image=torch.from_numpy(current_image).type(torch.FloatTensor).cuda()
+            if self.config.normalize_imagenet:
+                current_image=t_u.normalize_imagenet(current_image)
+            else:
+                current_image=current_image/255.0
             current_speed=current_data.get("speed")[1]["speed"]
             current_position = self.vehicle.get_location()
             current_position = np.array([current_position.x, current_position.y])
@@ -260,7 +266,12 @@ class CoILAgent(AutonomousAgent):
         # Conversion to old convention necessary in carla >=0.9, only take BGR Values without alpha channel and convert to RGB for the model
         current_image = sensor_data.get("CentralRGB")[1][..., :3]
         current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
-
+        
+        if self.config.normalize_imagenet:
+            current_image=torch.from_numpy(current_image).type(torch.FloatTensor).cuda()
+            current_image = t_u.normalize_imagenet(current_image)
+        else:
+            current_image = current_image/255.0
         vehicle_speed=sensor_data.get("speed")[1]["speed"]
         #add data to queues in beginning of the loop, so we have historical information + current information and then subsample before it comes into the model
         # here we add the current one but the self.prev_location_queue does append later, we fuse only historical locations, but also current speeds and observations
@@ -473,9 +484,8 @@ class CoILAgent(AutonomousAgent):
 
     def _process_single_frame(self, current_image):
         self.latest_image = current_image
-        current_image = np.swapaxes(current_image, 0, 1)
-        current_image = np.transpose(current_image, (2, 1, 0))
-        current_image = torch.from_numpy(current_image/255.0).type(torch.FloatTensor).cuda()
+        current_image = current_image.transpose(0, 1)
+        current_image = current_image.permute(2, 1, 0)
         return current_image
 
     def _process_sensors(self, image_list):
