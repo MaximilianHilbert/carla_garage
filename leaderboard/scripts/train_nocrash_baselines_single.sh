@@ -60,4 +60,10 @@ conda activate /mnt/lustre/work/geiger/gwb629/conda/garage
 # conda activate garage
 export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
-torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 10214 --baseline-folder-name bcso --number-of-workers 8 --batch-size 10 --setting 02_withheld --bev 1 --detectboxes 1 --freeze 0 --training-repetition 0 --swin 1
+torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 \
+ --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 10214 \
+ --baseline-folder-name bcso --number-of-workers 8 \
+ --batch-size 5 \
+ --bev 1 --detectboxes 1 \
+ --training-repetition 0 --backbone videoresnet \
+ --pretrained 1

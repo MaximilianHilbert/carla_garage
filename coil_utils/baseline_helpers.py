@@ -124,7 +124,7 @@ def merge_with_command_line_args(config, args):
             setattr(config, key, value)
 
 def get_ablations_dict():
-    return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "framehandling": "unrolling", "datarep":1, "augment": 0, "freeze": 0, "backbone": "resnet"}
+    return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "framehandling": "unrolling", "datarep":1, "augment": 0, "freeze": 0, "backbone": "resnet", "pretrained": 0}
 def determine_normalization_strategy(config):
     if config.backbone=="resnet" and config.pretrained==1:
         setattr(config, "normalization_strategy", "imagenet")

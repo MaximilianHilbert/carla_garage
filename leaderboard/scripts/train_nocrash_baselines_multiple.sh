@@ -31,4 +31,8 @@ export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 #seeds must match repetition number
-python $WORK_DIR/train_nocrash_baselines.py --repetitions 3 --seeds 10214 43534 53543 --bev 1 --detectboxes 1 --swin 1 --baseline-folder-names bcso bcoh keyframes arp --batch-sizes 10 3 3 3 --walltimes 30 30 30 30 --train-local 0 --datarep 1 --augment 0 --setting 02_withheld --cluster galvani
+python $WORK_DIR/train_nocrash_baselines.py --repetitions 3 \
+ --seeds 10214 43534 53543 --bev 1 --detectboxes 1 --backbone videoresnet \
+ --baseline-folder-names bcso bcoh keyframes arp --batch-sizes 10 3 3 3 \
+ --walltimes 30 30 30 30 --train-local 0 \
+ --setting 02_withheld --cluster galvani

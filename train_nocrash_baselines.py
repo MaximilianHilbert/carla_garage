@@ -207,7 +207,7 @@ if __name__ == "__main__":
         help="n-1 is considered"
     )
     parser.add_argument(
-        "--backbone",
+        "--framehandling",
         type=str,
         choices=["stacking","unrolling"],
         default="unrolling",
@@ -256,7 +256,12 @@ if __name__ == "__main__":
         default=0
     )
     parser.add_argument(
-        "--swin",
+        "--backbone",
+        type=str,
+        default="resnet"
+    )
+    parser.add_argument(
+        "--pretrained",
         type=int,
         default=0
     )
