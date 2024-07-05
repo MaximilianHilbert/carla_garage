@@ -162,14 +162,15 @@ def main(args):
                 mem_extract_optimizer,
                 milestones=args.adapt_lr_milestones,
                 gamma=0.1,
+                verbose=True
             )
-            policy_scheduler = MultiStepLR(policy_optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
+            policy_scheduler = MultiStepLR(policy_optimizer, milestones=args.adapt_lr_milestones, gamma=0.1, verbose=True)
         if "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
             optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_multi_obs)
-            scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
+            scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1, verbose=True)
         if "bcso" in merged_config_object.baseline_folder_name:
             optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_single_obs)
-            scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
+            scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1, verbose=True)
             
         if checkpoint_file is not None:
             accumulated_time = checkpoint["total_time"]
