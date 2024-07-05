@@ -10,9 +10,9 @@ class VideoResNet(nn.Module):
     We adapt the code here so that it matches the structure of timm models and we can interchange them more easily.
     """
 
-    def __init__(self, in_channels=1, pretrained=False):
+    def __init__(self, in_channels=1, pretrained=None):
         super().__init__()
-        self.model = r2plus1d_18(pretrained=pretrained)
+        self.model = r2plus1d_18(weights=pretrained)
         # Remove layers that we don't need
         del self.model.fc
         del self.model.avgpool

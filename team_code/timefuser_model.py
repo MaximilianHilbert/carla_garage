@@ -7,6 +7,7 @@ from torch.nn import CrossEntropyLoss
 from team_code.model import PositionEmbeddingSine, GRUWaypointsPredictorTransFuser, get_sinusoidal_positional_embedding_image_order
 from team_code.center_net import LidarCenterNetHead
 from team_code.video_swin_transformer import SwinTransformer3D
+from team_code.video_resnet import VideoResNet
 import os
 from coil_utils.baseline_helpers import download_file
 import random
@@ -26,7 +27,7 @@ class TimeFuser(nn.Module):
         self.extra_sensor_memory_contribution=sum([measurement_contribution, previous_wp_contribution,memory_contribution])
         self.set_img_token_len_and_channels_and_seq_len()
         
-        if self.config.swin:
+        if self.config.backbone=="swin":
             # if training:
             #     pretrained_path=os.path.join(os.environ.get("WORK_DIR"), "swin_pretrain", "swin_tiny_patch244_window877_kinetics400_1k.pth")
             #     download_file("https://github.com/SwinTransformer/storage/releases/download/v1.0.4/swin_tiny_patch244_window877_kinetics400_1k.pth", pretrained_path)
@@ -36,8 +37,10 @@ class TimeFuser(nn.Module):
         num_heads=(3, 6, 12, 24), pretrained=pretrained_path)
             
             self.channel_dimension=self.image_encoder.num_features
-    
-        else:
+        if self.config.backbone=="videoresnet":
+            self.image_encoder=VideoResNet(in_channels=3, pretrained="R2Plus1D_18_Weights.KINETICS400_V1")
+            self.channel_dimension=self.image_encoder.feature_info.info[-1]["num_chs"]
+        if self.config.backbone=="resnet":
             self.image_encoder=AIMBackbone(config, channels=self.input_channels)
 
             original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
@@ -64,7 +67,7 @@ class TimeFuser(nn.Module):
             #we input the previous waypoints in our ablations only in the memory stream of arp
             self.previous_wp_layer = nn.Linear(in_features=self.config.target_point_size*self.config.prevnum, out_features=self.channel_dimension)
         decoder_norm=nn.LayerNorm(self.channel_dimension)
-        if not self.config.swin:
+        if self.config.backbone=="resnet":
             transformer_encoder_layer=nn.TransformerEncoderLayer(d_model=self.channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
             self.transformer_encoder=nn.TransformerEncoder(encoder_layer=transformer_encoder_layer,num_layers=self.config.numtransformerlayers, norm=decoder_norm)
         transformer_decoder_layer=nn.TransformerDecoderLayer(d_model=self.channel_dimension, nhead=self.config.transformer_heads,batch_first=True)
@@ -159,13 +162,13 @@ class TimeFuser(nn.Module):
     def forward(self, x, speed=None, target_point=None, prev_wp=None, memory_to_fuse=None):
         pred_dict={}
         bs, time, channel,height, width=x.shape
-        if self.config.backbone=="stacking":
+        if self.config.framehandling=="stacking":
             x=torch.cat([x[:,i,:,:] for i in range(len(x[0,:,0,0]))], axis=1)
             x= self.image_encoder(x)
             x=self.change_channel(x)
             x=x.unsqueeze(1)
         else:
-            if not self.config.swin:
+            if self.config.backbone=="resnet":
                 encodings=[]
                 for image_index in range(self.img_token_len):
                     #this is done to save gpu memory for gradients
@@ -178,10 +181,15 @@ class TimeFuser(nn.Module):
                         single_frame_encoding=self.change_channel(single_frame_encoding)
                     encodings.append(single_frame_encoding)
                 x=torch.stack(encodings, dim=1)
-            else:
+            if self.config.backbone=="swin":
                 x=x.permute(0,2,1,3,4)
                 x=self.image_encoder.patch_embed(x)
                 for layer in self.image_encoder.layers.values():
+                    x=layer(x)
+                x=x.flatten(start_dim=2, end_dim=4).permute(0,2,1).contiguous()
+            if self.config.backbone=="videoresnet":
+                x=x.permute(0,2,1,3,4)
+                for _,layer in self.image_encoder.items():
                     x=layer(x)
                 x=x.flatten(start_dim=2, end_dim=4).permute(0,2,1).contiguous()
         if self.config.speed:
@@ -192,7 +200,7 @@ class TimeFuser(nn.Module):
             prev_wp_enc = self.previous_wp_layer(prev_wp).unsqueeze(1)
         else:
             prev_wp_enc=None
-        if not self.config.swin:
+        if self.config.backbone=="resnet":
             for image_index in range(self.img_token_len):
                 x[:,image_index,...]=x[:,image_index,...]+self.spatial_position_embedding_per_image(x[:,image_index,...])
             
@@ -201,21 +209,21 @@ class TimeFuser(nn.Module):
             x=x+time_positional_embeddung
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
-            if not self.config.swin:
+            if self.config.backbone!="swin":
                 generated_memory=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
             else:
                 generated_memory=x
             pred_dict.update({"memory": generated_memory})
         additional_inputs=[input for input in [memory_to_fuse, measurement_enc, prev_wp_enc] if input is not None]
-        if len(additional_inputs)!=0 and not self.config.swin:
+        if len(additional_inputs)!=0 and self.config.backbone=="resnet":
             additional_inputs=torch.cat(additional_inputs, dim=1)
             x=torch.cat((x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3),additional_inputs), axis=1).contiguous()
-        if len(additional_inputs)==0 and not self.config.swin:
+        if len(additional_inputs)==0 and self.config.backbone=="resnet":
             x=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
-        if len(additional_inputs)!=0 and self.config.swin:
+        if len(additional_inputs)!=0 and self.config.backbone=="swin":
             additional_inputs=torch.cat(additional_inputs, dim=1)
             x=torch.cat((x,additional_inputs), axis=1).contiguous()
-        if not self.config.swin:
+        if self.config.backbone=="resnet":
             x=self.transformer_encoder(x)
         if self.config.bev or self.config.detectboxes:
             queries=torch.cat((self.wp_query, self.bev_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
