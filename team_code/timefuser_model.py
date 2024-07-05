@@ -10,6 +10,11 @@ from team_code.video_swin_transformer import SwinTransformer3D
 import os
 from coil_utils.baseline_helpers import download_file
 import random
+def init_weights(layer):
+    if isinstance(layer, nn.Linear):
+        nn.init.constant_(layer.weight, 0.01)  # Initialize weights with 0.01
+        if layer.bias is not None:
+            nn.init.constant_(layer.bias, 0)  # Initialize biases with 0
 class TimeFuser(nn.Module):
     def __init__(self, name,config, rank=0, training=True):
         super().__init__()
@@ -148,18 +153,9 @@ class TimeFuser(nn.Module):
                     align_corners=False,
                 ),
                 )
-        if not self.config.swin:
-            for m in self.modules():
-                if isinstance(m, nn.Linear):
-                    nn.init.xavier_uniform_(m.weight)
-                    nn.init.constant_(m.bias, 0.1)
-        # else:
-            #TODO check initialisation of additional inputs in case of swin
-            # for m in self.bev_semantic_decoder.modules():
-            #     if isinstance(m, nn.Linear):
-            #         nn.init.xavier_uniform_(m.weight)
-            #         nn.init.constant_(m.bias, 0.1)
-
+        
+        #self.apply(init_weights)
+    
     def forward(self, x, speed=None, target_point=None, prev_wp=None, memory_to_fuse=None):
         pred_dict={}
         bs, time, channel,height, width=x.shape
