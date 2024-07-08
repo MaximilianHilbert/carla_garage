@@ -522,7 +522,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--setting",
         type=str,
-        default="all",
+        default="02_withheld",
         help="coil requires to be trained on Town01 only, so Town01 are train conditions and Town02 is Test Condition",
     )
     parser.add_argument(
