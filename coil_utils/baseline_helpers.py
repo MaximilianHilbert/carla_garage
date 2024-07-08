@@ -206,10 +206,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     loss_brake=None,
     loss_velocity=None
 ):
-    if config.normalize_imagenet:
-        rgb=t_u.unnormalize_imagenet(rgb)
-    else:
-        rgb=rgb*255.0
+    
+    rgb=t_u.normalization_wrapper(x=rgb, dataset_name=config.normalization_strategy, type="unnormalize")
+    
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
         np.array([144, 238, 144]),
