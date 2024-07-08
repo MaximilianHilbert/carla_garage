@@ -40,7 +40,6 @@ class GlobalConfig:
         self.rgb_input_channels=3
         self.width_rgb=1024
         self.height_rgb=256
-        self.max_img_seq_len_baselines=6 #history frames only
         self.speed_factor = 12
         # Training
         #TimeFuser
