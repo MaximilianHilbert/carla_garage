@@ -247,29 +247,29 @@ class TimeFuser(nn.Module):
         return pred_dict
 
     def set_img_token_len_and_channels_and_seq_len(self):
-        self.total_steps_considered=self.config.max_img_seq_len_baselines+1
+        self.total_steps_considered=self.config.img_seq_len+1
         if self.config.backbone=="stacking":
             self.img_token_len=1
             if self.name=="arp-policy" or self.name=="bcso":
                 self.img_seq_len=1
                 self.input_channels=1*self.config.rgb_input_channels
             elif self.name=="arp-memory":
-                self.img_seq_len=self.config.max_img_seq_len_baselines
-                self.input_channels=self.config.max_img_seq_len_baselines*self.config.rgb_input_channels
+                self.img_seq_len=self.config.img_seq_len-1
+                self.input_channels=(self.config.img_seq_len-1)*self.config.rgb_input_channels
             else:
-                self.img_seq_len=self.config.max_img_seq_len_baselines+1
-                self.input_channels=(self.config.max_img_seq_len_baselines+1)*self.config.rgb_input_channels
+                self.img_seq_len=self.config.img_seq_len
+                self.input_channels=(self.config.img_seq_len)*self.config.rgb_input_channels
         else:
             self.input_channels=self.config.rgb_input_channels
             if self.name=="arp-policy" or self.name=="bcso":
                 self.img_token_len=1
                 self.img_seq_len=1
             elif self.name=="arp-memory":
-                self.img_token_len=self.config.max_img_seq_len_baselines
-                self.img_seq_len=self.config.max_img_seq_len_baselines
+                self.img_token_len=self.config.img_seq_len-1
+                self.img_seq_len=self.config.img_seq_len-1
             else:
-                self.img_seq_len=self.config.max_img_seq_len_baselines+1
-                self.img_token_len=self.config.max_img_seq_len_baselines+1
+                self.img_seq_len=self.config.img_seq_len
+                self.img_token_len=self.config.img_seq_len
                 
     def compute_loss(self,params, keyframes=False):
         losses={}

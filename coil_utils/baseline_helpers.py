@@ -135,7 +135,7 @@ def determine_normalization_strategy(config):
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
     if "bcoh" in config.baseline_folder_name or "arp" in config.baseline_folder_name or "keyframes" in config.baseline_folder_name:
-        setattr(config, "img_seq_len", 7) # means a total of 7 frames get used (6 historical frames)
+        setattr(config, "img_seq_len", config.considered_images_incl_current)
         setattr(config, "number_previous_waypoints", 0)
     if "keyframes" in config.baseline_folder_name:
         setattr(config, "correlation_weights", True)
