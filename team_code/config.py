@@ -50,8 +50,8 @@ class GlobalConfig:
         self.bev_height=256
         self.bev_width=256
         #use self.learning_rate = 0.001 for debugging with batchsize 10 on one_sample
-        self.learning_rate_single_obs = 1e-4
-        self.learning_rate_multi_obs=1e-4
+        self.learning_rate_single_obs = 1e-4 # with batch size 5
+        self.learning_rate_multi_obs=0.6e-4 # with batch size 3
         self.reduced_channel_dimension=256
         self.use_color_aug= 0
         self.every_epoch =2
