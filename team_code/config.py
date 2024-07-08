@@ -29,6 +29,7 @@ class GlobalConfig:
         """base architecture configurations"""
         # COIL Baselines
         # Dataloader
+        self.considered_images_incl_current=3
         self.target_point_size=2
         self.number_future_waypoints = 1
         self.closed_loop_previous_waypoint_predictions=5
