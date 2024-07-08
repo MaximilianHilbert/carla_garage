@@ -159,8 +159,8 @@ def main(args):
 
         if "arp" in merged_config_object.baseline_folder_name:
             if bool(args.zero_redundancy_optim):
-                policy_optimizer = ZeroRedundancyOptimizer(params=policy.parameters(),optimizer_class=optim.AdamW, parameters_as_bucket_view=True,lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
-                mem_extract_optimizer = ZeroRedundancyOptimizer(params=mem_extract.parameters(),optimizer_class=optim.AdamW,parameters_as_bucket_view=True, lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
+                policy_optimizer = ZeroRedundancyOptimizer(params=policy.parameters(),optimizer_class=optim.Adam, parameters_as_bucket_view=True,lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
+                mem_extract_optimizer = ZeroRedundancyOptimizer(params=mem_extract.parameters(),optimizer_class=optim.Adam,parameters_as_bucket_view=True, lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
             else:
                 policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate_multi_obs)
                 mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate_multi_obs)
@@ -174,13 +174,13 @@ def main(args):
             policy_scheduler = MultiStepLR(policy_optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
         if "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
             if bool(args.zero_redundancy_optim):
-                optimizer = ZeroRedundancyOptimizer(params=model.parameters(),optimizer_class=optim.AdamW,parameters_as_bucket_view=True,lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
+                optimizer = ZeroRedundancyOptimizer(params=model.parameters(),optimizer_class=optim.Adam,parameters_as_bucket_view=True,lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
             else:
                 optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_multi_obs)
             scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
         if "bcso" in merged_config_object.baseline_folder_name:
             if bool(args.zero_redundancy_optim):
-                optimizer = ZeroRedundancyOptimizer(params=model.parameters(),optimizer_class=optim.AdamW, parameters_as_bucket_view=True, lr=merged_config_object.learning_rate_single_obs, amsgrad=True)
+                optimizer = ZeroRedundancyOptimizer(params=model.parameters(),optimizer_class=optim.Adam, parameters_as_bucket_view=True, lr=merged_config_object.learning_rate_single_obs, amsgrad=True)
             else:
                 optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_single_obs)
             scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
