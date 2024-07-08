@@ -1,8 +1,10 @@
 import numpy as np
 import os
 import torch
+import csv
 import cv2
 import cv2
+from pytictoc import TicToc
 from collections import deque
 from torch.nn.parallel import DistributedDataParallel as DDP
 import matplotlib.pyplot as plt
@@ -224,6 +226,8 @@ class CoILAgent(AutonomousAgent):
         )
         self._waypoint_planner.set_route(self._global_plan_world_coord, gps=False)
         self.initialized = True
+        self.timer=TicToc()
+        self.timing=[]
 
     def run_step(
         self,
@@ -286,6 +290,8 @@ class CoILAgent(AutonomousAgent):
             vehicle_prev_positions=torch.tensor(np.array([inverse_conversion_2d(wp, current_location, current_yaw_ego_system) for wp in prev_locations], dtype=np.float32)).unsqueeze(0).to("cuda:0")
         else:
             vehicle_prev_positions=None
+        if timestamp>5 and timestamp<6:
+            self.timer.tic()
         if self.config.baseline_folder_name == "arp":
             with torch.no_grad():
                 pred_dict_memory = self._mem_extract.module.forward(
@@ -307,6 +313,10 @@ class CoILAgent(AutonomousAgent):
                         target_point=end_point_location_ego_system,
                     prev_wp=vehicle_prev_positions,
                     )
+        if timestamp>3 and timestamp<4:
+            time_value=self.timer.tocvalue(restart=True)
+            self.timing.append(time_value)
+        
         current_predictions_wp=pred_dict["wp_predictions"].squeeze().detach().cpu().numpy()
         if len(self.replay_current_predictions_queue)!=0:
             previous_waypoints=list(self.replay_current_predictions_queue)[-1]["wp_predictions"].squeeze().detach().cpu().numpy()
@@ -375,7 +385,8 @@ class CoILAgent(AutonomousAgent):
                 "current_predictions": list(self.replay_current_predictions_queue)[::-self.config.data_save_freq],
                 "target_points": list(self.replay_target_points_queue)[::-self.config.data_save_freq],
                 "roads": list(self.replay_road_queue)[::-self.config.data_save_freq],
-                "pred_residual": list(self.replay_pred_residual_queue)[::-self.config.data_save_freq]},self.model if self.config.baseline_folder_name!="arp" else self._policy,image_to_save
+                "pred_residual": list(self.replay_pred_residual_queue)[::-self.config.data_save_freq],
+                "forward_time": np.nanmean(np.array(self.timing))},self.model if self.config.baseline_folder_name!="arp" else self._policy,image_to_save
 
     def control_pid(self, waypoints, speed):
         """

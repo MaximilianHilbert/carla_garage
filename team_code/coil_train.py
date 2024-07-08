@@ -5,7 +5,7 @@ import torch
 from tqdm import tqdm
 import torch.optim as optim
 
-
+import csv
 import numpy as np
 
 from copy import deepcopy
@@ -235,7 +235,7 @@ def main(args):
                     if iteration>100 and iteration<150:
                         timer.tic()
                     pred_dict_policy = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1:,...] if all_speeds is not None else None, target_point=target_point, prev_wp=None, memory_to_fuse=pred_dict_memory["memory"].detach())
-                    if iteration>100 and iteration<150:
+                    if iteration>100 and iteration<150 and epoch==1:
                         timer_policy=timer.tocvalue()
                         timing.append(timer_policy+timer_memory)
 
@@ -450,6 +450,10 @@ def main(args):
             torch.cuda.empty_cache()
         with open(os.path.join(basepath,"config_training.pkl"), "wb") as file:
             pickle.dump(merged_config_object, file)
+        with open(os.path.join(basepath,"training_time.csv"), mode='w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=["total_training_time_in_h", "forward_time_in_s"])
+            writer.writeheader()
+            writer.writerow({"total_training_time_in_h": accumulated_time/3600, "forward_time_in_s": np.array(timing).mean() if timing else 0})
         dist.destroy_process_group()
         
     except RuntimeError as e:
