@@ -247,7 +247,7 @@ class TimeFuser(nn.Module):
         return pred_dict
 
     def set_img_token_len_and_channels_and_seq_len(self):
-        self.total_steps_considered=self.config.img_seq_len+1
+        self.total_steps_considered=self.config.img_seq_len
         if self.config.backbone=="stacking":
             self.img_token_len=1
             if self.name=="arp-policy" or self.name=="bcso":
