@@ -14,6 +14,7 @@ from coil_utils.baseline_helpers import generate_experiment_name, visualize_mode
 from coil_utils.copycat_helper import get_action_predict_loss_threshold
 from team_code.data import CARLA_Data
 from team_code.timefuser_model import TimeFuser
+from torch.distributed.optim import ZeroRedundancyOptimizer
 from coil_utils.baseline_helpers import determine_normalization_strategy
 from pytictoc import TicToc
 
@@ -151,14 +152,19 @@ def main(args):
             mem_extract.to(device_id)
             mem_extract = DDP(mem_extract, device_ids=[device_id])
         else:
+            
             model = TimeFuser(merged_config_object.baseline_folder_name, merged_config_object, rank=rank)
             model.to(device_id)
             model = DDP(model, device_ids=[device_id],find_unused_parameters=True if args.freeze else False)
 
         if "arp" in merged_config_object.baseline_folder_name:
-            policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate_multi_obs)
-            mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate_multi_obs)
-
+            if bool(args.zero_redundancy_optim):
+                policy_optimizer = ZeroRedundancyOptimizer(params=policy.parameters(),optimizer_class=optim.AdamW, parameters_as_bucket_view=True,lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
+                mem_extract_optimizer = ZeroRedundancyOptimizer(params=mem_extract.parameters(),optimizer_class=optim.AdamW,parameters_as_bucket_view=True, lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
+            else:
+                policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate_multi_obs)
+                mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate_multi_obs)
+           
             mem_extract_scheduler = MultiStepLR(
                 mem_extract_optimizer,
                 milestones=args.adapt_lr_milestones,
@@ -167,10 +173,16 @@ def main(args):
             )
             policy_scheduler = MultiStepLR(policy_optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
         if "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
-            optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_multi_obs)
+            if bool(args.zero_redundancy_optim):
+                optimizer = ZeroRedundancyOptimizer(params=model.parameters(),optimizer_class=optim.AdamW,parameters_as_bucket_view=True,lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
+            else:
+                optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_multi_obs)
             scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
         if "bcso" in merged_config_object.baseline_folder_name:
-            optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_single_obs)
+            if bool(args.zero_redundancy_optim):
+                optimizer = ZeroRedundancyOptimizer(params=model.parameters(),optimizer_class=optim.AdamW, parameters_as_bucket_view=True, lr=merged_config_object.learning_rate_single_obs, amsgrad=True)
+            else:
+                optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_single_obs)
             scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
             
         if checkpoint_file is not None:
@@ -203,6 +215,7 @@ def main(args):
                 detailed_losses=[]
                 head_losses_lst=[]
             for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
+                torch.cuda.empty_cache()
                 # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
                 #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                 #     break
@@ -252,6 +265,10 @@ def main(args):
                     policy_loss.backward()
                     policy_optimizer.step()
                     if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
+                        if bool(args.zero_redundancy_optim):
+                            # To save the whole optimizer we need to gather it on GPU 0.
+                            policy_optimizer.consolidate_state_dict(0)
+                            mem_extract_optimizer.consolidate_state_dict(0)
                         state = {
                             "epoch": epoch,
                             "policy_state_dict": policy.state_dict(),
@@ -340,6 +357,8 @@ def main(args):
                     else:
                         loss,plotable_losses,head_losses = model.module.compute_loss(params=loss_function_params)
                     loss.backward()
+                    for p in model.parameters():
+                        p = p.contiguous()
                     optimizer.step()
                     scheduler.step()
                     if rank == 0:
@@ -380,6 +399,9 @@ def main(args):
                                         )
                 if merged_config_object.baseline_folder_name!="arp":
                     if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
+                        if bool(args.zero_redundancy_optim):
+                            # To save the whole optimizer we need to gather it on GPU 0.
+                            optimizer.consolidate_state_dict(0)
                         state = {
                             "epoch": epoch,
                             "state_dict": model.state_dict(),
@@ -549,6 +571,13 @@ if __name__ == "__main__":
         type=int,
         choices=[0,1],
         default=0
+
+    )
+    parser.add_argument(
+        "--zero-redundancy-optim",
+        type=int,
+        choices=[0,1],
+        default=1
 
     )
     parser.add_argument(
