@@ -215,7 +215,6 @@ def main(args):
                 detailed_losses=[]
                 head_losses_lst=[]
             for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
-                torch.cuda.empty_cache()
                 # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
                 #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
                 #     break
@@ -357,8 +356,6 @@ def main(args):
                     else:
                         loss,plotable_losses,head_losses = model.module.compute_loss(params=loss_function_params)
                     loss.backward()
-                    for p in model.parameters():
-                        p = p.contiguous()
                     optimizer.step()
                     scheduler.step()
                     if rank == 0:
@@ -469,7 +466,8 @@ def main(args):
                                         )
                         logger.flush()
             
-            torch.cuda.empty_cache()
+                torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
         with open(os.path.join(basepath,"config_training.pkl"), "wb") as file:
             pickle.dump(merged_config_object, file)
         with open(os.path.join(basepath,"training_time.csv"), mode='w', newline='') as file:
