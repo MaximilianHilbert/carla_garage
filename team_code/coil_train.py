@@ -7,6 +7,7 @@ import torch.optim as optim
 
 import csv
 import numpy as np
+from torchinfo import summary
 
 from copy import deepcopy
 from diskcache import Cache
@@ -156,9 +157,10 @@ def main(args):
             model = TimeFuser(merged_config_object.baseline_folder_name, merged_config_object, rank=rank)
             model.to(device_id)
             model = DDP(model, device_ids=[device_id],find_unused_parameters=True if args.freeze else False)
-
         if "arp" in merged_config_object.baseline_folder_name:
             if bool(args.zero_redundancy_optim):
+                summary(policy, (merged_config_object.rgb_input_channels, 1, merged_config_object.height_rgb,  merged_config_object.width_rgb))
+                summary(mem_extract, (merged_config_object.rgb_input_channels, merged_config_object.considered_images_incl_current-1, merged_config_object.height_rgb,  merged_config_object.width_rgb))
                 policy_optimizer = ZeroRedundancyOptimizer(params=policy.parameters(),optimizer_class=optim.Adam, parameters_as_bucket_view=True,lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
                 mem_extract_optimizer = ZeroRedundancyOptimizer(params=mem_extract.parameters(),optimizer_class=optim.Adam,parameters_as_bucket_view=True, lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
             else:
@@ -215,12 +217,8 @@ def main(args):
                 detailed_losses=[]
                 head_losses_lst=[]
             for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
-                # if g_conf.FINISH_ON_VALIDATION_STALE is not None and \
-                #         check_loss_validation_stopped(iteration, g_conf.FINISH_ON_VALIDATION_STALE):
-                #     break
                 capture_time = time.time()
                 all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb= extract_and_normalize_data(args, device_id, merged_config_object, data)
-
                 if "arp" in merged_config_object.baseline_folder_name:
                     mem_extract.zero_grad()
                     #the baseline is defined as getting everything except the last (current) frame into the memory stream, same for speed input
@@ -292,6 +290,12 @@ def main(args):
                     mem_extract_scheduler.step()
 
                 else:
+                    if epoch==1 and iteration==1:
+                        dummy_input=torch.ones_like(all_images)
+                        summary(model=model, input_data=[dummy_input,torch.ones((merged_config_object.batch_size,1)),
+                                                         torch.ones_like(target_point) ,
+                                                         torch.ones((merged_config_object.batch_size,8,2)),
+                                                           torch.ones((merged_config_object.batch_size,256,))])
                     if args.freeze:
                         #if we freeze the backbone, we first turn off the bev head and queries, train for the given amount of epochs and later turn off everything, afterwards turning on only bev head and 
                         detector_components=[model.module.head.parameters(),
@@ -327,6 +331,7 @@ def main(args):
                     if iteration>100 and iteration<150 and epoch==1:
                         timer.tic()
                     pred_dict= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
+                    
                     if iteration>100 and iteration<150 and epoch==1:
                         forward_time=timer.tocvalue(restart=True)
                         timing.append(forward_time)
@@ -610,7 +615,7 @@ if __name__ == "__main__":
 
     )
     parser.add_argument("--datarep",type=int, default=1)
-    parser.add_argument("--backbone",type=str, default="resnet")
+    parser.add_argument("--backbone",type=str, default="resnet", choices=["videoresnet", "resnet", "swin", "x3d"])
     arguments = parser.parse_args()
 
     main(arguments)

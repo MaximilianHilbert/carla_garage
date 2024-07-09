@@ -128,7 +128,7 @@ def get_ablations_dict():
 def determine_normalization_strategy(config):
     if config.backbone=="resnet" and config.pretrained==1:
         setattr(config, "normalization_strategy", "imagenet")
-    if (config.backbone=="swin" or config.backbone=="videoresnet")  and config.pretrained==1:
+    if (config.backbone=="swin" or config.backbone=="videoresnet" or config.backbone=="x3d")  and config.pretrained==1:
         setattr(config, "normalization_strategy", "kinetics")
     if config.pretrained==0:
         setattr(config, "normalization_strategy", "default")
