@@ -8,7 +8,7 @@ class X3D(nn.Module):
     We adapt the code here so that it matches the structure of timm models and we can interchange them more easily.
     """
 
-    def __init__(self, model_name, pretrained=None):
+    def __init__(self, model_name, pretrained=True):
         super().__init__()
         self.model=torch.hub.load('facebookresearch/pytorchvideo', model_name, pretrained=pretrained)
         # Remove layers that we don't need
