@@ -400,21 +400,22 @@ def main(args):
                                         pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
                                         )
                 if merged_config_object.baseline_folder_name!="arp":
-                    if is_ready_to_save(epoch, iteration, data_loader, merged_config_object) and rank == 0:
+                    if is_ready_to_save(epoch, iteration, data_loader, merged_config_object):
                         if bool(args.zero_redundancy_optim):
                             # To save the whole optimizer we need to gather it on GPU 0.
                             optimizer.consolidate_state_dict(0)
-                        state = {
-                            "epoch": epoch,
-                            "state_dict": model.state_dict(),
-                            "best_loss": best_loss,
-                            "total_time": accumulated_time,
-                            "optimizer": optimizer.state_dict(),
-                            "best_loss_epoch": best_loss_epoch,
-                            "timing": np.array(timing).mean() if timing else 0
-                        }
+                        if rank==0:
+                            state = {
+                                "epoch": epoch,
+                                "state_dict": model.state_dict(),
+                                "best_loss": best_loss,
+                                "total_time": accumulated_time,
+                                "optimizer": optimizer.state_dict(),
+                                "best_loss_epoch": best_loss_epoch,
+                                "timing": np.array(timing).mean() if timing else 0
+                            }
 
-                        save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch)
+                            save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch)
 
                     accumulated_time += time.time() - capture_time
             if rank==0:
