@@ -67,6 +67,7 @@ def main(args):
         args.training_repetition,
         args.setting,
     )
+    learning_rate=merged_config_object.learning_rates[merged_config_object.baseline_folder_name][merged_config_object.backbone]
     if rank == 0:
         logger.create_tensorboard_logs()
         print(f"Start of Training {merged_config_object.baseline_folder_name}, {experiment_name}, {merged_config_object.training_repetition}")
@@ -159,11 +160,11 @@ def main(args):
             if bool(args.zero_redundancy_optim):
                 summary(policy, (merged_config_object.rgb_input_channels, 1, merged_config_object.height_rgb,  merged_config_object.width_rgb))
                 summary(mem_extract, (merged_config_object.rgb_input_channels, merged_config_object.considered_images_incl_current-1, merged_config_object.height_rgb,  merged_config_object.width_rgb))
-                policy_optimizer = ZeroRedundancyOptimizer(params=policy.parameters(),optimizer_class=optim.Adam, parameters_as_bucket_view=True,lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
-                mem_extract_optimizer = ZeroRedundancyOptimizer(params=mem_extract.parameters(),optimizer_class=optim.Adam,parameters_as_bucket_view=True, lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
+                policy_optimizer = ZeroRedundancyOptimizer(params=policy.parameters(),optimizer_class=optim.Adam, parameters_as_bucket_view=True,lr=learning_rate, amsgrad=True)
+                mem_extract_optimizer = ZeroRedundancyOptimizer(params=mem_extract.parameters(),optimizer_class=optim.Adam,parameters_as_bucket_view=True, lr=learning_rate, amsgrad=True)
             else:
-                policy_optimizer = optim.Adam(policy.parameters(), lr=merged_config_object.learning_rate_multi_obs)
-                mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=merged_config_object.learning_rate_multi_obs)
+                policy_optimizer = optim.Adam(policy.parameters(), lr=learning_rate)
+                mem_extract_optimizer = optim.Adam(mem_extract.parameters(), lr=learning_rate)
            
             mem_extract_scheduler = MultiStepLR(
                 mem_extract_optimizer,
@@ -174,15 +175,15 @@ def main(args):
             policy_scheduler = MultiStepLR(policy_optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
         if "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
             if bool(args.zero_redundancy_optim):
-                optimizer = ZeroRedundancyOptimizer(params=model.parameters(),optimizer_class=optim.Adam,parameters_as_bucket_view=True,lr=merged_config_object.learning_rate_multi_obs, amsgrad=True)
+                optimizer = ZeroRedundancyOptimizer(params=model.parameters(),optimizer_class=optim.Adam,parameters_as_bucket_view=True,lr=learning_rate, amsgrad=True)
             else:
-                optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_multi_obs)
+                optimizer = optim.Adam(model.parameters(), lr=learning_rate)
             scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
         if "bcso" in merged_config_object.baseline_folder_name:
             if bool(args.zero_redundancy_optim):
-                optimizer = ZeroRedundancyOptimizer(params=model.parameters(),optimizer_class=optim.Adam, parameters_as_bucket_view=True, lr=merged_config_object.learning_rate_single_obs, amsgrad=True)
+                optimizer = ZeroRedundancyOptimizer(params=model.parameters(),optimizer_class=optim.Adam, parameters_as_bucket_view=True, lr=learning_rate, amsgrad=True)
             else:
-                optimizer = optim.Adam(model.parameters(), lr=merged_config_object.learning_rate_single_obs)
+                optimizer = optim.Adam(model.parameters(), lr=learning_rate)
             scheduler = MultiStepLR(optimizer, milestones=args.adapt_lr_milestones, gamma=0.1)
             
         if checkpoint_file is not None:
