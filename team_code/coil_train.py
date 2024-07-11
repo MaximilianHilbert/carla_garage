@@ -584,6 +584,14 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
+        "--velocity-brake-prediction",
+        type=int,
+        choices=[0,1],
+        default=0
+
+    )
+
+    parser.add_argument(
         "--zero-redundancy-optim",
         type=int,
         choices=[0,1],
@@ -631,5 +639,6 @@ if __name__ == "__main__":
     parser.add_argument("--datarep",type=int, default=1)
     parser.add_argument("--backbone",type=str, default="resnet", choices=["videoresnet", "resnet", "swin", "x3d_xs", "x3d_s"])
     arguments = parser.parse_args()
-
+    if not arguments.detectboxes and arguments.velocity_brake_prediction:
+        parser.error("When velocity_brake prediction is activted, detectboxes has to be true to")
     main(arguments)

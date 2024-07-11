@@ -26,8 +26,9 @@ class LidarCenterNetHead(nn.Module):
         self.offset_head = self._build_head(config.bb_input_channel, 2)
         self.yaw_class_head = self._build_head(config.bb_input_channel, config.num_dir_bins)
         self.yaw_res_head = self._build_head(config.bb_input_channel, 1)
-        self.velocity_head = self._build_head(config.bb_input_channel, 1)
-        self.brake_head = self._build_head(config.bb_input_channel, 2)
+        if config.velocity_brake_prediction:
+            self.velocity_head = self._build_head(config.bb_input_channel, 1)
+            self.brake_head = self._build_head(config.bb_input_channel, 2)
 
         # We use none reduction because we weight each pixel according to the number of bounding boxes.
         self.loss_center_heatmap = t_u.gaussian_focal_loss
@@ -64,9 +65,12 @@ class LidarCenterNetHead(nn.Module):
         offset_pred = self.offset_head(feat)
         yaw_class_pred = self.yaw_class_head(feat)
         yaw_res_pred = self.yaw_res_head(feat)
-        velocity_pred = self.velocity_head(feat)
-        brake_pred = self.brake_head(feat)
-  
+        if self.config.velocity_brake_prediction:
+            velocity_pred = self.velocity_head(feat)
+            brake_pred = self.brake_head(feat)
+        else:
+            velocity_pred=None
+            brake_pred=None
 
         return (
             center_heatmap_pred,
@@ -138,13 +142,13 @@ class LidarCenterNetHead(nn.Module):
             loss_yaw_class=loss_yaw_class,
             loss_yaw_res=loss_yaw_res,
         )
-
-        loss_velocity = (
-            self.loss_velocity(velocity_pred, velocity_target) * pixel_weight[:, 0:1]
-        ).sum() / avg_factor
-        loss_brake = (self.loss_brake(brake_pred, brake_target) * pixel_weight[:, 0]).sum() / avg_factor
-        losses["loss_velocity"] = loss_velocity
-        losses["loss_brake"] = loss_brake
+        if self.config.velocity_brake_prediction:
+            loss_velocity = (
+                self.loss_velocity(velocity_pred, velocity_target) * pixel_weight[:, 0:1]
+            ).sum() / avg_factor
+            loss_brake = (self.loss_brake(brake_pred, brake_target) * pixel_weight[:, 0]).sum() / avg_factor
+            losses["loss_velocity"] = loss_velocity
+            losses["loss_brake"] = loss_brake
 
         return losses
 
@@ -258,12 +262,14 @@ class LidarCenterNetHead(nn.Module):
         yaw_class = torch.argmax(yaw_class, -1)
         yaw = self.class2angle(yaw_class, yaw_res.squeeze(2))
 
-        
-        velocity = g_t.transpose_and_gather_feat(velocity_pred, batch_index)
-        brake = g_t.transpose_and_gather_feat(brake_pred, batch_index)
-        brake = torch.argmax(brake, -1)
-        velocity = velocity[..., 0]
-
+        if self.config.velocity_brake_prediction:
+            velocity = g_t.transpose_and_gather_feat(velocity_pred, batch_index)
+            brake = g_t.transpose_and_gather_feat(brake_pred, batch_index)
+            brake = torch.argmax(brake, -1)
+            velocity = velocity[..., 0]
+        else:
+            velocity=torch.zeros_like(yaw)
+            brake=torch.zeros_like(yaw)
         topk_xs = topk_xs + offset[..., 0]
         topk_ys = topk_ys + offset[..., 1]
 
