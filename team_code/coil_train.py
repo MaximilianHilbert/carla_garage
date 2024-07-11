@@ -613,6 +613,13 @@ if __name__ == "__main__":
         required=1
 
     )
+    parser.add_argument(
+        "--subsampling",
+        type=int,
+        choices=[0,1],
+        default=0
+
+    )
     parser.add_argument("--datarep",type=int, default=1)
     parser.add_argument("--backbone",type=str, default="resnet", choices=["videoresnet", "resnet", "swin", "x3d"])
     arguments = parser.parse_args()

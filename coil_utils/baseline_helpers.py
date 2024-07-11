@@ -124,14 +124,8 @@ def merge_with_command_line_args(config, args):
             setattr(config, key, value)
 
 def get_ablations_dict():
-    return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "framehandling": "unrolling", "datarep":1, "augment": 0, "freeze": 0, "backbone": "resnet", "pretrained": 0}
-def determine_normalization_strategy(config):
-    if config.backbone=="resnet" and config.pretrained==1:
-        setattr(config, "normalization_strategy", "imagenet")
-    if (config.backbone=="swin" or config.backbone=="videoresnet" or config.backbone=="x3d")  and config.pretrained==1:
-        setattr(config, "normalization_strategy", "kinetics")
-    if config.pretrained==0:
-        setattr(config, "normalization_strategy", "default")
+    return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "framehandling": "unrolling", "datarep":1, "augment": 0, "freeze": 0, "backbone": "resnet", "pretrained": 0, "subsampling": 0}
+
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
     if "bcoh" in config.baseline_folder_name or "arp" in config.baseline_folder_name or "keyframes" in config.baseline_folder_name:
@@ -153,7 +147,19 @@ def set_baseline_specific_args(config, experiment_name, args):
         setattr(config, "epochs_baselines", 300)
         setattr(config, "waypoint_weight_generation", True)
     return config
-
+def set_subsampling_strategy(config):
+    if config.subsampling:
+        if config.backbone!="resnet" and config.backbone!="videoresnet":
+            our_fps=config.carla_fps/config.data_save_freq
+            backbone_fps=config.video_model_transform_params[config.backbone]["fps"]
+            backbone_sampling_rate=config.video_model_transform_params[config.backbone]["sampling_rate"]
+            backbone_temporal_delta=backbone_sampling_rate/backbone_fps
+            our_sampling_rate=int(np.ceil(backbone_temporal_delta*our_fps))
+            setattr(config, "sampling_rate", our_sampling_rate)
+    else:
+        #resnet is pretrained on 1 single image, so the spacing between images is irrelevant or if we dont want to subsample at all
+        setattr(config, "sampling_rate", 1)
+    return config
 def merge_config(args, experiment_name, training=True):
     # due to the baselines using the coiltraine framework, we merge our config file config.py with the .yaml files configuring the baseline models
     # init transfuser config file, necessary for the dataloader
@@ -163,6 +169,7 @@ def merge_config(args, experiment_name, training=True):
     
     merge_with_command_line_args(shared_configuration, args)
     shared_configuration=set_baseline_specific_args(shared_configuration, experiment_name, args)
+    shared_configuration=set_subsampling_strategy(shared_configuration)
     return shared_configuration
 
 
@@ -207,7 +214,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     loss_velocity=None
 ):
     
-    rgb=t_u.normalization_wrapper(x=rgb, dataset_name=config.normalization_strategy, type="unnormalize")
+    rgb=t_u.normalization_wrapper(x=rgb, config=config, type="unnormalize")
     
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
