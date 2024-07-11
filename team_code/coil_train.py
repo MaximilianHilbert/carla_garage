@@ -288,7 +288,7 @@ def main(args):
                     mem_extract_scheduler.step()
 
                 else:
-                    if epoch==1 and iteration==1:
+                    if epoch==1 and iteration==1 and args.show_model_complexity==1:
                         dummy_input=torch.ones_like(all_images)
                         summary(model=model, input_data=[dummy_input,torch.ones((merged_config_object.batch_size,1)),
                                                          torch.ones_like(target_point) ,
@@ -552,6 +552,13 @@ if __name__ == "__main__":
         type=str,
         choices=["stacking","unrolling"],
         default="unrolling",
+
+    )
+    parser.add_argument(
+        "--show-model-complexity",
+        type=int,
+        choices=[0,1],
+        default=0
 
     )
     parser.add_argument(
