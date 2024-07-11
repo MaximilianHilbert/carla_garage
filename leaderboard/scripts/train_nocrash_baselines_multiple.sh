@@ -32,7 +32,7 @@ export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 #seeds must match repetition number
 python $WORK_DIR/train_nocrash_baselines.py --repetitions 3 \
- --seeds 10214 43534 53543 --bev 1 --detectboxes 1 --backbone videoresnet \
- --baseline-folder-names bcso bcoh keyframes arp --batch-sizes 10 3 3 3 \
- --walltimes 30 30 30 30 --pretrained 1 --train-local 0 \
- --setting 02_withheld --cluster galvani
+ --seeds 10214 43534 53543 --bev 1 --detectboxes 1 --backbone swin \
+ --baseline-folder-names bcso bcoh --batch-sizes X X \
+ --walltimes 72 72 --pretrained 1 --subsample 1 --train-local 0 \
+ --cluster galvani
