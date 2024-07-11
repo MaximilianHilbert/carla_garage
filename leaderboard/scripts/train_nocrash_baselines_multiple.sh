@@ -34,5 +34,5 @@ export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 python $WORK_DIR/train_nocrash_baselines.py --repetitions 3 \
  --seeds 10214 43534 53543 --bev 1 --detectboxes 1 --backbone swin \
  --baseline-folder-names bcso bcoh --batch-sizes X X \
- --walltimes 72 72 --pretrained 1 --subsample 1 --train-local 0 \
+ --walltimes 72 72 --pretrained 1 --subsampling 1 --train-local 0 \
  --cluster galvani
