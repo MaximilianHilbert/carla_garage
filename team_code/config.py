@@ -57,6 +57,7 @@ class GlobalConfig:
         self.closed_loop_previous_waypoint_predictions=5
         self.waypoint_weight_generation = False
         self.epochs_baselines =30
+        self.every_epoch =2
         self.epochs_after_freeze=15
         self.lidar_seq_len = 1
         self.rgb_input_channels=3
@@ -76,7 +77,7 @@ class GlobalConfig:
         self.learning_rate_multi_obs=0.6e-4 # with batch size 3
         self.reduced_channel_dimension=256
         self.use_color_aug= 0
-        self.every_epoch =2
+        
         self.loss_function_baselines = "L1"
         # keyframes
         self.importance_sample_method = "threshold"
