@@ -54,18 +54,18 @@ class TimeFuser(nn.Module):
             #self.time_position_embedding = nn.Parameter(torch.zeros(self.img_token_len, self.channel_dimension,self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
             self.time_position_embedding=get_sinusoidal_positional_embedding_image_order
             self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
-        if self.config.backbone=="x3d":
-            self.image_encoder=X3D(model_name="x3d_s")
+        if self.config.backbone.startswith("x3d"):
+            self.image_encoder=X3D(model_name=self.config.backbone)
             self.channel_dimension=self.image_encoder.output_channels
         if self.config.speed:
             if self.name=="arp-policy":
                 # 1 time the velocity (current timestep only)
-                self.speed_layer = nn.Linear(in_features=self.total_steps_considered, out_features=self.channel_dimension)
+                self.speed_layer = nn.Linear(in_features=1, out_features=self.channel_dimension)
             elif self.name=="arp-memory":
                 # 6 times the velocity (of previous timesteps only)
-                self.speed_layer = nn.Linear(in_features=self.total_steps_considered, out_features=self.channel_dimension)
+                self.speed_layer = nn.Linear(in_features=self.total_steps_considered-1, out_features=self.channel_dimension)
             else:
-                self.speed_layer = nn.Linear(in_features=7, out_features=self.channel_dimension)
+                self.speed_layer = nn.Linear(in_features=self.total_steps_considered, out_features=self.channel_dimension)
         if self.config.prevnum>0 and self.name!="arp-policy":
             #we input the previous waypoints in our ablations only in the memory stream of arp
             self.previous_wp_layer = nn.Linear(in_features=self.config.target_point_size*self.config.prevnum, out_features=self.channel_dimension)
@@ -195,7 +195,7 @@ class TimeFuser(nn.Module):
                 for layer in self.image_encoder.layers.values():
                     x=layer(x)
                 x=x.flatten(start_dim=2, end_dim=4).permute(0,2,1).contiguous()
-            if self.config.backbone=="videoresnet" or self.config.backbone=="x3d":
+            if self.config.backbone=="videoresnet" or self.config.backbone.startswith("x3d"):
                 x=x.permute(0,2,1,3,4)
                 for _,layer in self.image_encoder.items():
                     x=layer(x)

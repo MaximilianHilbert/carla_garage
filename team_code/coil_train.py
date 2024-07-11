@@ -621,7 +621,7 @@ if __name__ == "__main__":
 
     )
     parser.add_argument("--datarep",type=int, default=1)
-    parser.add_argument("--backbone",type=str, default="resnet", choices=["videoresnet", "resnet", "swin", "x3d"])
+    parser.add_argument("--backbone",type=str, default="resnet", choices=["videoresnet", "resnet", "swin", "x3d_xs", "x3d_s"])
     arguments = parser.parse_args()
 
     main(arguments)
