@@ -40,7 +40,7 @@ def generate_experiment_name(args, distributed_baseline_folder_name=None):
 def extract_and_normalize_data(args, device_id, merged_config_object, data):
         
     all_images=data["rgb"].to(device_id).to(torch.float32)
-    all_images=t_u.normalization_wrapper(x=all_images,dataset_name=merged_config_object.normalization_strategy,type="normalize")
+    all_images=t_u.normalization_wrapper(x=all_images,config=merged_config_object,type="normalize")
     
     if merged_config_object.speed:
         all_speeds = data["speed"].to(device_id)
