@@ -29,6 +29,28 @@ class GlobalConfig:
         """base architecture configurations"""
         # COIL Baselines
         # Dataloader
+        self.video_model_transform_params  = {
+    "x3d_xs": {
+        "side_size": 182,
+        "crop_size": 182,
+        "num_frames": 4,
+        "sampling_rate": 12,
+        "fps": 30
+    },
+        "x3d_s": {
+        "side_size": 182,
+        "crop_size": 182,
+        "num_frames": 13,
+        "sampling_rate": 6,
+        "fps": 30
+    },
+    "swin":{
+        "num_frames": 32,
+        "sampling_rate": 2,
+        "fps": 30
+    }
+
+        }
         self.considered_images_incl_current=3
         self.target_point_size=2
         self.number_future_waypoints = 1
