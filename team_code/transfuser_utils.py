@@ -16,7 +16,6 @@ import shapely
 import itertools
 from copy import deepcopy
 
-
 def normalize_angle(x):
     x = x % (2 * np.pi)  # force in range [0, 2 pi)
     if x > np.pi:  # move to [-pi, pi)
@@ -623,22 +622,25 @@ def calculate_intrinsic_matrix(fov, height, width):
 
     return intrinsics
 
-def normalization_wrapper(x, dataset_name="imagenet",type="normalize"):
-    if dataset_name=="imagenet":
+def normalization_wrapper(x, config,type="normalize"):
+    if config.backbone=="resnet" and config.pretrained==1:
         norm_params = [
     (0.485, 0.229),
     (0.456, 0.224),
     (0.406, 0.225)
 ]
-    if dataset_name=="kinetics":
-       norm_params=[(0.43216, 0.22803) ,(0.394666,0.22145) , (0.37645,0.216989)]
-    if dataset_name=="default":
+        
+    if config.backbone=="swin"  and config.pretrained==1:
+       norm_params=[(123.675, 58.395) ,(116.28,57.12) , (103.53,57.375)]
+    if config.pretrained==0:
         norm_params=[(0,1), (0,1), (0,1)]
+    if config.backbone.startswith("x3d") and config.pretrained==1:
+        norm_params=[(0.45,0.225), (0.45,0.225), (0.45,0.225)]
     channel_dim=x.shape[2]
     if type=="normalize":
         for i in range(channel_dim):
             mean, std = norm_params[i % 3]
-            x[:,:, i] = ((x[:,:, i] / 255.0) - mean) / std
+            x[:,:, i] = (x[:,:, i] / 255.0 - mean) / std
     else:
         for i in range(channel_dim):
             mean, std = norm_params[i % 3]
