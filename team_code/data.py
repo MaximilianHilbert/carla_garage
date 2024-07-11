@@ -461,8 +461,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             loaded_boxes.append(boxes_i)
             loaded_future_boxes.append(future_boxes_i)
 
-        
-        loaded_temporal_and_current_measurements = self.load_temporal_measurements(temporal_and_current_measurements)
+        if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0:
+            loaded_temporal_and_current_measurements = self.load_temporal_measurements(temporal_and_current_measurements)
+        else:
+            loaded_temporal_and_current_measurements = self.load_temporal_measurements(temporal_and_current_measurements[-2:])
 
         current_measurement = loaded_temporal_and_current_measurements[-1]
 
