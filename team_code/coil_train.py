@@ -234,7 +234,7 @@ def main(args):
                         "targets_bb": targets_bb,
                         "device_id": device_id,
                         "epoch": epoch,
-                        "ego_velocity": all_speeds[:,:-1] #only previous velocities will be learned by the memory stream
+                        "ego_velocity": all_speeds[:,:-1] if all_speeds is not None else None#only previous velocities will be learned by the memory stream
                     }
 
                     mem_extract_loss,_, head_losses= mem_extract.module.compute_loss(params=loss_function_params_memory)
@@ -256,7 +256,7 @@ def main(args):
                         "targets_bb": targets_bb,
                         "device_id": device_id,
                         "epoch": epoch,
-                        "ego_velocity": all_speeds[:,-1] #policy stream only learns current velocity
+                        "ego_velocity": all_speeds[:,-1] if all_speeds is not None else None#policy stream only learns current velocity
                         
                     }
                     policy_loss,plotable_losses,head_losses= policy.module.compute_loss(params=loss_function_params_policy)
@@ -355,7 +355,7 @@ def main(args):
                         **reweight_params,
                         "device_id": device_id,
                         "epoch": epoch,
-                        "ego_velocity": all_speeds[:,-1]#only current velocity is relevant
+                        "ego_velocity": all_speeds[:,-1] if all_speeds is not None else None#only current velocity is relevant
                         
                     }
                     if "keyframes" in merged_config_object.baseline_folder_name:
@@ -369,7 +369,7 @@ def main(args):
                         combined_losses.append(loss.cpu().item())
                         detailed_losses.append(plotable_losses)
                         head_losses_lst.append(head_losses)
-                if args.debug and epoch%100==0:
+                if args.debug and epoch%2==0:
                     if merged_config_object.detectboxes:
                         if "arp" in merged_config_object.baseline_folder_name:
                             batch_of_bbs_pred=policy.module.convert_features_to_bb_metric(pred_dict_policy["pred_bb"])
