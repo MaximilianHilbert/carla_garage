@@ -186,7 +186,7 @@ class CoILAgent(AutonomousAgent):
             current_image = current_data.get("CentralRGB")[1][..., :3]
             current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
             current_image=torch.from_numpy(current_image).type(torch.FloatTensor)
-            current_image=t_u.normalization_wrapper(x=current_image,dataset_name=self.config.normalization_strategy, type="normalize")
+            current_image=t_u.normalization_wrapper(x=current_image,config=self.config, type="normalize")
             current_speed=current_data.get("speed")[1]["speed"]
             current_position = self.vehicle.get_location()
             current_position = np.array([current_position.x, current_position.y])
@@ -268,7 +268,7 @@ class CoILAgent(AutonomousAgent):
         current_image = sensor_data.get("CentralRGB")[1][..., :3]
         current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
         current_image=torch.from_numpy(current_image).type(torch.FloatTensor)
-        current_image=t_u.normalization_wrapper(x=current_image, dataset_name=self.config.normalization_strategy, type="normalize")
+        current_image=t_u.normalization_wrapper(x=current_image, config=self.config, type="normalize")
         vehicle_speed=sensor_data.get("speed")[1]["speed"]
         #add data to queues in beginning of the loop, so we have historical information + current information and then subsample before it comes into the model
         # here we add the current one but the self.prev_location_queue does append later, we fuse only historical locations, but also current speeds and observations
