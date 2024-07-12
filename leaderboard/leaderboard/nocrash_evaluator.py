@@ -20,6 +20,7 @@ from argparse import RawTextHelpFormatter
 from datetime import datetime
 from distutils.version import LooseVersion
 import importlib
+from coil_utils.baseline_helpers import get_ablations_dict
 from coil_utils.baseline_helpers import merge_with_command_line_args
 import os
 import csv
@@ -106,6 +107,10 @@ class NoCrashEvaluator(object):
         merge_with_command_line_args(config, args)
         if args.override_seq_len:
             setattr(config, "replay_seq_len", args.override_seq_len)
+        for ablation, value in get_ablations_dict().items():
+            if ablation not in config.__dict__:
+                setattr(config, ablation, value)
+      
         self.config = config
         # First of all, we need to create the client that will send the requests
         # to the simulator. Here we'll assume the simulator is accepting
