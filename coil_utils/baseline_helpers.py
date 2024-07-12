@@ -157,6 +157,8 @@ def set_subsampling_strategy(config):
             backbone_temporal_delta=backbone_sampling_rate/backbone_fps
             our_sampling_rate=int(np.ceil(backbone_temporal_delta*our_fps))
             setattr(config, "sampling_rate", our_sampling_rate)
+        else:
+            setattr(config, "sampling_rate", 1)
     else:
         #resnet is pretrained on 1 single image, so the spacing between images is irrelevant or if we dont want to subsample at all
         setattr(config, "sampling_rate", 1)
