@@ -631,8 +631,7 @@ def normalization_wrapper(x, config,type="normalize"):
 ]
         
     if config.backbone=="swin"  and config.pretrained==1:
-       norm_params=[(123.675, 58.395) ,(116.28,57.12) , (103.53,57.375)] #neue normierung
-       #norm_params=[(0.43216, 0.22803) ,(0.394666,0.22145) , (0.37645,0.216989)] #alte normierung
+       norm_params=[(0.43216, 0.22803) ,(0.394666,0.22145) , (0.37645,0.216989)]
     if config.pretrained==0:
         norm_params=[(0,1), (0,1), (0,1)]
     if config.backbone.startswith("x3d") and config.pretrained==1:
