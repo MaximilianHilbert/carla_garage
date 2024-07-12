@@ -93,25 +93,10 @@ def main(args):
             epoch = 0
             best_loss = 10000.0
             best_loss_epoch = 0
-        if bool(args.use_disk_cache):
-            # NOTE: This is specific to our cluster setup where the data is stored on slow storage.
-            # During training, we cache the dataset on the fast storage of the local compute nodes.
-            # Adapt to your cluster setup as needed. Important initialize the parallel threads from torch run to the
-            # same folder (so they can share the cache).
-            if args.debug:
-                tmp_folder = str("/home/maximilian/Master/tmp")
-            else:
-                tmp_folder = str(os.environ.get("SCRATCH", "/tmp"))
-            print("Tmp folder for dataset cache: ", tmp_folder)
-            tmp_folder = tmp_folder + "/dataset_cache"
-            shared_dict = Cache(directory=tmp_folder, size_limit=int(1800 * 1024**3))
-        else:
-            shared_dict = None
         # introduce new dataset from the Paper TransFuser++
         dataset = CARLA_Data(
             root=merged_config_object.train_data,
             config=merged_config_object,
-            shared_dict=shared_dict,
             rank=rank,
             baseline=args.baseline_folder_name
         )
