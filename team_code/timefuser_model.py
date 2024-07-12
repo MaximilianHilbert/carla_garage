@@ -213,7 +213,7 @@ class TimeFuser(nn.Module):
                     x=layer(x)
                 x=x.flatten(start_dim=2, end_dim=4).permute(0,2,1).contiguous()
         if self.config.speed:
-            measurement_enc = self.speed_layer(speed).unsqueeze(0).unsqueeze(0) #we add the token dimension here
+            measurement_enc = self.speed_layer(speed).unsqueeze(1).unsqueeze(1) #we add the token dimension here
         else:
             measurement_enc = None
         if self.config.prevnum>0 and self.name!="arp-policy":
