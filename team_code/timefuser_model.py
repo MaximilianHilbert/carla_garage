@@ -63,9 +63,9 @@ class TimeFuser(nn.Module):
                 self.speed_layer = nn.Linear(in_features=1, out_features=self.channel_dimension)
             elif self.name=="arp-memory":
                 # 6 times the velocity (of previous timesteps only)
-                self.speed_layer = nn.Linear(in_features=self.total_steps_considered-1, out_features=self.channel_dimension)
+                self.speed_layer = nn.Linear(in_features=1, out_features=self.channel_dimension)
             else:
-                self.speed_layer = nn.Linear(in_features=self.total_steps_considered, out_features=self.channel_dimension)
+                self.speed_layer = nn.Linear(in_features=1, out_features=self.channel_dimension)
         if self.config.prevnum>0 and self.name!="arp-policy":
             #we input the previous waypoints in our ablations only in the memory stream of arp
             self.previous_wp_layer = nn.Linear(in_features=self.config.target_point_size*self.config.prevnum, out_features=self.channel_dimension)
