@@ -42,7 +42,7 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
     all_images=data["rgb"].to(device_id).to(torch.float32)
     all_images=t_u.normalization_wrapper(x=all_images,config=merged_config_object,type="normalize")
     
-    if merged_config_object.speed:
+    if merged_config_object.speed or merged_config_object.ego_velocity_prediction==1:
         all_speeds = data["speed"].to(device_id)
     else:
         all_speeds = None

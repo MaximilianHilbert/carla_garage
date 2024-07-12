@@ -233,7 +233,8 @@ def main(args):
                         "bev_targets": bev_semantic_labels,
                         "targets_bb": targets_bb,
                         "device_id": device_id,
-                        "epoch": epoch
+                        "epoch": epoch,
+                        "ego_velocity": all_speeds[:,:-1] #only previous velocities will be learned by the memory stream
                     }
 
                     mem_extract_loss,_, head_losses= mem_extract.module.compute_loss(params=loss_function_params_memory)
@@ -254,7 +255,8 @@ def main(args):
                         "bev_targets": bev_semantic_labels,
                         "targets_bb": targets_bb,
                         "device_id": device_id,
-                        "epoch": epoch
+                        "epoch": epoch,
+                        "ego_velocity": all_speeds[:,-1] #policy stream only learns current velocity
                         
                     }
                     policy_loss,plotable_losses,head_losses= policy.module.compute_loss(params=loss_function_params_policy)
@@ -352,7 +354,8 @@ def main(args):
                         "targets_bb": targets_bb,
                         **reweight_params,
                         "device_id": device_id,
-                        "epoch": epoch
+                        "epoch": epoch,
+                        "ego_velocity": all_speeds[:,-1]#only current velocity is relevant
                         
                     }
                     if "keyframes" in merged_config_object.baseline_folder_name:
@@ -577,6 +580,13 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
+        "--ego-velocity-prediction",
+        type=int,
+        choices=[0,1],
+        default=0
+
+    )
+    parser.add_argument(
         "--detectboxes",
         type=int,
         choices=[0,1],
@@ -640,5 +650,9 @@ if __name__ == "__main__":
     parser.add_argument("--backbone",type=str, default="resnet", choices=["videoresnet", "resnet", "swin", "x3d_xs", "x3d_s"])
     arguments = parser.parse_args()
     if not arguments.detectboxes and arguments.velocity_brake_prediction:
-        parser.error("When velocity_brake prediction is activted, detectboxes has to be true to")
+        parser.error("When velocity_brake prediction is activated, detectboxes has to be true to")
+    if not arguments.bev and arguments.detectboxes:
+        parser.error("When detectboxes prediction is activated, bev queries have to be formed first")
+    if not arguments.bev and arguments.velocity_brake_prediction:
+        parser.error("When velocity_brake_prediction prediction is activated, bev queries have to be formed first")
     main(arguments)

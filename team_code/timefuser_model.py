@@ -159,7 +159,19 @@ class TimeFuser(nn.Module):
                     align_corners=False,
                 ),
                 )
-        
+        if self.config.ego_velocity_prediction:
+            self.downsample_to_ego_velocity= nn.Sequential( nn.Conv2d(
+                    self.config.bb_feature_channel,
+                    self.config.bb_feature_channel,
+                    kernel_size=(3, 3),
+                    stride=1,
+                    padding=(1, 1),
+                    bias=True,
+                ),
+                nn.AdaptiveAvgPool2d((1, 1)))
+            
+            self.ego_velocity_predictor=nn.Sequential(nn.Linear(in_features=self.config.bb_feature_channel, out_features=self.config.hidden_ego_velocity_head),
+                nn.Linear(in_features=self.config.hidden_ego_velocity_head, out_features=1))
         #self.apply(init_weights)
     
     def forward(self, x, speed=None, target_point=None, prev_wp=None, memory_to_fuse=None):
@@ -252,6 +264,10 @@ class TimeFuser(nn.Module):
             bev_tokens=self.change_channel_bev_to_bb_and_upscale(bev_tokens)
             pred_bb=self.head(bev_tokens)
             pred_dict.update({"pred_bb": pred_bb})
+        if self.config.ego_velocity_prediction:
+            bev_tokens=self.downsample_to_ego_velocity(bev_tokens)
+            ego_velocity_prediction=self.ego_velocity_predictor(bev_tokens.flatten())
+            pred_dict.update({"pred_ego_velocity": ego_velocity_prediction})
         return pred_dict
 
     def set_img_token_len_and_channels_and_seq_len(self):
@@ -314,8 +330,11 @@ class TimeFuser(nn.Module):
             losses["detect_loss"]=sub_loss.squeeze()
         else:
             head_loss=None
+        if self.config.ego_velocity_prediction:
+            ego_velocity_loss=l1_loss(params["pred_ego_velocity"], params["ego_velocity"])
+            losses["ego_velocity_loss"]=ego_velocity_loss
         #watch out with order of losses
-        final_loss= torch.sum(torch.stack(list(losses.values()))*torch.tensor(self.config.lossweights, device=params["device_id"], dtype=torch.float32))
+        final_loss= torch.sum(torch.stack(list(losses.values()))*torch.tensor(self.config.lossweights, device=params["device_id"], dtype=torch.float32)/(len(self.config.lossweights)))
 
         if keyframes:
             importance_sampling_method = params["importance_sampling_method"]
