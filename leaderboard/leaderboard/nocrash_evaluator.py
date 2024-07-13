@@ -110,6 +110,8 @@ class NoCrashEvaluator(object):
         for ablation, value in get_ablations_dict().items():
             if ablation not in config.__dict__:
                 setattr(config, ablation, value)
+        if "sampling_rate" not in config.__dict__:
+            setattr(config, "sampling_rate", 1)
         setattr(config, "max_img_seq_len_baselines", 3)
         self.config = config
         # First of all, we need to create the client that will send the requests
