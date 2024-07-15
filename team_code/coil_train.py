@@ -316,7 +316,7 @@ def main(args):
                 if "bcso" in merged_config_object.baseline_folder_name or "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
                     if iteration>100 and iteration<150 and epoch==1:
                         timer.tic()
-                    pred_dict= model(x=all_images, speed=all_speeds[:,-1].unsqueeze(1), target_point=target_point, prev_wp=additional_previous_waypoints)
+                    pred_dict= model(x=all_images, speed=all_speeds[:,-1].unsqueeze(1) if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
                     
                     if iteration>100 and iteration<150 and epoch==1:
                         forward_time=timer.tocvalue(restart=True)

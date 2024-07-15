@@ -309,7 +309,7 @@ class CoILAgent(AutonomousAgent):
         else:
             with torch.no_grad():
                 pred_dict = self.model.module.forward(
-                        x=all_images.unsqueeze(0),speed=prev_speeds if self.config.speed else None,
+                        x=all_images.unsqueeze(0),speed=prev_speeds[:,-1:,...] if self.config.speed else None,
                         target_point=end_point_location_ego_system,
                     prev_wp=vehicle_prev_positions,
                     )
