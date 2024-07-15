@@ -565,7 +565,7 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
-        "--ego-velocity-prediction",
+        "--ego_velocity_prediction",
         type=int,
         choices=[0,1],
         default=0
@@ -579,7 +579,7 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
-        "--velocity-brake-prediction",
+        "--velocity_brake_prediction",
         type=int,
         choices=[0,1],
         default=0
