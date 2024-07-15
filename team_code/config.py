@@ -81,7 +81,7 @@ class GlobalConfig:
                              "x3d_xs": 1e-4,#with a batchsize of 5 per gpu
                              "resnet": 1e-4#batchsize of 5 per gpu
                              },
-                             "arp":{"swin": 0.5e-4,#with batchsize of 2 per gpu
+                             "arp":{"swin": 0.75e-4,#with batchsize of 3 per gpu
                              "x3d_xs": 1e-4,#with a batchsize of 5 per gpu
                              "resnet": 1e-4#batchsize of 5 per gpu
                              }}
