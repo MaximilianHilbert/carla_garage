@@ -25,8 +25,8 @@ class TimeFuser(nn.Module):
         measurement_contribution=1 if self.config.speed else 0
         previous_wp_contribution=1 if self.config.prevnum>0 else 0
         memory_contribution=1 if self.name=="arp-policy" else 0
-       
-        self.extra_sensor_memory_contribution=sum([measurement_contribution, previous_wp_contribution,memory_contribution*512])
+        
+        
         self.set_img_token_len_and_channels_and_seq_len()
         
         if self.config.backbone=="swin":
@@ -37,16 +37,24 @@ class TimeFuser(nn.Module):
                 pretrained_path=None
             self.image_encoder=SwinTransformer3D(depths=(2, 2, 6,2),
         num_heads=(3, 6, 12, 24), pretrained=pretrained_path)
-            self.remaining_spatial_dimension=2*256 if "arp-memory" in self.name or "bcoh" in self.config.baseline_folder_name else 256
             self.channel_dimension=self.image_encoder.num_features
+            if self.name=="arp-policy":
+                self.remaining_spatial_dimension=256
+                self.remaining_spatial_dimension_memory=sum([i%2==0 for i in range(self.config.considered_images_incl_current-1) ])*256 #dependent on swin transformer
+            if self.name=="arp-memory":
+                self.remaining_spatial_dimension=sum([i%2==0 for i in range(self.config.considered_images_incl_current-1) ])*256 #dependent on swin transformer
+            if "bcoh" in self.config.baseline_folder_name:
+                self.remaining_spatial_dimension=sum([i%2==0 for i in range(self.config.considered_images_incl_current) ])*256 #dependent on swin transformer
+            if "bcso" in self.config.baseline_folder_name:
+                self.remaining_spatial_dimension=256 #dependent on swin transformer
         if self.config.backbone=="videoresnet":
             self.image_encoder=VideoResNet(in_channels=3, pretrained="R2Plus1D_18_Weights.KINETICS400_V1" if self.config.pretrained else None)
+            self.remaining_spatial_dimension=256 #dependent on swin transformer
             self.channel_dimension=self.image_encoder.feature_info.info[-1]["num_chs"]
-            self.remaining_spatial_dimension=256
         if self.config.backbone=="resnet":
             self.image_encoder=AIMBackbone(config, channels=self.input_channels, pretrained=True if self.config.pretrained else False)
-            self.remaining_spatial_dimension=256
             original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
+            self.remaining_spatial_dimension=256 #dependent on swin transformer
             self.channel_dimension=self.config.reduced_channel_dimension
             self.change_channel = nn.Conv2d(
                         original_channel_dimension,
@@ -55,6 +63,11 @@ class TimeFuser(nn.Module):
                     )
             #self.time_position_embedding = nn.Parameter(torch.zeros(self.img_token_len, self.channel_dimension,self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
             self.time_position_embedding=get_sinusoidal_positional_embedding_image_order
+        if self.name=="arp-policy":
+            memory_contribution=memory_contribution*self.remaining_spatial_dimension_memory
+        if self.name=="arp-memory":
+            memory_contribution=memory_contribution*self.remaining_spatial_dimension
+        self.extra_sensor_memory_contribution=sum([measurement_contribution, previous_wp_contribution,memory_contribution])
         self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
         self.sensor_fusion_embedding = nn.Parameter(torch.zeros(self.remaining_spatial_dimension+self.extra_sensor_memory_contribution,self.channel_dimension))
         if self.config.backbone.startswith("x3d"):
