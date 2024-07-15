@@ -616,7 +616,7 @@ def save_checkpoint_and_delete_prior(state, merged_config_object, args, epoch):
         os.environ.get("WORK_DIR"),
         "_logs",
         merged_config_object.baseline_folder_name,
-        merged_config_object.experiment,
+        args.experiment_id,
         f"repetition_{str(args.training_repetition)}",
         args.setting,
         "checkpoints")

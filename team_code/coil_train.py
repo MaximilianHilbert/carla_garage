@@ -58,12 +58,12 @@ def main(args):
     basepath=os.path.join(os.environ.get("WORK_DIR"),
                     "_logs",
                     merged_config_object.baseline_folder_name,
-                    experiment_name, 
+                    args.experiment_id, 
                     f"repetition_{str(args.training_repetition)}",
                     args.setting)
     logger = Logger(
         merged_config_object.baseline_folder_name,
-        experiment_name,
+        args.experiment_id,
         args.training_repetition,
         args.setting,
     )
@@ -629,6 +629,12 @@ if __name__ == "__main__":
         type=int,
         choices=[0,1],
         default=0
+
+    )
+    parser.add_argument(
+        "--experiment-id",
+        type=str,
+        required=True
 
     )
     parser.add_argument("--datarep",type=int, default=1)
