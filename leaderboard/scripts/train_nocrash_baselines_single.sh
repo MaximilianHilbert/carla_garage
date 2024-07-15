@@ -66,4 +66,4 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 \
  --batch-size 5 \
  --bev 1 --detectboxes 1 \
  --training-repetition 0 --backbone videoresnet \
- --pretrained 1 --subsampling 1 --eval-id id_000
+ --pretrained 1 --subsampling 1 --experiment-id id_000
