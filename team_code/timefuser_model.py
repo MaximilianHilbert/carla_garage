@@ -246,7 +246,7 @@ class TimeFuser(nn.Module):
         if len(additional_inputs)!=0 and self.config.backbone=="swin":
             additional_inputs=torch.cat(additional_inputs, dim=1)
             x=torch.cat((x,additional_inputs), axis=1).contiguous()
-        x=x+self.sensor_fusion_embedding.expand(*x.shape)
+        x=x+self.sensor_fusion_embedding.repeat(bs,1,1)
         x=self.transformer_encoder(x)
         if self.config.bev or self.config.detectboxes:
             queries=torch.cat((self.wp_query, self.bev_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
