@@ -63,15 +63,15 @@ class CoILAgent(AutonomousAgent):
         #TODO remove after configs are correctly trained
         self.config.replay_seq_len=100
         self.first_iter = True
-        self.prev_rgb_queue = deque(maxlen=self.config.img_seq_len*self.config.data_save_freq)
-        self.prev_speeds_queue = deque(maxlen=(self.config.max_img_seq_len_baselines+1)*self.config.data_save_freq) #we fuse the previous and the current timestep velocity
-        self.prev_location_queue=deque(maxlen=self.config.max_img_seq_len_baselines*self.config.data_save_freq) # we fuse only the previous 6 timesteps locations
+        self.prev_rgb_queue = deque(maxlen=self.config.img_seq_len*self.config.data_save_freq*self.config.sampling_rate)
+        self.prev_speeds_queue = deque(maxlen=(self.config.max_img_seq_len_baselines+1)*self.config.data_save_freq*self.config.sampling_rate) #we fuse the previous and the current timestep velocity
+        self.prev_location_queue=deque(maxlen=self.config.max_img_seq_len_baselines*self.config.data_save_freq*self.config.sampling_rate) # we fuse only the previous 6 timesteps locations
         #queues for replay simulation
-        self.replay_image_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq)
-        self.replay_current_predictions_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq)
-        self.replay_target_points_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq)
-        self.replay_road_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq)
-        self.replay_pred_residual_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq)
+        self.replay_image_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
+        self.replay_current_predictions_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
+        self.replay_target_points_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
+        self.replay_road_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
+        self.replay_pred_residual_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
         self.track = Track.SENSORS
         self._global_plan = None
         self._global_plan_world_coord = None
@@ -276,7 +276,7 @@ class CoILAgent(AutonomousAgent):
         self.prev_speeds_queue.append(vehicle_speed)
         
         #TODO test if reversal is correct also for ablations @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-        prev_speeds=list(self.prev_speeds_queue)[::-self.config.data_save_freq]
+        prev_speeds=list(self.prev_speeds_queue)[::-self.config.data_save_freq*self.config.sampling_rate]
         prev_speeds.reverse()
         prev_speeds=torch.tensor(prev_speeds, dtype=torch.float32).unsqueeze(0).cuda("cuda:0")
 
@@ -285,7 +285,7 @@ class CoILAgent(AutonomousAgent):
 
         all_images = self._process_sensors(image_input_queue)
         if self.config.prevnum>0:
-            prev_locations=list(self.prev_location_queue)[::-self.config.data_save_freq]
+            prev_locations=list(self.prev_location_queue)[::-self.config.data_save_freq*self.config.sampling_rate]
             prev_locations.reverse()
             vehicle_prev_positions=torch.tensor(np.array([inverse_conversion_2d(wp, current_location, current_yaw_ego_system) for wp in prev_locations], dtype=np.float32)).unsqueeze(0).to("cuda:0")
         else:
@@ -381,11 +381,11 @@ class CoILAgent(AutonomousAgent):
         print("current location")
         print(current_location)
     
-        return control,{"image_sequence": list(self.replay_image_queue)[::-self.config.data_save_freq],
-                "current_predictions": list(self.replay_current_predictions_queue)[::-self.config.data_save_freq],
-                "target_points": list(self.replay_target_points_queue)[::-self.config.data_save_freq],
-                "roads": list(self.replay_road_queue)[::-self.config.data_save_freq],
-                "pred_residual": list(self.replay_pred_residual_queue)[::-self.config.data_save_freq],
+        return control,{"image_sequence": list(self.replay_image_queue)[::-self.config.data_save_freq*self.config.sampling_rate],
+                "current_predictions": list(self.replay_current_predictions_queue)[::-self.config.data_save_freq*self.config.sampling_rate],
+                "target_points": list(self.replay_target_points_queue)[::-self.config.data_save_freq*self.config.sampling_rate],
+                "roads": list(self.replay_road_queue)[::-self.config.data_save_freq*self.config.sampling_rate],
+                "pred_residual": list(self.replay_pred_residual_queue)[::-self.config.data_save_freq*self.config.sampling_rate],
                 "forward_time": np.nanmean(np.array(self.timing))},self.model if self.config.baseline_folder_name!="arp" else self._policy,image_to_save
 
     def control_pid(self, waypoints, speed):
@@ -398,7 +398,7 @@ class CoILAgent(AutonomousAgent):
 
 
         # m / s required to drive between waypoint 0.5 and 1.0 second in the future
-        one_second = int(self.config.carla_fps // (self.config.wp_dilation * self.config.data_save_freq))
+        one_second = int(self.config.carla_fps // (self.config.wp_dilation * self.config.data_save_freq*self.config.sampling_rate))
         half_second = one_second // 2
         desired_speed = np.linalg.norm(waypoints[half_second - 1] - waypoints[one_second - 1]) * 2.0
 
