@@ -208,7 +208,7 @@ def main(args):
                     #the baseline is defined as getting everything except the last (current) frame into the memory stream, same for speed input
                     if iteration>100 and iteration<150 and epoch==1:
                         timer.tic()
-                    pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
+                    pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...], target_point=target_point, prev_wp=additional_previous_waypoints)
                     if iteration>100 and iteration<150 and epoch==1:
                         timer_memory=timer.tocvalue(restart=True)
                     mem_extract_targets = targets - previous_targets
@@ -219,7 +219,7 @@ def main(args):
                         "targets_bb": targets_bb,
                         "device_id": device_id,
                         "epoch": epoch,
-                        "ego_velocity": all_speeds[:,:-1] if all_speeds is not None else None#only previous velocities will be learned by the memory stream
+                        "ego_velocity": all_speeds[:,:-1]#only previous velocities will be learned by the memory stream
                     }
 
                     mem_extract_loss,_, head_losses= mem_extract.module.compute_loss(params=loss_function_params_memory)
@@ -229,7 +229,7 @@ def main(args):
                     #the baseline is defined as getting the last (current) frame in the policy stream only, same for speed input
                     if iteration>100 and iteration<150:
                         timer.tic()
-                    pred_dict_policy = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1:,...] if all_speeds is not None else None, target_point=target_point, prev_wp=None, memory_to_fuse=pred_dict_memory["memory"].detach())
+                    pred_dict_policy = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1:,...], target_point=target_point, prev_wp=None, memory_to_fuse=pred_dict_memory["memory"].detach())
                     if iteration>100 and iteration<150 and epoch==1:
                         timer_policy=timer.tocvalue()
                         timing.append(timer_policy+timer_memory)
@@ -241,7 +241,7 @@ def main(args):
                         "targets_bb": targets_bb,
                         "device_id": device_id,
                         "epoch": epoch,
-                        "ego_velocity": all_speeds[:,-1] if all_speeds is not None else None#policy stream only learns current velocity
+                        "ego_velocity": all_speeds[:,-1]#policy stream only learns current velocity
                         
                     }
                     policy_loss,plotable_losses,head_losses= policy.module.compute_loss(params=loss_function_params_policy)
@@ -312,12 +312,12 @@ def main(args):
                                     param.requires_grad=True
                     model.zero_grad()
                     optimizer.zero_grad()
-                
-                if "bcso" in merged_config_object.baseline_folder_name or "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
-                    if iteration>100 and iteration<150 and epoch==1:
+                if iteration>100 and iteration<150 and epoch==1:
                         timer.tic()
-                    pred_dict= model(x=all_images, speed=all_speeds[:,-1].unsqueeze(1) if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
-                    
+                if "bcso" in merged_config_object.baseline_folder_name:
+                    pred_dict= model(x=all_images, speed=all_speeds[:,-1:,...], target_point=target_point, prev_wp=additional_previous_waypoints)
+                if "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
+                    pred_dict= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
                     if iteration>100 and iteration<150 and epoch==1:
                         forward_time=timer.tocvalue(restart=True)
                         timing.append(forward_time)
@@ -340,7 +340,7 @@ def main(args):
                         **reweight_params,
                         "device_id": device_id,
                         "epoch": epoch,
-                        "ego_velocity": all_speeds[:,-1] if all_speeds is not None else None#only current velocity is relevant
+                        "ego_velocity": all_speeds[:,-1]#only current velocity is relevant
                         
                     }
                     if "keyframes" in merged_config_object.baseline_folder_name:
@@ -354,7 +354,7 @@ def main(args):
                         combined_losses.append(loss.cpu().item())
                         detailed_losses.append(plotable_losses)
                         head_losses_lst.append(head_losses)
-                if args.debug and epoch%2==0:
+                if args.debug and epoch%1==0:
                     if merged_config_object.detectboxes:
                         if "arp" in merged_config_object.baseline_folder_name:
                             batch_of_bbs_pred=policy.module.convert_features_to_bb_metric(pred_dict_policy["pred_bb"])
