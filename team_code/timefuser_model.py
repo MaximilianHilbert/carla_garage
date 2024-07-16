@@ -229,7 +229,7 @@ class TimeFuser(nn.Module):
                     x=layer(x)
                 x=x.flatten(start_dim=2, end_dim=4).permute(0,2,1).contiguous()
         if self.config.speed:
-            measurement_enc = self.speed_layer(speed).unsqueeze(1) #we add the token dimension here
+            measurement_enc = self.speed_layer(speed.flatten(start_dim=1)).unsqueeze(1) #we add the token dimension here
         else:
             measurement_enc = None
         if self.config.prevnum>0 and self.name!="arp-policy":
@@ -282,7 +282,7 @@ class TimeFuser(nn.Module):
             pred_dict.update({"pred_bb": pred_bb})
         if self.config.ego_velocity_prediction:
             bev_tokens=self.downsample_to_ego_velocity(bev_tokens)
-            ego_velocity_prediction=self.ego_velocity_predictor(bev_tokens.flatten())
+            ego_velocity_prediction=self.ego_velocity_predictor(bev_tokens.flatten(start_dim=1))
             pred_dict.update({"pred_ego_velocity": ego_velocity_prediction})
         return pred_dict
 
