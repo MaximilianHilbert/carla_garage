@@ -362,30 +362,31 @@ def main(args):
                             batch_of_bbs_pred=model.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
                     else:
                         batch_of_bbs_pred=None
-                    if "arp" in merged_config_object.baseline_folder_name:
-                        visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images.squeeze(0)],axis=1).permute(1, 2, 0).detach().cpu().numpy(),config=merged_config_object,
-                                save_path_root=os.path.join(os.environ.get("WORK_DIR"), "test"),
-                                gt_bev_semantic=None,lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
-                                target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
-                                pred_wp=torch.squeeze(pred_dict_policy["wp_predictions"],0).detach().cpu().numpy(),
-                                step=iteration,
-                                gt_wp=targets.squeeze(0),
-                                pred_bb=batch_of_bbs_pred,
-                                gt_bbs=bb.detach().cpu().numpy() if bb is not None else None,
-                                pred_bev_semantic=pred_dict_policy["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict_policy.keys() else None,
-                                )
-                    else:
-                        visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images.squeeze(0)],axis=1).permute(1, 2, 0).detach().cpu().numpy(),config=merged_config_object,
-                                        save_path_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "training"),
-                                        gt_bev_semantic=None,lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
-                                        target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
-                                        pred_wp=torch.squeeze(pred_dict["wp_predictions"],0).detach().cpu().numpy(),
-                                        step=iteration,
-                                        gt_wp=targets.squeeze(0),
-                                        pred_bb=batch_of_bbs_pred,
-                                        gt_bbs=bb.detach().cpu().numpy() if bb is not None else None,
-                                        pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
-                                        )
+                    if merged_config_object.batch_size==1:
+                        if "arp" in merged_config_object.baseline_folder_name:
+                            visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images.squeeze(0)],axis=1).permute(1, 2, 0).detach().cpu().numpy(),config=merged_config_object,
+                                    save_path_root=os.path.join(os.environ.get("WORK_DIR"), "test"),
+                                    gt_bev_semantic=None,lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
+                                    target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
+                                    pred_wp=torch.squeeze(pred_dict_policy["wp_predictions"],0).detach().cpu().numpy(),
+                                    step=iteration,
+                                    gt_wp=targets.squeeze(0),
+                                    pred_bb=batch_of_bbs_pred,
+                                    gt_bbs=bb.detach().cpu().numpy() if bb is not None else None,
+                                    pred_bev_semantic=pred_dict_policy["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict_policy.keys() else None,
+                                    )
+                        else:
+                            visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images.squeeze(0)],axis=1).permute(1, 2, 0).detach().cpu().numpy(),config=merged_config_object,
+                                            save_path_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "training"),
+                                            gt_bev_semantic=None,lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
+                                            target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
+                                            pred_wp=torch.squeeze(pred_dict["wp_predictions"],0).detach().cpu().numpy(),
+                                            step=iteration,
+                                            gt_wp=targets.squeeze(0),
+                                            pred_bb=batch_of_bbs_pred,
+                                            gt_bbs=bb.detach().cpu().numpy() if bb is not None else None,
+                                            pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
+                                            )
                 if merged_config_object.baseline_folder_name!="arp":
                     if is_ready_to_save(epoch, iteration, data_loader, merged_config_object):
                         if bool(args.zero_redundancy_optim):
