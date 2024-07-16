@@ -219,7 +219,7 @@ def main(args):
                         "targets_bb": targets_bb,
                         "device_id": device_id,
                         "epoch": epoch,
-                        "ego_velocity": all_speeds[:,:-1] if all_speeds is not None else None#only previous velocities will be learned by the memory stream
+                        "ego_velocity": all_speeds[:,-2] if all_speeds is not None else None#only previous velocity will be learned by the memory stream
                     }
 
                     mem_extract_loss,_, head_losses= mem_extract.module.compute_loss(params=loss_function_params_memory)
