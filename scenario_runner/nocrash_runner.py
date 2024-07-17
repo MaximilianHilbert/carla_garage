@@ -20,7 +20,7 @@ class NoCrashEvalRunner:
         args.town = town
         args.weather = weather
 
-        self.runner = NoCrashEvaluator(args, StatisticsManager(args, config))
+        self.runner = NoCrashEvaluator(args, config, StatisticsManager(args, config))
         self.args = args
 
     def run(self):

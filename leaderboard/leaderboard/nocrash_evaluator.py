@@ -82,37 +82,17 @@ class NoCrashEvaluator(object):
     wait_for_world = 20.0  # in seconds
     frame_rate = 20.0  # in Hz
 
-    def __init__(self, args, statistics_manager):
+    def __init__(self, args, config,statistics_manager):
         """
         Setup CARLA client and world
         Setup ScenarioManager
         """
         import os
-        import torch.distributed as dist
-
-        os.environ["MASTER_ADDR"] = "127.0.0.1"
-        os.environ["MASTER_PORT"] = find_free_port()
-        dist.init_process_group(
-            backend="nccl",
-            init_method=f"env://127.0.0.1:{os.environ.get('MASTER_PORT')}",
-            world_size=1,
-            rank=0,
-        )
+       
         self.statistics_manager = statistics_manager
         self.sensors = None
         self.sensor_icons = []
-        config_path=os.path.join(os.path.dirname(os.path.dirname(args.coil_checkpoint)), "config_training.pkl")
-        with open(os.path.join(config_path), 'rb') as f:
-            config = pickle.load(f)
-        merge_with_command_line_args(config, args)
-        if args.override_seq_len:
-            setattr(config, "replay_seq_len", args.override_seq_len)
-        for ablation, value in get_ablations_dict().items():
-            if ablation not in config.__dict__:
-                setattr(config, ablation, value)
-        if "sampling_rate" not in config.__dict__:
-            setattr(config, "sampling_rate", 1)
-        setattr(config, "max_img_seq_len_baselines", 3)
+        
         self.config = config
         # First of all, we need to create the client that will send the requests
         # to the simulator. Here we'll assume the simulator is accepting
@@ -279,8 +259,8 @@ class NoCrashEvaluator(object):
                 self.agent_instance = getattr(self.module_agent, agent_class_name)(
                     config=self.config,
                     checkpoint=loaded_checkpoint,
-                    city_name=self.town,
                     baseline=args.baseline_folder_name,
+                    nocrash=True
                 )
             else:
                 self.agent_instance = getattr(self.module_agent, agent_class_name)(args.agent_config)
