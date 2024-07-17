@@ -359,13 +359,14 @@ class NoCrashEvaluator(object):
             (
                 route_completion, outside_route,stops_ran,inroute,lights_ran, collision,duration, timeout_blocked
             ) = self.manager.get_nocrash_diagnostics()
-            save_path_timing=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
-                                  self.config.eval_id,self.manager.scenario_class.scenario.name)
-            os.makedirs(save_path_timing,exist_ok=True)
-            with open(os.path.join(save_path_timing,"inference_time.csv"), mode='w', newline='') as file:
-                writer = csv.DictWriter(file, fieldnames=["forward_time_in_s"])
-                writer.writeheader()
-                writer.writerow({"forward_time_in_s": list(self.manager.replay_parameter.values())[-1]})
+            if self.config.debug:
+                save_path_timing=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
+                                    self.config.eval_id,self.manager.scenario_class.scenario.name)
+                os.makedirs(save_path_timing,exist_ok=True)
+                with open(os.path.join(save_path_timing,"inference_time.csv"), mode='w', newline='') as file:
+                    writer = csv.DictWriter(file, fieldnames=["forward_time_in_s"])
+                    writer.writeheader()
+                    writer.writerow({"forward_time_in_s": list(self.manager.replay_parameter.values())[-1]})
             if self.config.debug:
                 self.manager.video_writer.release()
             fail=False

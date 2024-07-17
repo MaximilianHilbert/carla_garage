@@ -414,13 +414,14 @@ class LeaderboardEvaluator(object):
             self.manager.stop_scenario()
             result = self._register_statistics(config, route_date_string, args.checkpoint, entry_status, crash_message)
             collision_ped, collision_veh, collision_lay, red_light, stop_infraction, outside_route, route_dev,timeout,blocked=result.infractions.values()
-            save_path_timing=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.manager.scenario_class.config.agent.config.baseline_folder_name,
-                                  self.manager.scenario_class.config.agent.config.experiment_id,self.manager.scenario_class.scenario.name)
-            os.makedirs(save_path_timing,exist_ok=True)
-            with open(os.path.join(save_path_timing,"inference_time.csv"), mode='w', newline='') as file:
-                writer = csv.DictWriter(file, fieldnames=["forward_time_in_s"])
-                writer.writeheader()
-                writer.writerow({"forward_time_in_s": list(self.manager.replay_parameters.values())[-1]})
+            if self.manager.scenario_class.config.agent.config.debug:
+                save_path_timing=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.manager.scenario_class.config.agent.config.baseline_folder_name,
+                                    self.manager.scenario_class.config.agent.config.experiment_id,self.manager.scenario_class.scenario.name)
+                os.makedirs(save_path_timing,exist_ok=True)
+                with open(os.path.join(save_path_timing,"inference_time.csv"), mode='w', newline='') as file:
+                    writer = csv.DictWriter(file, fieldnames=["forward_time_in_s"])
+                    writer.writeheader()
+                    writer.writerow({"forward_time_in_s": list(self.manager.replay_parameters.values())[-1]})
             if self.manager.scenario_class.config.agent.config.debug:
                 self.manager.video_writer.release()
             # fail=False
