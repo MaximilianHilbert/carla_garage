@@ -15,10 +15,6 @@ def main(args):
     for ablation, value in get_ablations_dict().items():
         if ablation not in config.__dict__:
             setattr(config, ablation, value)
-    if "sampling_rate" not in config.__dict__:
-        setattr(config, "sampling_rate", 1)
-    setattr(config, "max_img_seq_len_baselines", 3)
-    setattr(config, "speed", 0)
 
     runner = NoCrashEvalRunner(args, config,town, weather, port=port, tm_port=args.tm_port, debug=debug)
     runner.run()
