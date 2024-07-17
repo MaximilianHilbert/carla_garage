@@ -382,7 +382,7 @@ class NoCrashEvaluator(object):
                 else:
                     failure_case="misc"
                 root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.config.baseline_folder_name,
-                                  failure_case,self.config.eval_id,self.manager.scenario_class.scenario.name)
+                                  failure_case,self.config.eval_id)
                 observations.reverse()
                 curr_pred.reverse()
                 target_points.reverse()
