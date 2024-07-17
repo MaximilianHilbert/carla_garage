@@ -393,7 +393,7 @@ class NoCrashEvaluator(object):
                 video_writer = cv2.VideoWriter(os.path.join(root,f"{self.manager.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (512,1080))
                 for iteration, (pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(curr_pred, target_points, roads,pred_residual)):
                     #to prevent the problem of not having a history
-                    if iteration<self.config.max_img_seq_len_baselines:
+                    if iteration<self.config.considered_images_incl_current:
                         continue
                     if iteration==0:
                         prev_wp=None
@@ -462,11 +462,11 @@ class NoCrashEvaluator(object):
         if crash_message == "Simulation crashed":
             sys.exit(-1)
     def build_image_sequence(self,recorded_images, index):
-        prev_images=recorded_images[index-self.config.max_img_seq_len_baselines:index]
+        prev_images=recorded_images[index-self.config.considered_images_incl_current:index]
         current_image=recorded_images[index]
         
-        if self.config.img_seq_len<self.config.max_img_seq_len_baselines:
-            empties=np.concatenate([np.zeros_like(recorded_images[0])]*(self.config.max_img_seq_len_baselines+1-self.config.img_seq_len), axis=1)
+        if self.config.img_seq_len<self.config.considered_images_incl_current:
+            empties=np.concatenate([np.zeros_like(recorded_images[0])]*(self.config.considered_images_incl_current+1-self.config.img_seq_len), axis=1)
             image_sequence=np.concatenate([empties, current_image], axis=1)
         else:
             prev_images.append(current_image)
