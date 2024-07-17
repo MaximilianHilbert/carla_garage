@@ -2,14 +2,13 @@ export CARLA_ROOT=/home/maximilian-hilbert/carla_garage/carla
 export WORK_DIR=/home/maximilian-hilbert/carla_garage
 
 export TEAM_CODE=$WORK_DIR/team_code
-export COIL_NETWORK=$WORK_DIR/coil_network
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI/carla
 export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg
 export SCENARIO_RUNNER_ROOT=${WORK_DIR}/scenario_runner
 export LEADERBOARD_ROOT=${WORK_DIR}/leaderboard
-export PYTHONPATH=${CARLA_ROOT}/PythonAPI/carla/:${SCENARIO_RUNNER_ROOT}:${LEADERBOARD_ROOT}:${PYTHONPATH}:${WORK_DIR}:${CONFIG_ROOT}:${TEAM_CODE}:${COIL_NETWORK}
+export PYTHONPATH=${CARLA_ROOT}/PythonAPI/carla/:${SCENARIO_RUNNER_ROOT}:${LEADERBOARD_ROOT}:${PYTHONPATH}:${WORK_DIR}:${TEAM_CODE}
 
 export SCENARIOS=${WORK_DIR}/leaderboard/data/scenarios/eval_scenarios.json
 export ROUTES=${WORK_DIR}/leaderboard/data/longest6.xml
