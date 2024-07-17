@@ -5,8 +5,12 @@ import csv
 import cv2
 import cv2
 from pytictoc import TicToc
+import torch.distributed as dist
+import pickle
 from collections import deque
 from torch.nn.parallel import DistributedDataParallel as DDP
+from coil_utils.baseline_helpers import merge_with_command_line_args
+from coil_utils.baseline_helpers import get_ablations_dict
 import matplotlib.pyplot as plt
 from team_code.transfuser_utils import non_maximum_suppression
 from leaderboard.envs.sensor_interface import SensorInterface
@@ -21,19 +25,38 @@ from team_code.transfuser_utils import preprocess_compass, inverse_conversion_2d
 import team_code.transfuser_utils as t_u
 import carla
 from team_code.transfuser_utils import PIDController
-
+from coil_utils.baseline_helpers import find_free_port
 def get_entry_point():
     return "CoILAgent"
 
 
 class CoILAgent(AutonomousAgent):
-    def __init__(self, checkpoint, baseline, config, city_name="Town01"):
-        self.initialized = False
-        self.checkpoint = checkpoint  # We save the checkpoint for some interesting future use.
+    def __init__(self,config_path=None, route_index=None,args=None,config=None,checkpoint=None, baseline=None, nocrash=False):
+        self.setup(config=config,config_path=config_path,route_index=route_index,args=args,checkpoint=checkpoint,baseline=baseline,nocrash=nocrash)
+    def setup(self, args=None,config_path=None, baseline=None,route_index=None, nocrash=False, config=None, checkpoint=None):
+        if not nocrash:
+            with open(os.path.join(config_path, "config_training.pkl"), 'rb') as f:
+                config = pickle.load(f)
+            merge_with_command_line_args(config, args)
+            for ablation, value in get_ablations_dict().items():
+                if ablation not in config.__dict__:
+                    setattr(config, ablation, value)
+            setattr(config, "speed", 0)
+            checkpoint = torch.load(os.path.join(config_path, "checkpoints", "10.pth"))
         self.config = config
-        
-        if baseline in ["bcoh", "bcso", "keyframes"]:
-            model = TimeFuser(baseline, self.config, training=False)
+        self.initialized = False
+    
+        os.environ["MASTER_ADDR"] = "127.0.0.1"
+        os.environ["MASTER_PORT"] = find_free_port()
+        if not torch.distributed.is_initialized():
+            dist.init_process_group(
+                backend="nccl",
+                init_method=f"env://127.0.0.1:{os.environ.get('MASTER_PORT')}",
+                world_size=1,
+                rank=0,
+            )
+        if config.baseline_folder_name in ["bcoh", "bcso", "keyframes"]:
+            model = TimeFuser(config.baseline_folder_name, self.config, training=False)
             model.to("cuda:0")
             self.model = DDP(model, device_ids=["cuda:0"])
             self.model.load_state_dict(checkpoint["state_dict"])
@@ -64,8 +87,8 @@ class CoILAgent(AutonomousAgent):
         self.config.replay_seq_len=100
         self.first_iter = True
         self.prev_rgb_queue = deque(maxlen=self.config.img_seq_len*self.config.data_save_freq*self.config.sampling_rate)
-        self.prev_speeds_queue = deque(maxlen=(self.config.max_img_seq_len_baselines+1)*self.config.data_save_freq*self.config.sampling_rate) #we fuse the previous and the current timestep velocity
-        self.prev_location_queue=deque(maxlen=self.config.max_img_seq_len_baselines*self.config.data_save_freq*self.config.sampling_rate) # we fuse only the previous 6 timesteps locations
+        self.prev_speeds_queue = deque(maxlen=(self.config.considered_images_incl_current+1)*self.config.data_save_freq*self.config.sampling_rate) #we fuse the previous and the current timestep velocity
+        self.prev_location_queue=deque(maxlen=self.config.considered_images_incl_current*self.config.data_save_freq*self.config.sampling_rate) # we fuse only the previous 6 timesteps locations
         #queues for replay simulation
         self.replay_image_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
         self.replay_current_predictions_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
@@ -84,7 +107,6 @@ class CoILAgent(AutonomousAgent):
         self.latest_image = None
         self.latest_image_tensor = None
         self.target_point_prev = 0
-    
     def destroy(self, results=None):  # pylint: disable=locally-disabled, unused-argument
         """
         Gets called after a route finished.
@@ -163,7 +185,7 @@ class CoILAgent(AutonomousAgent):
             },
         ]
 
-    def __call__(self):
+    def __call__(self, sensor_list_names=None):
         """
         Execute the agent call, e.g. agent()
         Returns the next vehicle controls
@@ -343,7 +365,7 @@ class CoILAgent(AutonomousAgent):
                 batch_of_bbs_pred = non_maximum_suppression([batch_of_bbs_pred], self.config.iou_treshold_nms)
             else:
                 batch_of_bbs_pred=None
-            if not self.config.bev==1:
+            if not self.config.bev==1 and (self.config.visualize_without_rgb or self.config.visualize_combined):
                 road=self.ss_bev_manager.get_road()
             else:
                 road=None
@@ -361,7 +383,8 @@ class CoILAgent(AutonomousAgent):
         #we need an additional rgb queue, because it is way longer, to be able to visualize collisions with a long horizon
         self.replay_image_queue.append(all_images[-1].detach().cpu().numpy())
         self.replay_target_points_queue.append(end_point_location_ego_system.squeeze().detach().cpu().numpy())
-        self.replay_road_queue.append(self.ss_bev_manager.get_road())
+        if self.config.visualize_without_rgb or self.config.visualize_combined:
+            self.replay_road_queue.append(self.ss_bev_manager.get_road())
         self.replay_pred_residual_queue.append(prediction_residual)
         
         steer, throttle, brake = self.control_pid(
