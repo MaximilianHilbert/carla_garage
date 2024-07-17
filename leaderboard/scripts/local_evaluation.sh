@@ -13,9 +13,8 @@ export SCENARIOS=${WORK_DIR}/leaderboard/data/scenarios/eval_scenarios.json
 export ROUTES=${WORK_DIR}/leaderboard/data/longest6.xml
 export REPETITIONS=1
 export CHALLENGE_TRACK_CODENAME=SENSORS
-export CHECKPOINT_ENDPOINT=${WORK_DIR}/results/transfuser_plus_plus_longest6.json
-export TEAM_AGENT=${WORK_DIR}/team_code/sensor_agent.py
-export TEAM_CONFIG=${WORK_DIR}/pretrained_models/leaderboard/tfpp_wp_all_0
+export TEAM_AGENT=${WORK_DIR}/team_code/coil_agent.py
+export TEAM_CONFIG=${WORK_DIR}/_logs/bcso/id_001/repetition_0/02_withheld
 export DEBUG_CHALLENGE=0
 export RESUME=1
 export DATAGEN=0
@@ -29,9 +28,13 @@ python3 ${LEADERBOARD_ROOT}/leaderboard/leaderboard_evaluator_local.py \
 --routes=${ROUTES} \
 --repetitions=${REPETITIONS} \
 --track=${CHALLENGE_TRACK_CODENAME} \
---checkpoint=${CHECKPOINT_ENDPOINT} \
 --agent=${TEAM_AGENT} \
 --agent-config=${TEAM_CONFIG} \
---debug=0 \
+--debug=1 \
 --resume=${RESUME} \
---timeout=600
+--timeout=600 \
+--visualize-combined=1 \
+--norm=2 \
+--baseline-folder-name bcso \
+--experiment-id id_000 \
+--trafficManagerSeed 252534
