@@ -34,7 +34,7 @@ class AutonomousAgent(object):
     Autonomous agent base class. All user agents have to be derived from this class
     """
 
-    def __init__(self, path_to_conf_file, route_index=None):
+    def __init__(self, path_to_conf_file, args,route_index=None):
         self.track = Track.SENSORS
         #  current global plans to reach a destination
         self._global_plan = None
@@ -44,7 +44,7 @@ class AutonomousAgent(object):
         self.sensor_interface = SensorInterface()
 
         # agent's initialization
-        self.setup(path_to_conf_file, route_index)
+        self.setup(args,path_to_conf_file, route_index)
 
         self.wallclock_t0 = None
 
