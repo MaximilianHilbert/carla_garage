@@ -598,8 +598,8 @@ def main():
     parser.add_argument("--repetitions", type=int, default=1, help="Number of repetitions per route.")
     parser.add_argument("--visualize-combined",type=int,default=0)
     parser.add_argument("--visualize-without-rgb",type=int,default=0)
-    parser.add_argument("--norm",default=2, type=int)
-    parser.add_argument("--baseline-folder-name", help="either arp bcoh bcso keyframes")
+
+    
     # agent-related options
     parser.add_argument(
         "-a",
