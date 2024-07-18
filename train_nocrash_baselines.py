@@ -269,7 +269,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--pretrained",
         type=int,
-        default=0
+        default=1
     )
     parser.add_argument(
         "--velocity-brake-prediction",
