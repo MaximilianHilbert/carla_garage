@@ -51,6 +51,10 @@ class TimeFuser(nn.Module):
             self.image_encoder=VideoResNet(in_channels=3, pretrained="R2Plus1D_18_Weights.KINETICS400_V1" if self.config.pretrained else None)
             self.remaining_spatial_dimension=256 #dependent on swin transformer
             self.channel_dimension=self.image_encoder.feature_info.info[-1]["num_chs"]
+        if self.config.backbone.startswith("x3d"):
+            self.image_encoder=X3D(model_name=self.config.backbone)
+            self.channel_dimension=self.image_encoder.output_channels
+            self.remaining_spatial_dimension=256
         if self.config.backbone=="resnet":
             self.image_encoder=AIMBackbone(config, channels=self.input_channels, pretrained=True if self.config.pretrained else False)
             original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
@@ -70,9 +74,7 @@ class TimeFuser(nn.Module):
         self.extra_sensor_memory_contribution=sum([measurement_contribution, previous_wp_contribution,memory_contribution])
         self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
         self.sensor_fusion_embedding = nn.Parameter(torch.zeros(self.remaining_spatial_dimension+self.extra_sensor_memory_contribution,self.channel_dimension))
-        if self.config.backbone.startswith("x3d"):
-            self.image_encoder=X3D(model_name=self.config.backbone)
-            self.channel_dimension=self.image_encoder.output_channels
+       
         if self.config.speed:
             if self.name=="arp-policy":
                 # 1 time the velocity (current timestep only)
