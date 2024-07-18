@@ -186,7 +186,7 @@ class TimeFuser(nn.Module):
             
             self.ego_velocity_predictor=nn.Sequential(nn.Linear(in_features=self.config.bb_feature_channel, out_features=self.config.hidden_ego_velocity_head),
                 nn.Linear(in_features=self.config.hidden_ego_velocity_head, out_features=1))
-        self.init_weights_without_backbone()
+        #self.init_weights_without_backbone()
     
     def forward(self, x, speed=None, target_point=None, prev_wp=None, memory_to_fuse=None):
         pred_dict={}
