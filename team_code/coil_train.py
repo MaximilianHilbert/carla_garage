@@ -140,7 +140,7 @@ def main(args):
             
             model = TimeFuser(merged_config_object.baseline_folder_name, merged_config_object, rank=rank)
             model.to(device_id)
-            model = DDP(model, device_ids=[device_id],find_unused_parameters=True if args.freeze else False)
+            model = DDP(model, device_ids=[device_id])
         if "arp" in merged_config_object.baseline_folder_name:
             if bool(args.zero_redundancy_optim):
                 summary(policy, (merged_config_object.rgb_input_channels, 1, merged_config_object.height_rgb,  merged_config_object.width_rgb))
