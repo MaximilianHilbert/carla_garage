@@ -8,6 +8,7 @@ from team_code.model import PositionEmbeddingSine, GRUWaypointsPredictorTransFus
 from team_code.center_net import LidarCenterNetHead
 from team_code.video_swin_transformer import SwinTransformer3D
 from team_code.x3d import X3D
+import math
 from team_code.video_resnet import VideoResNet
 import os
 from coil_utils.baseline_helpers import download_file
@@ -63,12 +64,12 @@ class TimeFuser(nn.Module):
                     )
             #self.time_position_embedding = nn.Parameter(torch.zeros(self.img_token_len, self.channel_dimension,self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
             self.time_position_embedding=get_sinusoidal_positional_embedding_image_order
+            self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
         if self.name=="arp-policy":
             memory_contribution=memory_contribution*self.remaining_spatial_dimension_memory
         if self.name=="arp-memory":
             memory_contribution=memory_contribution*self.remaining_spatial_dimension
         self.extra_sensor_memory_contribution=sum([measurement_contribution, previous_wp_contribution,memory_contribution])
-        self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
         self.sensor_fusion_embedding = nn.Parameter(torch.zeros(self.remaining_spatial_dimension+self.extra_sensor_memory_contribution,self.channel_dimension))
        
         if self.config.speed:
@@ -186,7 +187,8 @@ class TimeFuser(nn.Module):
             
             self.ego_velocity_predictor=nn.Sequential(nn.Linear(in_features=self.config.bb_feature_channel, out_features=self.config.hidden_ego_velocity_head),
                 nn.Linear(in_features=self.config.hidden_ego_velocity_head, out_features=1))
-        #self.init_weights_without_backbone()
+        if self.config.init:
+            self.init_weights_without_backbone()
     
     def forward(self, x, speed=None, target_point=None, prev_wp=None, memory_to_fuse=None):
         pred_dict={}
@@ -397,6 +399,11 @@ class TimeFuser(nn.Module):
         for name, module in self.named_modules():
             if "image_encoder" not in name and name!="":
                 if isinstance(module, nn.Linear):
-                    nn.init.xavier_uniform_(module.weight)
+                    torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
                     if module.bias is not None:
-                        nn.init.zeros_(module.bias)
+                        torch.nn.init.zeros_(module.bias)
+                # apply special scaled init to the residual projections, per GPT-2 paper
+                for pn, p in self.named_parameters():
+                    if pn.endswith('c_proj.weight'):
+                        torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * self.config.numtransformerlayers))
+        
