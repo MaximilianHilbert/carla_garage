@@ -12,11 +12,7 @@ from team_code.video_resnet import VideoResNet
 import os
 from coil_utils.baseline_helpers import download_file
 import random
-def init_weights(layer):
-    if isinstance(layer, nn.Linear):
-        nn.init.constant_(layer.weight, 0.01)  # Initialize weights with 0.01
-        if layer.bias is not None:
-            nn.init.constant_(layer.bias, 0)  # Initialize biases with 0
+
 class TimeFuser(nn.Module):
     def __init__(self, name,config, rank=0, training=True):
         super().__init__()
@@ -190,7 +186,7 @@ class TimeFuser(nn.Module):
             
             self.ego_velocity_predictor=nn.Sequential(nn.Linear(in_features=self.config.bb_feature_channel, out_features=self.config.hidden_ego_velocity_head),
                 nn.Linear(in_features=self.config.hidden_ego_velocity_head, out_features=1))
-        #self.apply(init_weights)
+        self.init_weights_without_backbone()
     
     def forward(self, x, speed=None, target_point=None, prev_wp=None, memory_to_fuse=None):
         pred_dict={}
@@ -375,6 +371,7 @@ class TimeFuser(nn.Module):
                 final_loss = torch.mean(weighted_loss_function)
         return final_loss, losses, head_loss
     def convert_features_to_bb_metric(self, bb_predictions):
+
         bboxes = self.head.get_bboxes(
             bb_predictions[0],
             bb_predictions[1],
@@ -396,3 +393,10 @@ class TimeFuser(nn.Module):
             carla_bboxes.append(bbox)
 
         return carla_bboxes
+    def init_weights_without_backbone(self):
+        for name, module in self.named_modules():
+            if "image_encoder" not in name and name!="":
+                if isinstance(module, nn.Linear):
+                    nn.init.xavier_uniform_(module.weight)
+                    if module.bias is not None:
+                        nn.init.zeros_(module.bias)
