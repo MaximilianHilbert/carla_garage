@@ -71,7 +71,38 @@ class TimeFuser(nn.Module):
             memory_contribution=memory_contribution*self.remaining_spatial_dimension
         self.extra_sensor_memory_contribution=sum([measurement_contribution, previous_wp_contribution,memory_contribution])
         self.sensor_fusion_embedding = nn.Parameter(torch.zeros(self.remaining_spatial_dimension+self.extra_sensor_memory_contribution,self.channel_dimension))
-       
+        if self.config.ego_velocity_prediction:
+            self.downsample_to_ego_velocity= nn.Sequential( nn.Conv2d(
+                    self.channel_dimension,
+                    self.channel_dimension,
+                    kernel_size=(3, 3),
+                    stride=1,
+                    padding=(1, 1),
+                    bias=True,
+                ),
+                nn.AvgPool2d(kernel_size=(2,2)),
+                nn.Conv2d(
+                    self.channel_dimension,
+                    self.channel_dimension//2,
+                    kernel_size=(1, 1),
+                    stride=1,
+                    padding=(1, 1),
+                    bias=True,
+                ),
+                nn.AvgPool2d(kernel_size=(2,2)),
+                nn.Conv2d(
+                    self.channel_dimension//2,
+                    self.channel_dimension//4,
+                    kernel_size=(1, 1),
+                    stride=1,
+                    padding=(1, 1),
+                    bias=True,
+                ),
+                nn.AdaptiveAvgPool2d(output_size=(1,1)))
+            
+            self.ego_velocity_predictor=nn.Sequential(nn.Linear(in_features=self.channel_dimension//4, out_features=self.config.hidden_ego_velocity_head_1),
+                nn.Linear(in_features=self.config.hidden_ego_velocity_head_1, out_features=self.config.hidden_ego_velocity_head_2),
+                nn.Linear(in_features=self.config.hidden_ego_velocity_head_2, out_features=1))
         if self.config.speed:
             if self.name=="arp-policy":
                 # 1 time the velocity (current timestep only)
@@ -174,19 +205,6 @@ class TimeFuser(nn.Module):
                     align_corners=False,
                 ),
                 )
-        if self.config.ego_velocity_prediction:
-            self.downsample_to_ego_velocity= nn.Sequential( nn.Conv2d(
-                    self.config.bb_feature_channel,
-                    self.config.bb_feature_channel,
-                    kernel_size=(3, 3),
-                    stride=1,
-                    padding=(1, 1),
-                    bias=True,
-                ),
-                nn.AdaptiveAvgPool2d((1, 1)))
-            
-            self.ego_velocity_predictor=nn.Sequential(nn.Linear(in_features=self.config.bb_feature_channel, out_features=self.config.hidden_ego_velocity_head),
-                nn.Linear(in_features=self.config.hidden_ego_velocity_head, out_features=1))
         if self.config.init:
             self.init_weights_without_backbone()
     
@@ -243,6 +261,11 @@ class TimeFuser(nn.Module):
             time_positional_embeddung=self.time_position_embedding(x).unsqueeze(0).unsqueeze(3).unsqueeze(4)
             time_positional_embeddung=time_positional_embeddung.expand(*x.shape)
             x=x+time_positional_embeddung
+        if self.config.ego_velocity_prediction:
+            downsampled_x=self.downsample_to_ego_velocity(x.permute(0,2,1).reshape(bs, -1,16,32))
+            ego_velocity_prediction=self.ego_velocity_predictor(downsampled_x.flatten(start_dim=1))
+            pred_dict.update({"pred_ego_velocity": ego_velocity_prediction})
+            del downsampled_x
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
             if self.config.backbone!="swin":
@@ -280,10 +303,6 @@ class TimeFuser(nn.Module):
             bev_tokens=self.change_channel_bev_to_bb_and_upscale(bev_tokens)
             pred_bb=self.head(bev_tokens)
             pred_dict.update({"pred_bb": pred_bb})
-        if self.config.ego_velocity_prediction:
-            bev_tokens=self.downsample_to_ego_velocity(bev_tokens)
-            ego_velocity_prediction=self.ego_velocity_predictor(bev_tokens.flatten(start_dim=1))
-            pred_dict.update({"pred_ego_velocity": ego_velocity_prediction})
         return pred_dict
 
     def set_img_token_len_and_channels_and_seq_len(self):
