@@ -177,7 +177,7 @@ def main(args):
     #weathers = {"train": [1, 6, 10, 14], "test": [3,8]}
     weathers = {"train": [14], "test": [8]}
     weather_conditions=["train"]
-    traffics_len = 2
+    traffics_len = 1
     if args.cluster=="tcml":
         partition = "day"
         username = "hilbert"
