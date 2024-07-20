@@ -111,7 +111,9 @@ class GlobalConfig:
         #debugging:
         self.fps_closed_loop_full_debug=5
         self.fps_closed_loop_infractions=5
-        self.hidden_ego_velocity_head=32
+        self.hidden_ego_velocity_head_1=64
+        self.hidden_ego_velocity_head_2=32
+        
         # -----------------------------------------------------------------------------
         # Autopilot
         # -----------------------------------------------------------------------------
