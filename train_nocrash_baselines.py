@@ -241,6 +241,13 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
+        "--predict_vectors",
+        type=int,
+        default=0,
+        choices=[0,1]
+
+    )
+    parser.add_argument(
         "--lossweights",
         nargs="+",
         type=float,

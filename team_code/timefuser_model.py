@@ -334,7 +334,6 @@ class TimeFuser(nn.Module):
         losses={}
         main_loss = l1_loss(params["wp_predictions"], params["targets"])
         losses["wp_loss"]=main_loss
-
         if (self.config.detectboxes and not self.config.freeze) or (self.config.freeze and (params["epoch"]>self.config.epochs_baselines-self.config.epochs_after_freeze)):
             self.detailed_loss_weights={}
             factor = 1.0 / sum(self.config.detailed_loss_weights.values())
@@ -358,7 +357,8 @@ class TimeFuser(nn.Module):
             loss_bev=loss_bev_semantic(params["pred_bev_semantic"], visible_bev_semantic_label)
             losses["bev_loss"]=loss_bev
         if self.config.detectboxes:
-            head_loss=self.head.loss(*params["pred_bb"], *params["targets_bb"])
+            head_loss=self.head.loss(params["pred_bb"], 
+                                     params["targets_bb"])
             sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
             for key, value in head_loss.items():
                 sub_loss += self.detailed_loss_weights[key] * value
@@ -393,19 +393,16 @@ class TimeFuser(nn.Module):
         return final_loss, losses, head_loss
     def convert_features_to_bb_metric(self, bb_predictions):
 
-        bboxes = self.head.get_bboxes(
-            bb_predictions[0],
-            bb_predictions[1],
-            bb_predictions[2],
-            bb_predictions[3],
-            bb_predictions[4],
-            bb_predictions[5],
-            bb_predictions[6],
-        )[0]
-
+        bboxes,velocity_vectors, acceleration_vectors = self.head.get_bboxes(bb_predictions
+        )
+        #only take first batch
+        bboxes,velocity_vectors, acceleration_vectors=bboxes[0],velocity_vectors[0], acceleration_vectors[0]
         # filter bbox based on the confidence of the prediction
         bboxes = bboxes[bboxes[:, -1] > self.config.bb_confidence_threshold]
-
+        if velocity_vectors is not None:
+            velocity_vectors=velocity_vectors[velocity_vectors[:,-1] > self.config.bb_confidence_threshold]
+        if acceleration_vectors is not None:
+            acceleration_vectors=acceleration_vectors[acceleration_vectors[:,-1] > self.config.bb_confidence_threshold]
         carla_bboxes = []
         for bbox in bboxes.detach().cpu().numpy():
             bbox = t_u.bb_image_to_vehicle_system(
@@ -413,7 +410,7 @@ class TimeFuser(nn.Module):
             )
             carla_bboxes.append(bbox)
 
-        return carla_bboxes
+        return carla_bboxes,velocity_vectors, acceleration_vectors
     def init_weights_without_backbone(self):
         for name, module in self.named_modules():
             if "image_encoder" not in name and name!="":

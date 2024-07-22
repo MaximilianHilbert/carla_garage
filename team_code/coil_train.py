@@ -202,7 +202,7 @@ def main(args):
                 head_losses_lst=[]
             for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
                 capture_time = time.time()
-                all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb= extract_and_normalize_data(args, device_id, merged_config_object, data)
+                all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb,vel_vecs, accel_vecs= extract_and_normalize_data(args, device_id, merged_config_object, data)
                 if "arp" in merged_config_object.baseline_folder_name:
                     mem_extract.zero_grad()
                     #the baseline is defined as getting everything except the last (current) frame into the memory stream, same for speed input
@@ -369,9 +369,13 @@ def main(args):
                                     gt_bev_semantic=None,lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
                                     target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
                                     pred_wp=torch.squeeze(pred_dict_policy["wp_predictions"],0).detach().cpu().numpy(),
+                                    velocity_vectors_gt=vel_vecs ,
+                                    acceleration_vectors_gt=accel_vecs,
+                                    velocity_vectors_pred=batch_of_bbs_pred[1] ,
+                                    acceleration_vectors_pred=batch_of_bbs_pred[2],
                                     step=iteration,
                                     gt_wp=targets.squeeze(0),
-                                    pred_bb=batch_of_bbs_pred,
+                                    pred_bb=batch_of_bbs_pred[0],
                                     gt_bbs=bb.detach().cpu().numpy() if bb is not None else None,
                                     pred_bev_semantic=pred_dict_policy["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict_policy.keys() else None,
                                     )
@@ -381,9 +385,13 @@ def main(args):
                                             gt_bev_semantic=None,lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
                                             target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
                                             pred_wp=torch.squeeze(pred_dict["wp_predictions"],0).detach().cpu().numpy(),
+                                            velocity_vectors_gt=vel_vecs,
+                                            acceleration_vectors_gt=accel_vecs,
+                                            velocity_vectors_pred=batch_of_bbs_pred[1] ,
+                                            acceleration_vectors_pred=batch_of_bbs_pred[2],
                                             step=iteration,
                                             gt_wp=targets.squeeze(0),
-                                            pred_bb=batch_of_bbs_pred,
+                                            pred_bb=batch_of_bbs_pred[0],
                                             gt_bbs=bb.detach().cpu().numpy() if bb is not None else None,
                                             pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
                                             )
@@ -580,6 +588,13 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
+        "--predict_vectors",
+        type=int,
+        choices=[0,1],
+        default=0
+
+    )
+    parser.add_argument(
         "--velocity_brake_prediction",
         type=int,
         choices=[0,1],
@@ -655,4 +670,10 @@ if __name__ == "__main__":
         parser.error("When detectboxes prediction is activated, bev queries have to be formed first")
     if not arguments.bev and arguments.velocity_brake_prediction:
         parser.error("When velocity_brake_prediction prediction is activated, bev queries have to be formed first")
+    if not arguments.detectboxes and arguments.predict_vectors:
+        parser.error("When predict_vectors is activated,  detectboxes has to be true to")
+    if not arguments.bev and arguments.predict_vectors:
+        parser.error("When predict_vectors is activated, bev queries have to be formed first")
+    if arguments.velocity_brake_prediction and arguments.predict_vectors:
+        parser.error("When predict_vectors is activated, velocity brake prediction is not possible")
     main(arguments)

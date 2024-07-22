@@ -58,6 +58,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         self.depth_augmented = []
         self.lidars = []
         self.boxes = []
+        self.temporal_boxes=[]
         self.future_boxes = []
         self.measurements = []
         self.sample_start = []
@@ -211,7 +212,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                     )
                         self.temporal_images.append(temporal_images)
                         self.temporal_images_augmented.append(temporal_images_augmented)
-
+                    temporal_box=[]
+                    if bool(self.config.predict_vectors):
+                        #for n timesteps we got n-1 velocities
+                        for idx in reversed(range(1, self.config.img_seq_len)):
+                            temporal_box.append(route_dir + "/boxes" + (f"/{(seq - idx):04}.json.gz"))
+                    self.temporal_boxes.append(temporal_box)
                     self.images.append(image)
 
                     self.images_augmented.append(image_augmented)
@@ -277,6 +283,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         self.depth_augmented = np.array(self.depth_augmented).astype(np.string_)
         self.lidars = np.array(self.lidars).astype(np.string_)
         self.boxes = np.array(self.boxes).astype(np.string_)
+        self.temporal_boxes = np.array(self.temporal_boxes).astype(np.string_)
+        
         self.future_boxes = np.array(self.future_boxes).astype(np.string_)
         self.measurements = np.array(self.measurements).astype(np.string_)
         self.temporal_lidars = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_lidars])
@@ -330,6 +338,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         lidars = self.lidars[index]
         boxes = self.boxes[index]
         future_boxes = self.future_boxes[index]
+        temporal_boxes=self.temporal_boxes[index]
         measurements = self.measurements[index]
         sample_start = self.sample_start[index]
         if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0:
@@ -356,6 +365,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         loaded_depth_augmented = []
         loaded_lidars = []
         loaded_boxes = []
+        loaded_temporal_boxes=[]
         loaded_future_boxes = []
         loaded_measurements = []
         loaded_temporal_images_augmented = []
@@ -656,7 +666,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0:
             loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
-
+        if bool(self.config.predict_vectors):
+            for temporal_box in temporal_boxes:
+                with gzip.open(str(temporal_box, encoding="utf-8"), "rt", encoding="utf-8") as f2:
+                    temporal_box = ujson.load(f2)
+                loaded_temporal_boxes.append(temporal_box)
         assert len(loaded_temporal_images) == max(
             0, self.config.img_seq_len - 1
         ), "Length of loaded_temporal_images is not equal to img_seq_len!"
@@ -803,44 +817,57 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 y_augmentation=aug_translation,
                 yaw_augmentation=aug_rotation,
             )
-
-            # Pad bounding boxes to a fixed number
+            bounding_boxes_with_id=bounding_boxes.copy()
+            bounding_boxes_with_id=np.array(bounding_boxes_with_id)
+            bounding_boxes=[bb_without_id[:-1] for bb_without_id in bounding_boxes]
             bounding_boxes = np.array(bounding_boxes)
-            bounding_boxes_padded = np.zeros((self.config.max_num_bbs, 8), dtype=np.float32)
+            
+            loaded_temporal_boxes.extend(loaded_boxes)
+            if self.config.predict_vectors:
+                velocity_vectors, acceleration_vectors=self.extract_vectors(loaded_temporal_boxes)
+            
+                target_result, avg_factor=self.get_targets(bounding_boxes_with_id,
+                                        self.config.lidar_resolution_height // self.config.bev_down_sample_factor,
+                            self.config.lidar_resolution_width // self.config.bev_down_sample_factor,
+                            velocity_vectors,
+                                        acceleration_vectors,)
+                bounding_boxes_with_id_padded = np.zeros((self.config.max_num_bbs,9), dtype=np.float32)
+                if bounding_boxes_with_id.shape[0] > 0:
+                    if bounding_boxes_with_id.shape[0] <= self.config.max_num_bbs:
+                        bounding_boxes_with_id_padded[: bounding_boxes_with_id.shape[0], :] = bounding_boxes_with_id
+                    else:
+                        bounding_boxes_with_id_padded[: self.config.max_num_bbs, :] = bounding_boxes_with_id[: self.config.max_num_bbs]
 
-            if self.config.use_plant:
-                future_bounding_boxes = np.array(future_bounding_boxes)
-                future_bounding_boxes_padded = (
-                    np.ones((self.config.max_num_bbs, 8), dtype=np.int32) * self.config.ignore_index
-                )
-
-            if bounding_boxes.shape[0] > 0:
-                if bounding_boxes.shape[0] <= self.config.max_num_bbs:
-                    bounding_boxes_padded[: bounding_boxes.shape[0], :] = bounding_boxes
-                    if self.config.use_plant:
-                        future_bounding_boxes_padded[: future_bounding_boxes.shape[0], :] = future_bounding_boxes
-                else:
-                    bounding_boxes_padded[: self.config.max_num_bbs, :] = bounding_boxes[: self.config.max_num_bbs]
-                    if self.config.use_plant:
-                        future_bounding_boxes_padded[: self.config.max_num_bbs, :] = future_bounding_boxes[
-                            : self.config.max_num_bbs
-                        ]
-
-            if not self.config.use_plant:
+                data["velocity_vectors"]=velocity_vectors
+                data["acceleration_vectors"]=acceleration_vectors
+                data["velocity_vector_target"]=target_result["velocity_vector_target"]
+                data["acceleration_vector_target"]=target_result["acceleration_vector_target"]
+               
+                data["bounding_boxes"] = bounding_boxes_with_id_padded
+            else:
                 target_result, avg_factor = self.get_targets(
                     bounding_boxes,
                     self.config.lidar_resolution_height // self.config.bev_down_sample_factor,
                     self.config.lidar_resolution_width // self.config.bev_down_sample_factor,
                 )
-                data["center_heatmap"] = target_result["center_heatmap_target"]
-                data["wh"] = target_result["wh_target"]
-                data["yaw_class"] = target_result["yaw_class_target"]
-                data["yaw_res"] = target_result["yaw_res_target"]
-                data["offset"] = target_result["offset_target"]
-                data["velocity"] = target_result["velocity_target"]
-                data["brake_target"] = target_result["brake_target"]
-                data["pixel_weight"] = target_result["pixel_weight"]
-                data["avg_factor"] = avg_factor
+                bounding_boxes_padded = np.zeros((self.config.max_num_bbs, 8), dtype=np.float32)
+                if bounding_boxes.shape[0] > 0:
+                    if bounding_boxes.shape[0] <= self.config.max_num_bbs:
+                        bounding_boxes_padded[: bounding_boxes.shape[0], :] = bounding_boxes
+    
+                    else:
+                        bounding_boxes_padded[: self.config.max_num_bbs, :] = bounding_boxes[: self.config.max_num_bbs]
+
+                data["bounding_boxes"] = bounding_boxes_padded
+            data["center_heatmap"] = target_result["center_heatmap_target"]
+            data["wh"] = target_result["wh_target"]
+            data["yaw_class"] = target_result["yaw_class_target"]
+            data["yaw_res"] = target_result["yaw_res_target"]
+            data["offset"] = target_result["offset_target"]
+            data["velocity"] = target_result["velocity_target"]
+            data["brake_target"] = target_result["brake_target"]
+            data["pixel_weight"] = target_result["pixel_weight"]
+            data["avg_factor"] = avg_factor
 
         else:
             bounding_boxes_padded = None
@@ -898,7 +925,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             brake=brake,
             angle=current_measurement["angle"],
         )
-
+        
         data["brake"] = brake
         data["steer"] = np.float32(current_measurement["steer"])
         data["throttle"] = np.float32(current_measurement["throttle"])
@@ -916,9 +943,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             if not self.config.use_plant:
                 lidar_bev = self.lidar_augmenter_func(image=np.transpose(lidar_bev, (1, 2, 0)))
                 data["lidar"] = np.transpose(lidar_bev, (2, 0, 1))
-
-            if self.config.detectboxes or self.config.use_plant:
-                data["bounding_boxes"] = bounding_boxes_padded
                 if self.config.use_plant:
                     data["future_bounding_boxes"] = future_bounding_boxes_padded
 
@@ -983,7 +1007,101 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             data["correlation_weight"] = np.array([])
 
         return data
+    def get_vector_targets(self,bbs,velocity_vectors, acceleration_vectors, feat_h, feat_w):
+        img_h = self.config.lidar_resolution_height
+        img_w = self.config.lidar_resolution_width
 
+        width_ratio = float(feat_w / img_w)
+        height_ratio = float(feat_h / img_h)
+        velocity_vector_target = np.zeros([2, feat_h, feat_w], dtype=np.float32)
+        acceleration_vector_target = np.zeros([2, feat_h, feat_w], dtype=np.float32)
+
+        current_timestep=list(velocity_vectors.keys())[-1]
+        current_velocities=velocity_vectors[current_timestep]
+        current_accelerations=acceleration_vectors[current_timestep]
+        for box in bbs[0]:
+            box_id=box["id"]
+            center_x = box[:, [0]] * width_ratio
+            center_y = box[:, [1]] * height_ratio
+            for id, (class_,velocity_vector) in current_velocities.items():
+                if id==box_id:
+                    pass
+    def transform_point_onto_image_plane(self,point):
+        intrinsic_matrix = torch.from_numpy(
+                t_u.calculate_intrinsic_matrix(
+            fov=self.config.camera_fov,
+            height=self.config.camera_height,
+            width=self.config.camera_width,
+            ))
+        #we have to change the coordinate system multiple times from
+        # x (forward), y (right), z (up) -> x (left), z (back), y (down)
+        # and then invert z to check if bb is in front of verhicle or not,
+        # but normalize with the correct (back) z-axis direction
+        image_point_definition_changed=np.zeros_like(point)
+        image_point_definition_changed[0]=-point[1]
+        image_point_definition_changed[1]=-point[2]
+        image_point_definition_changed[2]=-point[0]
+        image_point=np.dot(intrinsic_matrix, image_point_definition_changed)
+        z=-image_point[-1]
+        image_point=image_point/-z
+        return image_point, z
+    def extract_vectors(self,boxes):
+        # Find ego matrix of the current time step, i.e. the coordinate frame we want to use:
+        current_timestep=boxes[-1]
+        # ego_car always exists
+        for ego_candiate in current_timestep:
+            if ego_candiate["class"] == "ego_car":
+                ego_matrix_current_timestep=np.array(ego_candiate["matrix"])
+                ego_yaw_current_timestep=t_u.extract_yaw_from_matrix(ego_matrix_current_timestep)
+                break
+        positions={}
+        #first we transform all boxes into the ego system at the latest timestep
+        for idx,timestep in enumerate(boxes):
+            positions[idx]={}
+            for box in timestep:
+                id=box["id"]
+                class_=box["class"]
+                position_in_ego_system = t_u.get_relative_transform(ego_matrix_current_timestep, np.array(box["matrix"]))
+                positions[idx].update({id:(class_,position_in_ego_system)})
+        #here we collect all ids for a given timestep, that are not visible by the viewing cone for that specific timestep
+        keys_to_remove={}
+        for timestep in positions.keys():
+            keys_to_remove[timestep]=[]
+            for id, (class_, position) in positions[timestep].items():
+                if class_!="ego_car":
+                    image_point,z=self.transform_point_onto_image_plane(position)
+                    #center point lies outside of current viewing cone, we want to drop the id then from the current timestep
+                    if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
+                        keys_to_remove[timestep].append(id)
+        #here we remove all non-visible ids
+        for timestep, ids in keys_to_remove.items():
+            for id in ids:
+                del positions[timestep][id]
+        #calculcate velocity vectors for actors still visible in all timesteps at once
+        velocity_vectors = self.get_finite_difference(positions)
+        acceleration_vectors = self.get_finite_difference(velocity_vectors)
+        #calculate acceleration vectors
+        current_step_vel=list(velocity_vectors.keys())[-1]
+        velocity_vectors=velocity_vectors[current_step_vel]
+        current_step_accel=list(acceleration_vectors.keys())[-1]
+        acceleration_vectors=acceleration_vectors[current_step_accel]
+        return velocity_vectors, acceleration_vectors
+
+    def get_finite_difference(self, boxes):
+        finite_difference_vectors={}
+        for timestep in list(boxes.keys())[1:]:
+            previous_boxes=boxes[timestep-1]
+            current_boxes=boxes[timestep]
+            finite_difference_vectors[timestep]={}
+            for id_current, (current_class,current_actor_value) in current_boxes.items():
+                finite_difference_vectors[timestep][id_current]={}
+                for id_previous, (_,previous_actor_value) in previous_boxes.items():
+                    if id_current==id_previous:
+                        delta_vector=current_actor_value-previous_actor_value
+                        delta_time=1/self.config.carla_fps
+                        finite_difference_vector=delta_vector/delta_time
+                        finite_difference_vectors[timestep][id_current]=(current_class,finite_difference_vector)
+        return finite_difference_vectors
     def augment_images(self, loaded_images_augmented):
         if self.config.use_color_aug:
             return np.array(
@@ -1028,7 +1146,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 loaded_temporal_measurements.append(loaded)
         return loaded_temporal_measurements
 
-    def get_targets(self, gt_bboxes, feat_h, feat_w):
+    def get_targets(self, gt_bboxes, feat_h, feat_w, calculated_velocity_vectors=None, calculcated_acceleration_vectors=None):
         """
         Compute regression and classification targets in multiple images.
 
@@ -1046,6 +1164,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                - offset_target (Tensor): targets of offset predict, shape (B, 2, H, W).
                - wh_offset_target_weight (Tensor): weights of wh and offset predict, shape (B, 2, H, W).
         """
+
         img_h = self.config.lidar_resolution_height
         img_w = self.config.lidar_resolution_width
 
@@ -1057,8 +1176,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         offset_target = np.zeros([2, feat_h, feat_w], dtype=np.float32)
         yaw_class_target = np.zeros([1, feat_h, feat_w], dtype=np.int32)
         yaw_res_target = np.zeros([1, feat_h, feat_w], dtype=np.float32)
-        velocity_target = np.zeros([1, feat_h, feat_w], dtype=np.float32)
-        brake_target = np.zeros([1, feat_h, feat_w], dtype=np.int32)
+        if self.config.velocity_brake_prediction:
+            velocity_target = np.zeros([1, feat_h, feat_w], dtype=np.float32)
+            brake_target = np.zeros([1, feat_h, feat_w], dtype=np.int32)
+        if self.config.predict_vectors:
+            velocity_vector_target = np.zeros([2, feat_h, feat_w], dtype=np.float32)
+            acceleration_vector_target = np.zeros([2, feat_h, feat_w], dtype=np.float32)
         pixel_weight = np.zeros([2, feat_h, feat_w], dtype=np.float32)  # 2 is the max of the channels above here.
 
         if not gt_bboxes.shape[0] > 0:
@@ -1068,8 +1191,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 "yaw_class_target": yaw_class_target.squeeze(0),
                 "yaw_res_target": yaw_res_target,
                 "offset_target": offset_target,
-                "velocity_target": velocity_target,
-                "brake_target": brake_target.squeeze(0),
+                "velocity_target": velocity_target if self.config.velocity_brake_prediction else 0,
+                "brake_target": brake_target.squeeze(0) if self.config.velocity_brake_prediction else 0,
+                "velocity_vector_target": velocity_vector_target if self.config.predict_vectors else 0,
+                "acceleration_vector_target": acceleration_vector_target if self.config.predict_vectors else 0,
                 "pixel_weight": pixel_weight,
             }
             return target_result, 1
@@ -1078,7 +1203,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         center_y = gt_bboxes[:, [1]] * height_ratio
         gt_centers = np.concatenate((center_x, center_y), axis=1)
 
-        for j, ct in enumerate(gt_centers):
+        for j, (ct,box) in enumerate(zip(gt_centers, gt_bboxes)):
             ctx_int, cty_int = ct.astype(int)
             ctx, cty = ct
             extent_x = gt_bboxes[j, 2] * width_ratio
@@ -1086,8 +1211,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
             radius = g_t.gaussian_radius([extent_y, extent_x], min_overlap=0.1)
             radius = max(2, int(radius))
-            ind = gt_bboxes[j, -1].astype(int)
-
+            if self.config.predict_vectors:
+                ind = gt_bboxes[j, -2].astype(int)
+            else:
+                ind = gt_bboxes[j, -1].astype(int)
             g_t.gen_gaussian_target(center_heatmap_target[ind], [ctx_int, cty_int], radius)
 
             wh_target[0, cty_int, ctx_int] = extent_x
@@ -1097,12 +1224,22 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
             yaw_class_target[0, cty_int, ctx_int] = yaw_class
             yaw_res_target[0, cty_int, ctx_int] = yaw_res
-
-            velocity_target[0, cty_int, ctx_int] = gt_bboxes[j, 5]
-            # Brakes can potentially be continous but we classify them now.
-            # Using mathematical rounding the split is applied at 0.5
-            brake_target[0, cty_int, ctx_int] = int(round(gt_bboxes[j, 6]))
-
+            if self.config.velocity_brake_prediction:
+                velocity_target[0, cty_int, ctx_int] = gt_bboxes[j, 5]
+                # Brakes can potentially be continous but we classify them now.
+                # Using mathematical rounding the split is applied at 0.5
+                brake_target[0, cty_int, ctx_int] = int(round(gt_bboxes[j, 6]))
+            
+            if self.config.predict_vectors and calculated_velocity_vectors:
+                box_id=int(box[-1])
+                for id, (class_, _) in calculated_velocity_vectors.items():
+                    if id==box_id:
+                        _,velocity_vector=calculated_velocity_vectors[box_id]
+                        velocity_vector_target[:, cty_int, ctx_int]=velocity_vector[:-1]
+                for id, (class_, _) in calculcated_acceleration_vectors.items():
+                    if id==box_id:
+                        _,acceleration_vector=calculcated_acceleration_vectors[box_id]
+                        acceleration_vector_target[:, cty_int, ctx_int]=acceleration_vector[:-1]
             offset_target[0, cty_int, ctx_int] = ctx - ctx_int
             offset_target[1, cty_int, ctx_int] = cty - cty_int
             # All pixels with a bounding box have a weight of 1 all others have a weight of 0.
@@ -1116,9 +1253,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             "yaw_class_target": yaw_class_target.squeeze(0),
             "yaw_res_target": yaw_res_target,
             "offset_target": offset_target,
-            "velocity_target": velocity_target,
-            "brake_target": brake_target.squeeze(0),
+            "velocity_target": velocity_target if self.config.velocity_brake_prediction else 0,
+            "brake_target": brake_target.squeeze(0) if self.config.velocity_brake_prediction else 0,
             "pixel_weight": pixel_weight,
+            "velocity_vector_target": velocity_vector_target if self.config.predict_vectors else 0,
+            "acceleration_vector_target": acceleration_vector_target if self.config.predict_vectors else 0,
         }
         return target_result, avg_factor
 
@@ -1288,7 +1427,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         x, y = position_aug[:2, 0]
         # center_x, center_y, w, h, yaw
-        bbox = np.array([x, y, bbox_dict["extent"][0], bbox_dict["extent"][1], 0, 0, 0, 0])
+        bbox = np.array([x, y, bbox_dict["extent"][0], bbox_dict["extent"][1], 0, 0, 0, 0,0])
         bbox[4] = t_u.normalize_angle(bbox_dict["yaw"] - aug_yaw_rad)
 
         if bbox_dict["class"] == "car":
@@ -1324,7 +1463,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 continue
 
             bbox, height = self.get_bbox_label(current_box, y_augmentation, yaw_augmentation)
-
+            bbox[-1]=current_box["id"]
             if "num_points" in current_box:
                 if current_box["num_points"] <= self.config.num_lidar_hits_for_detection:
                     continue
@@ -1348,7 +1487,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 or height >= self.config.max_z
             ):
                 continue
-            #simple check to get only bbs that are in front of the vehicle (technically you would need a perspective transformation here to determine the visible space)
+            #simple check to get only bbs that are in front of the vehicle
             # Load bounding boxes to forcast
             intrinsic_matrix = torch.from_numpy(
                 t_u.calculate_intrinsic_matrix(

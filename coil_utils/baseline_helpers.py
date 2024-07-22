@@ -59,22 +59,26 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
 
     bev_semantic_labels=data["bev_semantic"].to(torch.long).to(device_id)
     if merged_config_object.detectboxes:
+        
         bb=data["bounding_boxes"].to(device_id, dtype=torch.float32)
-        gt_bb=(
-data["center_heatmap"].to(device_id, dtype=torch.float32),
-data["wh"].to(device_id, dtype=torch.float32),
-data["yaw_class"].to(device_id, dtype=torch.long),
-data["yaw_res"].to(device_id, dtype=torch.float32),
-data["offset"].to(device_id, dtype=torch.float32),
-data["velocity"].to(device_id, dtype=torch.float32),
-data["brake_target"].to(device_id, dtype=torch.long),
-data["pixel_weight"].to(device_id, dtype=torch.float32),
-data["avg_factor"].to(device_id, dtype=torch.float32)
-        )
+        gt_bb={"center_heatmap_target":data["center_heatmap"].to(device_id, dtype=torch.float32),
+"wh_target":data["wh"].to(device_id, dtype=torch.float32),
+"yaw_class_target":data["yaw_class"].to(device_id, dtype=torch.long),
+"yaw_res_target":data["yaw_res"].to(device_id, dtype=torch.float32),
+"offset_target":data["offset"].to(device_id, dtype=torch.float32),
+"velocity_target":data["velocity"].to(device_id, dtype=torch.float32),
+"brake_target":data["brake_target"].to(device_id, dtype=torch.long),
+"pixel_weight":data["pixel_weight"].to(device_id, dtype=torch.float32),
+"avg_factor":data["avg_factor"].to(device_id, dtype=torch.float32)}
     else:
         gt_bb=None
         bb=None
-    return all_images,all_speeds,target_point,wp_targets,previous_wp_targets,additional_previous_wp_targets,bev_semantic_labels, gt_bb,bb
+    if merged_config_object.predict_vectors:
+        vel_vecs, accel_vecs=data["velocity_vectors"], data["acceleration_vectors"]
+        gt_bb.update({"velocity_vector_target": data["velocity_vector_target"].to(device_id, dtype=torch.float32),"acceleration_vector_target":data["acceleration_vector_target"].to(device_id, dtype=torch.float32) })
+    else:
+        vel_vecs, accel_vecs=None, None
+    return all_images,all_speeds,target_point,wp_targets,previous_wp_targets,additional_previous_wp_targets,bev_semantic_labels, gt_bb,bb, vel_vecs, accel_vecs
 def find_free_port():
     """https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number"""
     import socket
@@ -125,7 +129,7 @@ def merge_with_command_line_args(config, args):
 
 def get_ablations_dict():
     return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "framehandling": "unrolling", "datarep":1, 
-            "augment": 0, "freeze": 0, "backbone": "resnet", "pretrained": 0, "subsampling": 0, "velocity_brake_prediction": 1, "ego_velocity_prediction": 0, "init": 0}
+            "augment": 0, "freeze": 0, "backbone": "resnet", "pretrained": 0, "subsampling": 0, "velocity_brake_prediction": 1, "ego_velocity_prediction": 0, "init": 0, "predict_vectors": 0}
 
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
@@ -205,7 +209,10 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     detect_our=None,
     detect_kf=None,
     parameters=None,
-
+    velocity_vectors_gt=None,
+    acceleration_vectors_gt=None,
+    velocity_vectors_pred=None,
+    acceleration_vectors_pred=None,
     frame=None,
     loss=None,
     condition=None,
@@ -462,7 +469,15 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
                 color=(0, 100, 0),
                 pixel_per_meter=loc_pixels_per_meter,
             )
-
+    if velocity_vectors_gt is not None:
+        plot_vectors_gt(bbs=gt_bbs, vectors=velocity_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=1)
+    if acceleration_vectors_gt is not None:
+        plot_vectors_gt(bbs=gt_bbs, vectors=acceleration_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=3)
+    if velocity_vectors_pred is not None:
+        plot_vectors_pred(vectors=velocity_vectors_pred, res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=1)
+    if acceleration_vectors_pred is not None:
+        plot_vectors_pred(vectors=acceleration_vectors_pred, res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=3)
+    
     images_lidar = np.rot90(images_lidar, k=1)
 
     
@@ -597,6 +612,22 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
         Path(store_path).parent.mkdir(parents=True, exist_ok=True)
         final_image_object.save(store_path, quality=95)
+
+def plot_vectors_gt(bbs, vectors, res, image, color,thickness):
+    for actor_bb in bbs:
+        start_x, start_y, id_bb=int(actor_bb[0]),int(actor_bb[1]), int(actor_bb[-1])
+        for id_vector,(class_,actor_vector) in vectors.items():
+            actor_vector=actor_vector*res
+            actor_vector=torch.squeeze(actor_vector, 0).to(dtype=torch.uint8).cpu().numpy()
+            if id_bb==id_vector:
+                cv2.arrowedLine(image, (start_y, start_x), (start_y-actor_vector[0], start_x+actor_vector[1]), color, thickness)
+
+def plot_vectors_pred( vectors, res, image, color,thickness):
+    for vector in vectors:
+        start_x, start_y=int(vector[0]),int(vector[1])
+        vector=vector*res
+        vector=torch.squeeze(vector, 0).to(dtype=torch.uint8).cpu().numpy()
+        cv2.arrowedLine(image, (start_y, start_x), (start_y-vector[0], start_x+vector[1]), color, thickness)
 def set_not_included_ablation_args(config):
     ablations_default_dict=get_ablations_dict()
     for ablation, default_value in ablations_default_dict.items():
