@@ -86,7 +86,7 @@ class CoILAgent(AutonomousAgent):
         self.config.replay_seq_len=100
         self.first_iter = True
         self.prev_rgb_queue = deque(maxlen=self.config.img_seq_len*self.config.data_save_freq*self.config.sampling_rate)
-        self.prev_speeds_queue = deque(maxlen=(self.config.considered_images_incl_current)*self.config.data_save_freq*self.config.sampling_rate) #we fuse the previous and the current timestep velocity
+        self.prev_speeds_queue = deque(maxlen=self.config.considered_images_incl_current*self.config.data_save_freq*self.config.sampling_rate) #we fuse the previous and the current timestep velocity
         self.prev_location_queue=deque(maxlen=self.config.considered_images_incl_current*self.config.data_save_freq*self.config.sampling_rate) # we fuse only the previous 6 timesteps locations
         #queues for replay simulation
         self.replay_image_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
@@ -330,7 +330,7 @@ class CoILAgent(AutonomousAgent):
         else:
             with torch.no_grad():
                 pred_dict = self.model.module.forward(
-                        x=all_images.unsqueeze(0),speed=prev_speeds[:,-1:,...] if self.config.speed else None,
+                        x=all_images.unsqueeze(0),speed=prev_speeds if self.config.speed else None,
                         target_point=end_point_location_ego_system,
                     prev_wp=vehicle_prev_positions,
                     )
