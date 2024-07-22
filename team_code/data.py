@@ -465,7 +465,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                         loaded_temporal_images = np.array(loaded_temporal_images)
                         if self.config.use_semantic:
                             semantics_i = cv2.imdecode(semantics_i, cv2.IMREAD_UNCHANGED)
-                        if self.config.use_bev_semantic:
+                        if self.config.bev:
                             bev_semantics_i = cv2.imdecode(bev_semantics_i, cv2.IMREAD_UNCHANGED)
                         if self.config.use_depth:
                             depth_i = cv2.imdecode(depth_i, cv2.IMREAD_UNCHANGED)
@@ -477,7 +477,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             loaded_temporal_images_augmented = np.array(loaded_temporal_images_augmented)
                             if self.config.use_semantic:
                                 semantics_augmented_i = cv2.imdecode(semantics_augmented_i, cv2.IMREAD_UNCHANGED)
-                            if self.config.use_bev_semantic:
+                            if self.config.bev:
                                 bev_semantics_augmented_i = cv2.imdecode(
                                     bev_semantics_augmented_i, cv2.IMREAD_UNCHANGED
                                 )
@@ -533,7 +533,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                 str(semantics[i], encoding="utf-8"),
                                 cv2.IMREAD_UNCHANGED,
                             )
-                        if self.config.use_bev_semantic:
+                        if self.config.bev:
                             bev_semantics_i = cv2.imread(
                                 str(bev_semantics[i], encoding="utf-8"),
                                 cv2.IMREAD_UNCHANGED,
@@ -551,7 +551,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                     str(semantics_augmented[i], encoding="utf-8"),
                                     cv2.IMREAD_UNCHANGED,
                                 )
-                            if self.config.use_bev_semantic:
+                            if self.config.bev:
                                 bev_semantics_augmented_i = cv2.imread(
                                     str(bev_semantics_augmented[i], encoding="utf-8"),
                                     cv2.IMREAD_UNCHANGED,
@@ -585,7 +585,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                     compressed_temporal_images_i.append(compressed_temporal_frame)
                                 if self.config.use_semantic:
                                     _, compressed_semantic_i = cv2.imencode(".png", semantics_i)
-                                if self.config.use_bev_semantic:
+                                if self.config.bev:
                                     _, compressed_bev_semantic_i = cv2.imencode(".png", bev_semantics_i)
                                 if self.config.use_depth:
                                     _, compressed_depth_i = cv2.imencode(".png", depth_i)
@@ -605,7 +605,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                             _,
                                             compressed_semantic_augmented_i,
                                         ) = cv2.imencode(".png", semantics_augmented_i)
-                                    if self.config.use_bev_semantic:
+                                    if self.config.bev:
                                         (
                                             _,
                                             compressed_bev_semantic_augmented_i,
@@ -641,10 +641,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             )
             loaded_images.append(images_i)
             loaded_images_augmented.append(images_augmented_i)
-            if self.config.use_semantic:
+            if self.config.bev:
                 loaded_semantics.append(semantics_i)
                 loaded_semantics_augmented.append(semantics_augmented_i)
-            if self.config.use_bev_semantic:
+            if self.config.bev:
                 loaded_bev_semantics.append(bev_semantics_i)
                 loaded_bev_semantics_augmented.append(bev_semantics_augmented_i)
             if self.config.use_depth:
@@ -690,7 +690,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             semantics_i = self.converter[
                                 loaded_semantics_augmented[self.config.seq_len - 1]
                             ]  # pylint: disable=locally-disabled, unsubscriptable-object
-                        if self.config.use_bev_semantic:
+                        if self.config.bev:
                             bev_semantics_i = self.bev_converter[
                                 loaded_bev_semantics_augmented[self.config.seq_len - 1]
                             ]  # pylint: disable=locally-disabled, unsubscriptable-object
@@ -708,7 +708,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             semantics_i = self.converter[
                                 loaded_semantics[self.config.seq_len - 1]
                             ]  # pylint: disable=locally-disabled, unsubscriptable-object
-                        if self.config.use_bev_semantic:
+                        if self.config.bev:
                             bev_semantics_i = self.bev_converter[
                                 loaded_bev_semantics[self.config.seq_len - 1]
                             ]  # pylint: disable=locally-disabled, unsubscriptable-object
@@ -723,7 +723,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             :: self.config.perspective_downsample_factor,
                             :: self.config.perspective_downsample_factor,
                         ]
-                    if self.config.use_bev_semantic:
+                    if self.config.bev:
                         data["bev_semantic"] = bev_semantics_i
                     if self.config.use_depth:
                         # OpenCV uses Col, Row format
@@ -1360,10 +1360,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             # x (forward), y (right), z (up) -> x (left), z (back), y (down)
             # and then invert z to check if bb is in front of verhicle or not,
             # but normalize with the correct (back) z-axis direction
-            image_point_definition_changed=np.zeros_like(current_box["position"])
-            image_point_definition_changed[0]=-current_box["position"][1]
-            image_point_definition_changed[1]=-current_box["position"][2]
-            image_point_definition_changed[2]=-current_box["position"][0]
+            image_point_definition_changed=np.zeros_like(bbox[:3])
+            image_point_definition_changed[0]=-bbox[1]
+            image_point_definition_changed[1]=-bbox[2]
+            image_point_definition_changed[2]=-bbox[0]
             image_point=np.dot(intrinsic_matrix, image_point_definition_changed)
             z=-image_point[-1]
             image_point=image_point/-z
