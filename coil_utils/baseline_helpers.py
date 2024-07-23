@@ -612,22 +612,35 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
         Path(store_path).parent.mkdir(parents=True, exist_ok=True)
         final_image_object.save(store_path, quality=95)
-
+def append_id_to_vector(vector_3d, id):
+        vector_4d=np.zeros(vector_3d.shape[0]+1)
+        vector_4d[:3]=vector_3d[:3]
+        vector_4d[-1]=id
+        return vector_4d
+def extract_id_from_vector(vector_4d):
+    vector_3d=vector_4d[:3]
+    id=int(vector_4d[-1])
+    return vector_3d, id
 def plot_vectors_gt(bbs, vectors, res, image, color,thickness):
     for actor_bb in bbs:
-        start_x, start_y, id_bb=int(actor_bb[0]),int(actor_bb[1]), int(actor_bb[-1])
-        for id_vector,(class_,actor_vector) in vectors.items():
-            actor_vector=actor_vector*res
-            actor_vector=torch.squeeze(actor_vector, 0).to(dtype=torch.uint8).cpu().numpy()
-            if id_bb==id_vector:
-                cv2.arrowedLine(image, (start_y, start_x), (start_y-actor_vector[0], start_x+actor_vector[1]), color, thickness)
+        for vector_4d in vectors:
+            vector_3d, id=extract_id_from_vector(vector_4d)
+            #dummy values
+            if id==0:
+                continue
+            #ego vehicle
+            if id==432:
+                cv2.arrowedLine(image, (0, 0), (int(vector_3d[0]), int(vector_3d[1])), color, thickness)
+            vector_3d=vector_3d*res
+            start_x, start_y, id_bb=int(actor_bb[0]),int(actor_bb[1]), int(actor_bb[-1])
+            if id_bb==id:
+                cv2.arrowedLine(image, (start_y, start_x), (start_y+int(vector_3d[0]), start_x+int(vector_3d[1])), color, thickness)
 
-def plot_vectors_pred( vectors, res, image, color,thickness):
+def plot_vectors_pred(vectors, res, image, color,thickness):
     for vector in vectors:
         start_x, start_y=int(vector[0]),int(vector[1])
         vector=vector*res
-        vector=torch.squeeze(vector, 0).to(dtype=torch.uint8).cpu().numpy()
-        cv2.arrowedLine(image, (start_y, start_x), (start_y-vector[0], start_x+vector[1]), color, thickness)
+        cv2.arrowedLine(image, (start_y, start_x), (start_y-int(vector[0]), start_x+int(vector[1])), color, thickness)
 def set_not_included_ablation_args(config):
     ablations_default_dict=get_ablations_dict()
     for ablation, default_value in ablations_default_dict.items():

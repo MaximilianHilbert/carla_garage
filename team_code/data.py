@@ -20,6 +20,7 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
+from coil_utils.baseline_helpers import extract_id_from_vector, append_id_to_vector
 
 
 # TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
@@ -837,9 +838,13 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                         bounding_boxes_with_id_padded[: bounding_boxes_with_id.shape[0], :] = bounding_boxes_with_id
                     else:
                         bounding_boxes_with_id_padded[: self.config.max_num_bbs, :] = bounding_boxes_with_id[: self.config.max_num_bbs]
-
-                data["velocity_vectors"]=velocity_vectors
-                data["acceleration_vectors"]=acceleration_vectors
+                for _ in range(self.config.max_num_bbs-len(velocity_vectors)):
+                    velocity_vectors.append(np.array([0]*4))
+                for _ in range(self.config.max_num_bbs-len(acceleration_vectors)):
+                    acceleration_vectors.append(np.array([0]*4))
+                
+                data["velocity_vectors"]=np.array(velocity_vectors, dtype=np.float32)
+                data["acceleration_vectors"]=np.array(acceleration_vectors, dtype=np.float32)
                 data["velocity_vector_target"]=target_result["velocity_vector_target"]
                 data["acceleration_vector_target"]=target_result["acceleration_vector_target"]
                
@@ -1057,26 +1062,32 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         positions={}
         #first we transform all boxes into the ego system at the latest timestep
         for idx,timestep in enumerate(boxes):
-            positions[idx]={}
+            positions[idx]=[]
             for box in timestep:
                 id=box["id"]
                 class_=box["class"]
+                if id==0:
+                    continue
                 position_in_ego_system = t_u.get_relative_transform(ego_matrix_current_timestep, np.array(box["matrix"]))
-                positions[idx].update({id:(class_,position_in_ego_system)})
+                position_in_ego_system=append_id_to_vector(position_in_ego_system, id)
+                positions[idx].append(position_in_ego_system)
         #here we collect all ids for a given timestep, that are not visible by the viewing cone for that specific timestep
         keys_to_remove={}
         for timestep in positions.keys():
             keys_to_remove[timestep]=[]
-            for id, (class_, position) in positions[timestep].items():
-                if class_!="ego_car":
-                    image_point,z=self.transform_point_onto_image_plane(position)
-                    #center point lies outside of current viewing cone, we want to drop the id then from the current timestep
-                    if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
-                        keys_to_remove[timestep].append(id)
+            for vector_4d in positions[timestep]:
+                vector_3d, id=extract_id_from_vector(vector_4d)
+                image_point,z=self.transform_point_onto_image_plane(vector_3d)
+                #center point lies outside of current viewing cone, we want to drop the id then from the current timestep
+                if id!=432 and ((image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0)):
+                    keys_to_remove[timestep].append(id)
         #here we remove all non-visible ids
         for timestep, ids in keys_to_remove.items():
-            for id in ids:
-                del positions[timestep][id]
+            for id_to_remove in ids:
+                for idx, vector_4d in enumerate(positions[timestep]):
+                    vector_3d, id=extract_id_from_vector(vector_4d)
+                    if id==id_to_remove:
+                        del positions[timestep][idx]
         #calculcate velocity vectors for actors still visible in all timesteps at once
         velocity_vectors = self.get_finite_difference(positions)
         acceleration_vectors = self.get_finite_difference(velocity_vectors)
@@ -1092,15 +1103,19 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         for timestep in list(boxes.keys())[1:]:
             previous_boxes=boxes[timestep-1]
             current_boxes=boxes[timestep]
-            finite_difference_vectors[timestep]={}
-            for id_current, (current_class,current_actor_value) in current_boxes.items():
-                finite_difference_vectors[timestep][id_current]={}
-                for id_previous, (_,previous_actor_value) in previous_boxes.items():
+            finite_difference_vectors[timestep]=[]
+            for box in current_boxes:
+                vector_3d_current, id_current=extract_id_from_vector(box)
+                for previous_box in previous_boxes:
+                    vector_3d_previous, id_previous=extract_id_from_vector(previous_box)
                     if id_current==id_previous:
-                        delta_vector=current_actor_value-previous_actor_value
+                        delta_vector=vector_3d_current-vector_3d_previous
                         delta_time=1/self.config.carla_fps
                         finite_difference_vector=delta_vector/delta_time
-                        finite_difference_vectors[timestep][id_current]=(current_class,finite_difference_vector)
+                        finite_difference_vector=append_id_to_vector(finite_difference_vector, id_current)
+                        finite_difference_vectors[timestep].append(finite_difference_vector)
+        #because the default collate function needs all batchindices to be the same size, we add artificially interactions to the number of recognized bbs, so every batchindex has the
+        #same number of iteractions
         return finite_difference_vectors
     def augment_images(self, loaded_images_augmented):
         if self.config.use_color_aug:
@@ -1232,14 +1247,14 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             
             if self.config.predict_vectors and calculated_velocity_vectors:
                 box_id=int(box[-1])
-                for id, (class_, _) in calculated_velocity_vectors.items():
+                for velocity_vector_4d in calculated_velocity_vectors:
+                    velocity_vector_3d, id=extract_id_from_vector(velocity_vector_4d)
                     if id==box_id:
-                        _,velocity_vector=calculated_velocity_vectors[box_id]
-                        velocity_vector_target[:, cty_int, ctx_int]=velocity_vector[:-1]
-                for id, (class_, _) in calculcated_acceleration_vectors.items():
+                        velocity_vector_target[:, cty_int, ctx_int]=velocity_vector_4d[:-2]
+                for acceleration_vector_4d in calculcated_acceleration_vectors:
+                    acceleration_vector_3d, id=extract_id_from_vector(acceleration_vector_4d)
                     if id==box_id:
-                        _,acceleration_vector=calculcated_acceleration_vectors[box_id]
-                        acceleration_vector_target[:, cty_int, ctx_int]=acceleration_vector[:-1]
+                        acceleration_vector_target[:, cty_int, ctx_int]=acceleration_vector_4d[:-2]
             offset_target[0, cty_int, ctx_int] = ctx - ctx_int
             offset_target[1, cty_int, ctx_int] = cty - cty_int
             # All pixels with a bounding box have a weight of 1 all others have a weight of 0.
@@ -1459,14 +1474,14 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         future_bboxes = []
         for current_box in boxes:
             # Ego car is always at the origin. We don't predict it.
-            if current_box["class"] == "ego_car":
-                continue
+            # if current_box["class"] == "ego_car":
+            #     continue
 
             bbox, height = self.get_bbox_label(current_box, y_augmentation, yaw_augmentation)
             bbox[-1]=current_box["id"]
-            if "num_points" in current_box:
-                if current_box["num_points"] <= self.config.num_lidar_hits_for_detection:
-                    continue
+            # if "num_points" in current_box:
+            #     if current_box["num_points"] <= self.config.num_lidar_hits_for_detection:
+            #         continue
             if current_box["class"] == "traffic_light":
                 # Only use/detect boxes that are red and affect the ego vehicle
                 if not current_box["affects_ego"] or current_box["state"] == "Green":
@@ -1499,6 +1514,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             # x (forward), y (right), z (up) -> x (left), z (back), y (down)
             # and then invert z to check if bb is in front of verhicle or not,
             # but normalize with the correct (back) z-axis direction
+            #ego car
             image_point_definition_changed=np.zeros_like(bbox[:3])
             image_point_definition_changed[0]=-bbox[1]
             image_point_definition_changed[1]=-bbox[2]
@@ -1506,50 +1522,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             image_point=np.dot(intrinsic_matrix, image_point_definition_changed)
             z=-image_point[-1]
             image_point=image_point/-z
-            if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
+            if current_box["id"]!=432 and ( (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0)):
                 continue
-            if self.config.use_plant and future_boxes is not None:
-                exists = False
-                for future_box in future_boxes:
-                    # We only forecast boxes visible in the current frame
-                    if future_box["id"] == current_box["id"] and future_box["class"] in ("car", "walker"):
-                        # Found a valid box
-                        # Get values in current coordinate system
-                        future_box_matrix = np.array(future_box["matrix"])
-                        relative_pos = t_u.get_relative_transform(ego_matrix, future_box_matrix)
-                        # Update position into current coordinate system
-                        future_box["position"] = [
-                            relative_pos[0],
-                            relative_pos[1],
-                            relative_pos[2],
-                        ]
-                        future_yaw = t_u.extract_yaw_from_matrix(future_box_matrix)
-                        relative_yaw = t_u.normalize_angle(future_yaw - ego_yaw)
-                        future_box["yaw"] = relative_yaw
-
-                        converted_future_box, _ = self.get_bbox_label(future_box, y_augmentation, yaw_augmentation)
-                        quantized_future_box = self.quantize_box(converted_future_box)
-                        future_bboxes.append(quantized_future_box)
-                        exists = True
-                        break
-
-                if not exists:
-                    # Bounding box has no future counterpart. Add a dummy with ignore index
-                    future_bboxes.append(
-                        np.array(
-                            [
-                                self.config.ignore_index,
-                                self.config.ignore_index,
-                                self.config.ignore_index,
-                                self.config.ignore_index,
-                                self.config.ignore_index,
-                                self.config.ignore_index,
-                                self.config.ignore_index,
-                                self.config.ignore_index,
-                            ]
-                        )
-                    )
-
             if not self.config.use_plant:
                 bbox = t_u.bb_vehicle_to_image_system(
                     bbox,
