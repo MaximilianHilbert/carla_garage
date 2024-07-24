@@ -94,18 +94,22 @@ def main(args):
         accel_vecs_lst.append(accel_vecs)
     vel_vec_lst=torch.cat(vel_vec_lst)
     accel_vecs_lst=torch.cat(accel_vecs_lst)
-    mean_velocity_vector=torch.mean(vel_vec_lst, axis=0)
-    std_velocity_vector=torch.std(vel_vec_lst, axis=0)
+    mean_velocity_vector=np.nanmean(vel_vec_lst.detach().cpu().numpy(), axis=0)
+    std_velocity_vector=np.nanstd(vel_vec_lst.detach().cpu().numpy(), axis=0)
 
-    mean_acceleration_vector=torch.mean(accel_vecs, axis=0)
-    std_acceleration_vector=torch.std(accel_vecs, axis=0)
+    mean_acceleration_vector=np.nanmean(accel_vecs_lst.detach().cpu().numpy(), axis=0)
+    std_acceleration_vector=np.nanstd(accel_vecs_lst.detach().cpu().numpy(), axis=0)
+    # mean_velocity_vector=torch.mean(vel_vec_lst, axis=0)
+    # std_velocity_vector=torch.std(vel_vec_lst, axis=0)
 
+    # mean_acceleration_vector=torch.mean(accel_vecs_lst, axis=0)
+    # std_acceleration_vector=torch.std(accel_vecs_lst, axis=0)
     print(f"mean_velocity_vector:{mean_velocity_vector}")
     print(f"std_velocity_vector:{std_velocity_vector}")
     
     print(f"mean_acceleration_vector:{mean_acceleration_vector}")
     print(f"std_acceleration_vector:{std_acceleration_vector}")
-            
+  
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
