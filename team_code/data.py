@@ -1096,6 +1096,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         velocity_vectors=velocity_vectors[current_step_vel]
         current_step_accel=list(acceleration_vectors.keys())[-1]
         acceleration_vectors=acceleration_vectors[current_step_accel]
+        velocity_vectors=normalize_vectors(velocity_vectors,self.config, case="velocity", normalize="normalize")
+        acceleration_vectors=normalize_vectors(acceleration_vectors, self.config, case="acceleration", normalize="normalize")
         return velocity_vectors, acceleration_vectors
 
     def get_finite_difference(self, boxes):
