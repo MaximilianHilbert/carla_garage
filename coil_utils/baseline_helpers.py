@@ -489,9 +489,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     if acceleration_vectors_gt is not None:
         plot_vectors_gt(bbs=gt_bbs, vectors=acceleration_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=3)
     if velocity_vectors_pred is not None:
-        plot_vectors_pred(vectors=velocity_vectors_pred, res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=1)
+        plot_vectors_pred(vectors=velocity_vectors_pred, bbs=pred_bb,res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=1)
     if acceleration_vectors_pred is not None:
-        plot_vectors_pred(vectors=acceleration_vectors_pred, res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=3)
+        plot_vectors_pred(vectors=acceleration_vectors_pred, bbs=pred_bb,res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=3)
     
     images_lidar = np.rot90(images_lidar, k=1)
 
@@ -640,22 +640,22 @@ def plot_vectors_gt(bbs, vectors, res, image, color,thickness):
     for actor_bb in bbs:
         for vector_4d in vectors:
             vector_3d, id=extract_id_from_vector(vector_4d)
+            vector_3d=vector_3d*res
             #dummy values
             if id==0:
                 continue
             #ego vehicle
             if id==432:
-                cv2.arrowedLine(image, (0, 0), (int(vector_3d[0]), int(vector_3d[1])), color, thickness)
-            vector_3d=vector_3d*res
+                cv2.arrowedLine(image, (1024//2, 1024//2), (int(1024//2+vector_3d[0]), int(1024//2+vector_3d[1])), color, thickness)
             start_x, start_y, id_bb=int(actor_bb[0]),int(actor_bb[1]), int(actor_bb[-1])
             if id_bb==id:
                 cv2.arrowedLine(image, (start_y, start_x), (start_y+int(vector_3d[0]), start_x+int(vector_3d[1])), color, thickness)
 
-def plot_vectors_pred(vectors, res, image, color,thickness):
-    for vector in vectors:
-        start_x, start_y=int(vector[0]),int(vector[1])
+def plot_vectors_pred(vectors, res, image, color,thickness, bbs):
+    for bb,vector in zip(bbs,vectors):
+        start_x, start_y=int(bb[0]),int(bb[1])
         vector=vector*res
-        cv2.arrowedLine(image, (start_y, start_x), (start_y-int(vector[0]), start_x+int(vector[1])), color, thickness)
+        cv2.arrowedLine(image, (start_y, start_x), (start_y+int(vector[0]), start_x+int(vector[1])), color, thickness)
 def set_not_included_ablation_args(config):
     ablations_default_dict=get_ablations_dict()
     for ablation, default_value in ablations_default_dict.items():
