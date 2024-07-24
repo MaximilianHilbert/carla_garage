@@ -818,6 +818,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 y_augmentation=aug_translation,
                 yaw_augmentation=aug_rotation,
             )
+            bounding_boxes_without_ego_car=np.array(bounding_boxes_without_ego_car)[:,:-1]
+
             bounding_boxes_with_id=bboxes_with_ego_car.copy()
             bounding_boxes_with_id=np.array(bounding_boxes_with_id)
             bounding_boxes=[bb_without_id[:-1] for bb_without_id in bounding_boxes_with_id]
@@ -854,9 +856,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     self.config.lidar_resolution_width // self.config.bev_down_sample_factor,
                 )
                 bounding_boxes_padded = np.zeros((self.config.max_num_bbs, 8), dtype=np.float32)
-                if bounding_boxes.shape[0] > 0:
+                if bounding_boxes_without_ego_car.shape[0] > 0:
                     if bounding_boxes.shape[0] <= self.config.max_num_bbs:
-                        bounding_boxes_padded[: bounding_boxes.shape[0], :] = bounding_boxes_without_ego_car
+                        bounding_boxes_padded[: bounding_boxes_without_ego_car.shape[0], :] = bounding_boxes_without_ego_car
     
                     else:
                         bounding_boxes_padded[: self.config.max_num_bbs, :] = bounding_boxes_without_ego_car[: self.config.max_num_bbs]
