@@ -638,7 +638,7 @@ def extract_id_from_vector(vector_4d):
     id=int(vector_4d[-1])
     return vector_3d, id
 def pad_detected_vectors(vectors, config):
-    vectors_padded = np.zeros((config.max_num_bbs,vectors[0].shape[0]), dtype=np.float32)
+    vectors_padded = np.zeros((config.max_num_bbs,4), dtype=np.float32)
     if vectors.shape[0]>0:
         if vectors.shape[0]<=config.max_num_bbs:
             vectors_padded[: vectors.shape[0],:]=vectors
