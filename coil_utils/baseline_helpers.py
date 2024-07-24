@@ -637,6 +637,14 @@ def extract_id_from_vector(vector_4d):
     vector_3d=vector_4d[:3]
     id=int(vector_4d[-1])
     return vector_3d, id
+def pad_detected_vectors(vectors, config):
+    vectors_padded = np.zeros((config.max_num_bbs,vectors[0].shape[0]), dtype=np.float32)
+    if vectors.shape[0]>0:
+        if vectors.shape[0]<=config.max_num_bbs:
+            vectors_padded[: vectors.shape[0],:]=vectors
+        else:
+            vectors_padded[: config.max_num_bbs,:]=vectors[:config.max_num_bbs]
+    return vectors_padded
 def plot_vectors_gt(bbs, vectors, res, image, color,thickness, scale_factor):
     for actor_bb in bbs:
         for vector_4d in vectors:

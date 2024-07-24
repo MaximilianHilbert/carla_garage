@@ -20,7 +20,7 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
-from coil_utils.baseline_helpers import extract_id_from_vector, append_id_to_vector,normalize_vectors
+from coil_utils.baseline_helpers import extract_id_from_vector, append_id_to_vector,normalize_vectors,pad_detected_vectors
 
 
 # TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
@@ -838,13 +838,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                         bounding_boxes_with_id_padded[: bounding_boxes_with_id.shape[0], :] = bounding_boxes_with_id
                     else:
                         bounding_boxes_with_id_padded[: self.config.max_num_bbs, :] = bounding_boxes_with_id[: self.config.max_num_bbs]
-                for _ in range(self.config.max_num_bbs-len(velocity_vectors)):
-                    velocity_vectors.append(np.array([0]*4))
-                for _ in range(self.config.max_num_bbs-len(acceleration_vectors)):
-                    acceleration_vectors.append(np.array([0]*4))
-                
-                data["velocity_vectors"]=np.array(velocity_vectors, dtype=np.float32)
-                data["acceleration_vectors"]=np.array(acceleration_vectors, dtype=np.float32)
+                velocity_vectors=np.array(velocity_vectors, dtype=np.float32)
+                acceleration_vectors=np.array(acceleration_vectors, dtype=np.float32)
+                velocity_vectors=pad_detected_vectors(velocity_vectors,self.config)
+                acceleration_vectors=pad_detected_vectors(acceleration_vectors, self.config)
+                data["velocity_vectors"]=acceleration_vectors
+                data["acceleration_vectors"]=acceleration_vectors
                 data["velocity_vector_target"]=target_result["velocity_vector_target"]
                 data["acceleration_vector_target"]=target_result["acceleration_vector_target"]
                 data["bounding_boxes"] = bounding_boxes_with_id_padded
