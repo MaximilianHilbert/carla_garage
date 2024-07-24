@@ -21,7 +21,7 @@ export OMP_NUM_THREADS=12  # Limits pytorch to spawn at most num cpus cores thre
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
 torchrun --nnodes=1 --nproc_per_node=1 --rdzv_id=100 \
  --rdzv_backend=c10d $WORK_DIR/measure_velocity_accel_stats.py --seed 10214 \
- --baseline-folder-name bcso --number-of-workers 12 \
+ --baseline-folder-name bcoh --number-of-workers 12 \
  --batch-size 1 \
  --bev 1 --detectboxes 1 --predict_vectors 1 \
  --training-repetition 0 --backbone swin \
