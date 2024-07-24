@@ -812,15 +812,15 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 temporal_lidar_bev = np.concatenate(temporal_lidars_lst, axis=0)
 
         if self.config.detectboxes or self.config.use_plant:
-            bounding_boxes, future_bounding_boxes = self.parse_bounding_boxes(
+            bounding_boxes_without_ego_car, bboxes_with_ego_car,future_bounding_boxes = self.parse_bounding_boxes(
                 loaded_boxes[self.config.seq_len - 1],
                 loaded_future_boxes[self.config.seq_len - 1],
                 y_augmentation=aug_translation,
                 yaw_augmentation=aug_rotation,
             )
-            bounding_boxes_with_id=bounding_boxes.copy()
+            bounding_boxes_with_id=bboxes_with_ego_car.copy()
             bounding_boxes_with_id=np.array(bounding_boxes_with_id)
-            bounding_boxes=[bb_without_id[:-1] for bb_without_id in bounding_boxes]
+            bounding_boxes=[bb_without_id[:-1] for bb_without_id in bounding_boxes_with_id]
             bounding_boxes = np.array(bounding_boxes)
 
             loaded_temporal_boxes.extend(loaded_boxes)
@@ -857,12 +857,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 bounding_boxes_padded = np.zeros((self.config.max_num_bbs, 8), dtype=np.float32)
                 if bounding_boxes.shape[0] > 0:
                     if bounding_boxes.shape[0] <= self.config.max_num_bbs:
-                        bounding_boxes_padded[: bounding_boxes.shape[0], :] = bounding_boxes
+                        bounding_boxes_padded[: bounding_boxes.shape[0], :] = bounding_boxes_without_ego_car
     
                     else:
-                        bounding_boxes_padded[: self.config.max_num_bbs, :] = bounding_boxes[: self.config.max_num_bbs]
+                        bounding_boxes_padded[: self.config.max_num_bbs, :] = bounding_boxes_without_ego_car[: self.config.max_num_bbs]
                 #we filter out, the ego car, because we dont want to predict it, but we needed it earlier, to get our vectors
-                bounding_boxes_padded=bounding_boxes_padded[bounding_boxes_padded[:,-1]!=432.0]
                 data["bounding_boxes"] = bounding_boxes_padded
             data["center_heatmap"] = target_result["center_heatmap_target"]
             data["wh"] = target_result["wh_target"]
@@ -1077,9 +1076,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             keys_to_remove[timestep]=[]
             for vector_4d in positions[timestep]:
                 vector_3d, id=extract_id_from_vector(vector_4d)
-                if id!=432:
+                #else is the ego car case
+                if not (vector_3d==0).all():
                     image_point,z=self.transform_point_onto_image_plane(vector_3d)
-                #center point lies outside of current viewing cone, we want to drop the id then from the current timestep
+                    #center point lies outside of current viewing cone, we want to drop the id then from the current timestep
                     if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
                         keys_to_remove[timestep].append(id)
         #here we remove all non-visible ids
@@ -1473,6 +1473,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     break
 
         bboxes = []
+        bboxes_with_ego_car=[]
         future_bboxes = []
         for current_box in boxes:
             # Ego car is always at the origin. We don't predict it.
@@ -1505,6 +1506,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 continue
             #simple check to get only bbs that are in front of the vehicle
             # Load bounding boxes to forcast
+
             if current_box["class"]!="ego_car":
                 image_point,z=self.transform_point_onto_image_plane(bbox[:3])
                 if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
@@ -1516,8 +1518,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     self.config.min_x,
                     self.config.min_y,
                 )
-            bboxes.append(bbox)
-        return bboxes, future_bboxes
+            
+            bboxes_with_ego_car.append(bbox)
+            if current_box["class"]!="ego_car":
+                bboxes.append(bbox)
+
+        return bboxes, bboxes_with_ego_car,future_bboxes
 
     def extract_inputs(self, data, config):
         """
