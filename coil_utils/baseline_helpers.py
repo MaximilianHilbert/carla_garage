@@ -37,6 +37,17 @@ def generate_experiment_name(args, distributed_baseline_folder_name=None):
         return f"{args_dict['baseline_folder_name']}_"+"_".join([f'{ablation}-{",".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()]),ablations_dict
     else:
         return f"{distributed_baseline_folder_name}_"+"_".join([f'{ablation}-{",".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()]),ablations_dict
+def normalize_vectors(x, config,case, normalize="normalize"):
+    ret_lst=[]
+    for vec_4d in x:
+        vec_3d,id=extract_id_from_vector(vec_4d)
+        if normalize=="normalize":
+            vec_3d=(vec_3d-config.normalization_vectors[case]["mean"])/config.normalization_vectors[case]["std"]
+        if normalize=="unnormalize":
+            vec_3d=vec_3d*config.normalization_vectors[case]["std"]+config.normalization_vectors[case]["mean"]
+        final_vector=append_id_to_vector(vec_3d, id)
+        ret_lst.append(final_vector)
+    return ret_lst
 def extract_and_normalize_data(args, device_id, merged_config_object, data):
         
     all_images=data["rgb"].to(device_id).to(torch.float32)
@@ -225,7 +236,11 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 ):
     
     rgb=t_u.normalization_wrapper(x=rgb, config=config, type="unnormalize")
+    velocity_vectors_pred=normalize_vectors(velocity_vectors_pred,config,"velocity", "unnormalize")
+    acceleration_vectors_pred=normalize_vectors(acceleration_vectors_pred,config,"acceleration", "unnormalize")
     
+    velocity_vectors_gt=normalize_vectors(velocity_vectors_gt,config,"velocity", "unnormalize")
+    acceleration_vectors_gt=normalize_vectors(acceleration_vectors_gt,config,"acceleration", "unnormalize")
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
         np.array([144, 238, 144]),

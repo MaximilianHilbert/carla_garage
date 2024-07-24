@@ -20,7 +20,7 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
-from coil_utils.baseline_helpers import extract_id_from_vector, append_id_to_vector
+from coil_utils.baseline_helpers import extract_id_from_vector, append_id_to_vector,normalize_vectors
 
 
 # TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
