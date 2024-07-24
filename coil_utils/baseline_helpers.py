@@ -236,11 +236,12 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 ):
     
     rgb=t_u.normalization_wrapper(x=rgb, config=config, type="unnormalize")
-    velocity_vectors_pred=normalize_vectors(velocity_vectors_pred,config,"velocity", "unnormalize")
-    acceleration_vectors_pred=normalize_vectors(acceleration_vectors_pred,config,"acceleration", "unnormalize")
+    if config.predict_vectors:
+        velocity_vectors_pred=normalize_vectors(velocity_vectors_pred,config,"velocity", "unnormalize")
+        acceleration_vectors_pred=normalize_vectors(acceleration_vectors_pred,config,"acceleration", "unnormalize")
     
-    velocity_vectors_gt=normalize_vectors(velocity_vectors_gt,config,"velocity", "unnormalize")
-    acceleration_vectors_gt=normalize_vectors(acceleration_vectors_gt,config,"acceleration", "unnormalize")
+        velocity_vectors_gt=normalize_vectors(velocity_vectors_gt,config,"velocity", "unnormalize")
+        acceleration_vectors_gt=normalize_vectors(acceleration_vectors_gt,config,"acceleration", "unnormalize")
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
         np.array([144, 238, 144]),
@@ -463,35 +464,35 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             0.0,
         ]
     )
-    images_lidar = t_u.draw_box(images_lidar, sample_box, color=firebrick, pixel_per_meter=16, thickness=4)
+    images_lidar = t_u.draw_box(images_lidar, config,sample_box, color=firebrick, pixel_per_meter=16, thickness=4)
     if pred_bb is not None:
         for box in pred_bb:
             inv_brake = 1.0 - box[6]
             color_box = deepcopy(color_classes[int(box[7])])
             color_box[1] = color_box[1] * inv_brake
             box = t_u.bb_vehicle_to_image_system(box, loc_pixels_per_meter, config.min_x, config.min_y)
-            images_lidar = t_u.draw_box(images_lidar, box, color=color_box, pixel_per_meter=loc_pixels_per_meter)
+            images_lidar = t_u.draw_box(images_lidar, config,box, color=color_box, pixel_per_meter=loc_pixels_per_meter)
 
     if gt_bbs is not None:
-        gt_bbs = gt_bbs
         real_boxes = gt_bbs.sum(axis=-1) != 0.0
         gt_bbs = gt_bbs[real_boxes]
         for box in gt_bbs:
             box[:4] = box[:4] * scale_factor
             images_lidar = t_u.draw_box(
                 images_lidar,
+                config,
                 box,
                 color=(0, 100, 0),
                 pixel_per_meter=loc_pixels_per_meter,
             )
     if velocity_vectors_gt is not None:
-        plot_vectors_gt(bbs=gt_bbs, vectors=velocity_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=1)
+        plot_vectors_gt(bbs=gt_bbs, vectors=velocity_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=1, scale_factor=scale_factor)
     if acceleration_vectors_gt is not None:
-        plot_vectors_gt(bbs=gt_bbs, vectors=acceleration_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=3)
+        plot_vectors_gt(bbs=gt_bbs, vectors=acceleration_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=3, scale_factor=scale_factor)
     if velocity_vectors_pred is not None:
-        plot_vectors_pred(vectors=velocity_vectors_pred, bbs=pred_bb,res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=1)
+        plot_vectors_pred(vectors=velocity_vectors_pred, bbs=pred_bb,res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=1, scale_factor=scale_factor)
     if acceleration_vectors_pred is not None:
-        plot_vectors_pred(vectors=acceleration_vectors_pred, bbs=pred_bb,res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=3)
+        plot_vectors_pred(vectors=acceleration_vectors_pred, bbs=pred_bb,res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=3, scale_factor=scale_factor)
     
     images_lidar = np.rot90(images_lidar, k=1)
 
@@ -636,11 +637,11 @@ def extract_id_from_vector(vector_4d):
     vector_3d=vector_4d[:3]
     id=int(vector_4d[-1])
     return vector_3d, id
-def plot_vectors_gt(bbs, vectors, res, image, color,thickness):
+def plot_vectors_gt(bbs, vectors, res, image, color,thickness, scale_factor):
     for actor_bb in bbs:
         for vector_4d in vectors:
             vector_3d, id=extract_id_from_vector(vector_4d)
-            vector_3d=vector_3d*res
+            vector_3d=vector_3d*res/scale_factor
             #dummy values
             if id==0:
                 continue
@@ -651,10 +652,10 @@ def plot_vectors_gt(bbs, vectors, res, image, color,thickness):
             if id_bb==id:
                 cv2.arrowedLine(image, (start_y, start_x), (start_y+int(vector_3d[0]), start_x+int(vector_3d[1])), color, thickness)
 
-def plot_vectors_pred(vectors, res, image, color,thickness, bbs):
+def plot_vectors_pred(vectors, res, image, color,thickness, bbs, scale_factor):
     for bb,vector in zip(bbs,vectors):
         start_x, start_y=int(bb[0]),int(bb[1])
-        vector=vector*res
+        vector=vector*res/scale_factor
         cv2.arrowedLine(image, (start_y, start_x), (start_y+int(vector[0]), start_x+int(vector[1])), color, thickness)
 def set_not_included_ablation_args(config):
     ablations_default_dict=get_ablations_dict()

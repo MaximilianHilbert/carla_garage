@@ -251,8 +251,8 @@ class LidarCenterNetHead(nn.Module):
             acceleration_vectors=g_t.transpose_and_gather_feat(predictions["acceleration_vector_pred"], batch_index)
             acceleration_vectors= torch.cat((acceleration_vectors,batch_scores[..., np.newaxis],),dim=-1,)
         else:
-            velocity_vectors=torch.zeroes((batch_index.shape[0],batch_index.shape[1], 2))
-            acceleration_vectors=torch.zeroes((batch_index.shape[0],batch_index.shape[1], 2))
+            velocity_vectors=torch.zeros((batch_index.shape[0],batch_index.shape[1], 2))
+            acceleration_vectors=torch.zeros((batch_index.shape[0],batch_index.shape[1], 2))
         if self.config.velocity_brake_prediction:
             velocity = g_t.transpose_and_gather_feat(predictions["velocity_pred"], batch_index)
             brake = g_t.transpose_and_gather_feat(predictions["brake_pred"], batch_index)

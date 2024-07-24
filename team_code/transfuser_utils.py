@@ -276,27 +276,29 @@ def draw_line(
     return img
 
 
-def draw_box(img, box, color=(255, 255, 255), pixel_per_meter=4, thickness=1):
+def draw_box(img, config,box, color=(255, 255, 255), pixel_per_meter=4, thickness=1):
     translation = np.array([[box[0], box[1]]])
     width = box[2]
     height = box[3]
     yaw = box[4]
     rotation_matrix = np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]])
-    speed = box[5] * pixel_per_meter
-    speed_coords = np.array([[0.0, 0.0], [0.0, speed]])
-    corners = np.array([[-width, -height], [width, -height], [width, height], [-width, height]])
-    corner_global = (rotation_matrix @ corners.T).T + translation
-    speed_coords_global = (rotation_matrix @ speed_coords.T).T + translation
-    corner_global = corner_global.astype(np.int64)
-    speed_coords_global = speed_coords_global.astype(np.int64)
-
-    # Only the center is guaranteed to be within the image. Need to clip the corner points.
     max_row = img.shape[0]
     max_column = img.shape[1]
+    if config.velocity_brake_prediction:
+        speed = box[5] * pixel_per_meter
+        speed_coords = np.array([[0.0, 0.0], [0.0, speed]])
+        speed_coords_global = (rotation_matrix @ speed_coords.T).T + translation
+        speed_coords_global = speed_coords_global.astype(np.int64)
+        speed_coords_global[:, 0] = np.clip(speed_coords_global[:, 0], a_min=0, a_max=max_row - 1)
+        speed_coords_global[:, 1] = np.clip(speed_coords_global[:, 1], a_min=0, a_max=max_column - 1)
+    corners = np.array([[-width, -height], [width, -height], [width, height], [-width, height]])
+    corner_global = (rotation_matrix @ corners.T).T + translation
+    corner_global = corner_global.astype(np.int64)
+
+    # Only the center is guaranteed to be within the image. Need to clip the corner points.
     corner_global[:, 0] = np.clip(corner_global[:, 0], a_min=0, a_max=max_row - 1)
     corner_global[:, 1] = np.clip(corner_global[:, 1], a_min=0, a_max=max_column - 1)
-    speed_coords_global[:, 0] = np.clip(speed_coords_global[:, 0], a_min=0, a_max=max_row - 1)
-    speed_coords_global[:, 1] = np.clip(speed_coords_global[:, 1], a_min=0, a_max=max_column - 1)
+
 
     img = draw_line(
         img,
@@ -338,16 +340,17 @@ def draw_box(img, box, color=(255, 255, 255), pixel_per_meter=4, thickness=1):
         thickness=thickness,
         rmax=max_row,
     )
-    img = draw_line(
-        img,
-        start_row=speed_coords_global[0, 0],
-        start_column=speed_coords_global[0, 1],
-        end_row=speed_coords_global[1, 0],
-        end_column=speed_coords_global[1, 1],
-        color=color,
-        thickness=thickness,
-        rmax=max_row,
-    )
+    if config.velocity_brake_prediction:
+        img = draw_line(
+            img,
+            start_row=speed_coords_global[0, 0],
+            start_column=speed_coords_global[0, 1],
+            end_row=speed_coords_global[1, 0],
+            end_column=speed_coords_global[1, 1],
+            color=color,
+            thickness=thickness,
+            rmax=max_row,
+        )
 
     return img
 
