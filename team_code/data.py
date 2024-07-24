@@ -842,7 +842,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 acceleration_vectors=np.array(acceleration_vectors, dtype=np.float32)
                 velocity_vectors=pad_detected_vectors(velocity_vectors,self.config)
                 acceleration_vectors=pad_detected_vectors(acceleration_vectors, self.config)
-                data["velocity_vectors"]=acceleration_vectors
+                data["velocity_vectors"]=velocity_vectors
                 data["acceleration_vectors"]=acceleration_vectors
                 data["velocity_vector_target"]=target_result["velocity_vector_target"]
                 data["acceleration_vector_target"]=target_result["acceleration_vector_target"]
