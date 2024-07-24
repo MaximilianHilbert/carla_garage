@@ -822,7 +822,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             bounding_boxes_with_id=np.array(bounding_boxes_with_id)
             bounding_boxes=[bb_without_id[:-1] for bb_without_id in bounding_boxes]
             bounding_boxes = np.array(bounding_boxes)
-            
+
             loaded_temporal_boxes.extend(loaded_boxes)
             if self.config.predict_vectors:
                 velocity_vectors, acceleration_vectors=self.extract_vectors(loaded_temporal_boxes)
@@ -847,7 +847,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 data["acceleration_vectors"]=np.array(acceleration_vectors, dtype=np.float32)
                 data["velocity_vector_target"]=target_result["velocity_vector_target"]
                 data["acceleration_vector_target"]=target_result["acceleration_vector_target"]
-               
                 data["bounding_boxes"] = bounding_boxes_with_id_padded
             else:
                 target_result, avg_factor = self.get_targets(
@@ -862,7 +861,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
     
                     else:
                         bounding_boxes_padded[: self.config.max_num_bbs, :] = bounding_boxes[: self.config.max_num_bbs]
-
+                #we filter out, the ego car, because we dont want to predict it, but we needed it earlier, to get our vectors
+                bounding_boxes_padded=bounding_boxes_padded[bounding_boxes_padded[:,-1]!=432.0]
                 data["bounding_boxes"] = bounding_boxes_padded
             data["center_heatmap"] = target_result["center_heatmap_target"]
             data["wh"] = target_result["wh_target"]
@@ -1077,10 +1077,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             keys_to_remove[timestep]=[]
             for vector_4d in positions[timestep]:
                 vector_3d, id=extract_id_from_vector(vector_4d)
-                image_point,z=self.transform_point_onto_image_plane(vector_3d)
+                if id!=432:
+                    image_point,z=self.transform_point_onto_image_plane(vector_3d)
                 #center point lies outside of current viewing cone, we want to drop the id then from the current timestep
-                if id!=432 and ((image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0)):
-                    keys_to_remove[timestep].append(id)
+                    if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
+                        keys_to_remove[timestep].append(id)
         #here we remove all non-visible ids
         for timestep, ids in keys_to_remove.items():
             for id_to_remove in ids:
@@ -1187,7 +1188,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         width_ratio = float(feat_w / img_w)
         height_ratio = float(feat_h / img_h)
-
         center_heatmap_target = np.zeros([self.config.num_bb_classes, feat_h, feat_w], dtype=np.float32)
         wh_target = np.zeros([2, feat_h, feat_w], dtype=np.float32)
         offset_target = np.zeros([2, feat_h, feat_w], dtype=np.float32)
@@ -1252,11 +1252,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 for velocity_vector_4d in calculated_velocity_vectors:
                     velocity_vector_3d, id=extract_id_from_vector(velocity_vector_4d)
                     if id==box_id:
-                        velocity_vector_target[:, cty_int, ctx_int]=velocity_vector_4d[:-2]
+                        velocity_vector_target[:, cty_int, ctx_int]=velocity_vector_3d[:-1]
                 for acceleration_vector_4d in calculcated_acceleration_vectors:
                     acceleration_vector_3d, id=extract_id_from_vector(acceleration_vector_4d)
                     if id==box_id:
-                        acceleration_vector_target[:, cty_int, ctx_int]=acceleration_vector_4d[:-2]
+                        acceleration_vector_target[:, cty_int, ctx_int]=acceleration_vector_3d[:-1]
             offset_target[0, cty_int, ctx_int] = ctx - ctx_int
             offset_target[1, cty_int, ctx_int] = cty - cty_int
             # All pixels with a bounding box have a weight of 1 all others have a weight of 0.
@@ -1476,8 +1476,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         future_bboxes = []
         for current_box in boxes:
             # Ego car is always at the origin. We don't predict it.
-            # if current_box["class"] == "ego_car":
-            #     continue
+
 
             bbox, height = self.get_bbox_label(current_box, y_augmentation, yaw_augmentation)
             bbox[-1]=current_box["id"]
@@ -1506,26 +1505,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 continue
             #simple check to get only bbs that are in front of the vehicle
             # Load bounding boxes to forcast
-            intrinsic_matrix = torch.from_numpy(
-                t_u.calculate_intrinsic_matrix(
-            fov=self.config.camera_fov,
-            height=self.config.camera_height,
-            width=self.config.camera_width,
-            ))
-            #we have to change the coordinate system multiple times from
-            # x (forward), y (right), z (up) -> x (left), z (back), y (down)
-            # and then invert z to check if bb is in front of verhicle or not,
-            # but normalize with the correct (back) z-axis direction
-            #ego car
-            image_point_definition_changed=np.zeros_like(bbox[:3])
-            image_point_definition_changed[0]=-bbox[1]
-            image_point_definition_changed[1]=-bbox[2]
-            image_point_definition_changed[2]=-bbox[0]
-            image_point=np.dot(intrinsic_matrix, image_point_definition_changed)
-            z=-image_point[-1]
-            image_point=image_point/-z
-            if current_box["id"]!=432 and ( (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0)):
-                continue
+            if current_box["class"]!="ego_car":
+                image_point,z=self.transform_point_onto_image_plane(bbox[:3])
+                if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
+                    continue
             if not self.config.use_plant:
                 bbox = t_u.bb_vehicle_to_image_system(
                     bbox,
