@@ -519,7 +519,7 @@ if __name__ == "__main__":
         "--adapt-lr-milestones",
         nargs="+",
         type=int,
-        default=[30],
+        default=[31],
     )
     parser.add_argument(
         "--setting",
