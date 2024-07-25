@@ -20,7 +20,7 @@ import random
 from sklearn.utils.class_weight import compute_class_weight
 from team_code.center_net import angle2class
 from imgaug import augmenters as ia
-from coil_utils.baseline_helpers import extract_id_from_vector, append_id_to_vector,normalize_vectors,pad_detected_vectors
+from coil_utils.baseline_helpers import extract_id_class_from_vector, append_id_class_to_vector,normalize_vectors,pad_detected_vectors
 
 
 # TODO check transpose of temporal/non-temporal lidar values, also w, h dim.
@@ -812,59 +812,42 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 temporal_lidar_bev = np.concatenate(temporal_lidars_lst, axis=0)
 
         if self.config.detectboxes or self.config.use_plant:
-            bounding_boxes_without_ego_car, bboxes_with_ego_car,future_bounding_boxes = self.parse_bounding_boxes(
+            bounding_boxes,future_bounding_boxes = self.parse_bounding_boxes(
                 loaded_boxes[self.config.seq_len - 1],
                 loaded_future_boxes[self.config.seq_len - 1],
                 y_augmentation=aug_translation,
                 yaw_augmentation=aug_rotation,
             )
-            bounding_boxes_without_ego_car=np.array(bounding_boxes_without_ego_car)
-            if bounding_boxes_without_ego_car.shape[0] > 0:
-                bounding_boxes_without_ego_car=bounding_boxes_without_ego_car[:,:-1]
-
-            bounding_boxes_with_id=bboxes_with_ego_car.copy()
-            bounding_boxes_with_id=np.array(bounding_boxes_with_id)
-            bounding_boxes=[bb_without_id[:-1] for bb_without_id in bounding_boxes_with_id]
-            bounding_boxes = np.array(bounding_boxes)
-
             loaded_temporal_boxes.extend(loaded_boxes)
+            bounding_boxes_padded = np.zeros((self.config.max_num_bbs,10), dtype=np.float32)
+            if bounding_boxes.shape[0] > 0:
+                if bounding_boxes.shape[0] <= self.config.max_num_bbs:
+                    bounding_boxes_padded[: bounding_boxes.shape[0], :] = bounding_boxes
+                else:
+                    bounding_boxes_padded[: self.config.max_num_bbs, :] = bounding_boxes[: self.config.max_num_bbs]
             if self.config.predict_vectors:
                 velocity_vectors, acceleration_vectors=self.extract_vectors(loaded_temporal_boxes)
             
-                target_result, avg_factor=self.get_targets(bounding_boxes_with_id,
+                target_result, avg_factor=self.get_targets(bounding_boxes,
                                         self.config.lidar_resolution_height // self.config.bev_down_sample_factor,
                             self.config.lidar_resolution_width // self.config.bev_down_sample_factor,
                             velocity_vectors,
                                         acceleration_vectors,)
-                bounding_boxes_with_id_padded = np.zeros((self.config.max_num_bbs,9), dtype=np.float32)
-                if bounding_boxes_with_id.shape[0] > 0:
-                    if bounding_boxes_with_id.shape[0] <= self.config.max_num_bbs:
-                        bounding_boxes_with_id_padded[: bounding_boxes_with_id.shape[0], :] = bounding_boxes_with_id
-                    else:
-                        bounding_boxes_with_id_padded[: self.config.max_num_bbs, :] = bounding_boxes_with_id[: self.config.max_num_bbs]
-                velocity_vectors=np.array(velocity_vectors, dtype=np.float32)
-                acceleration_vectors=np.array(acceleration_vectors, dtype=np.float32)
                 velocity_vectors=pad_detected_vectors(velocity_vectors,self.config)
                 acceleration_vectors=pad_detected_vectors(acceleration_vectors, self.config)
                 data["velocity_vectors"]=velocity_vectors
                 data["acceleration_vectors"]=acceleration_vectors
                 data["velocity_vector_target"]=target_result["velocity_vector_target"]
                 data["acceleration_vector_target"]=target_result["acceleration_vector_target"]
-                data["bounding_boxes"] = bounding_boxes_with_id_padded
+                data["bounding_boxes"] = bounding_boxes_padded
             else:
+                bounding_boxes=bounding_boxes[bounding_boxes[:,-1]!=1]
+                bounding_boxes_padded=bounding_boxes_padded[bounding_boxes_padded[:,-1]!=1]
                 target_result, avg_factor = self.get_targets(
                     bounding_boxes,
                     self.config.lidar_resolution_height // self.config.bev_down_sample_factor,
                     self.config.lidar_resolution_width // self.config.bev_down_sample_factor,
                 )
-                bounding_boxes_padded = np.zeros((self.config.max_num_bbs, 8), dtype=np.float32)
-                if bounding_boxes_without_ego_car.shape[0] > 0:
-                    if bounding_boxes.shape[0] <= self.config.max_num_bbs:
-                        bounding_boxes_padded[: bounding_boxes_without_ego_car.shape[0], :] = bounding_boxes_without_ego_car
-    
-                    else:
-                        bounding_boxes_padded[: self.config.max_num_bbs, :] = bounding_boxes_without_ego_car[: self.config.max_num_bbs]
-                #we filter out, the ego car, because we dont want to predict it, but we needed it earlier, to get our vectors
                 data["bounding_boxes"] = bounding_boxes_padded
             data["center_heatmap"] = target_result["center_heatmap_target"]
             data["wh"] = target_result["wh_target"]
@@ -1071,16 +1054,16 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 if id==0:
                     continue
                 position_in_ego_system = t_u.get_relative_transform(ego_matrix_current_timestep, np.array(box["matrix"]))
-                position_in_ego_system=append_id_to_vector(position_in_ego_system, id)
+                position_in_ego_system=append_id_class_to_vector(position_in_ego_system, id, class_)
                 positions[idx].append(position_in_ego_system)
         #here we collect all ids for a given timestep, that are not visible by the viewing cone for that specific timestep
         keys_to_remove={}
         for timestep in positions.keys():
             keys_to_remove[timestep]=[]
-            for vector_4d in positions[timestep]:
-                vector_3d, id=extract_id_from_vector(vector_4d)
+            for vector_5d in positions[timestep]:
+                vector_3d, id, car_class=extract_id_class_from_vector(vector_5d)
                 #else is the ego car case
-                if not (vector_3d==0).all():
+                if not car_class=="ego_car":
                     image_point,z=self.transform_point_onto_image_plane(vector_3d)
                     #center point lies outside of current viewing cone, we want to drop the id then from the current timestep
                     if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
@@ -1088,8 +1071,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         #here we remove all non-visible ids
         for timestep, ids in keys_to_remove.items():
             for id_to_remove in ids:
-                for idx, vector_4d in enumerate(positions[timestep]):
-                    vector_3d, id=extract_id_from_vector(vector_4d)
+                for idx, vector_5d in enumerate(positions[timestep]):
+                    vector_3d, id, car_class=extract_id_class_from_vector(vector_5d)
                     if id==id_to_remove:
                         del positions[timestep][idx]
         #calculcate velocity vectors for actors still visible in all timesteps at once
@@ -1102,7 +1085,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         acceleration_vectors=acceleration_vectors[current_step_accel]
         velocity_vectors=normalize_vectors(velocity_vectors,self.config, case="velocity", normalize="normalize")
         acceleration_vectors=normalize_vectors(acceleration_vectors, self.config, case="acceleration", normalize="normalize")
-        return velocity_vectors, acceleration_vectors
+        return np.array(velocity_vectors, dtype=np.float32), np.array(acceleration_vectors, dtype=np.float32)
 
     def get_finite_difference(self, boxes):
         finite_difference_vectors={}
@@ -1111,17 +1094,15 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             current_boxes=boxes[timestep]
             finite_difference_vectors[timestep]=[]
             for box in current_boxes:
-                vector_3d_current, id_current=extract_id_from_vector(box)
+                vector_3d_current, id_current, car_class_current=extract_id_class_from_vector(box)
                 for previous_box in previous_boxes:
-                    vector_3d_previous, id_previous=extract_id_from_vector(previous_box)
+                    vector_3d_previous, id_previous, car_class_previous=extract_id_class_from_vector(previous_box)
                     if id_current==id_previous:
                         delta_vector=vector_3d_current-vector_3d_previous
                         delta_time=1/self.config.carla_fps
                         finite_difference_vector=delta_vector/delta_time
-                        finite_difference_vector=append_id_to_vector(finite_difference_vector, id_current)
+                        finite_difference_vector=append_id_class_to_vector(finite_difference_vector, id_current, car_class_current)
                         finite_difference_vectors[timestep].append(finite_difference_vector)
-        #because the default collate function needs all batchindices to be the same size, we add artificially interactions to the number of recognized bbs, so every batchindex has the
-        #same number of iteractions
         return finite_difference_vectors
     def augment_images(self, loaded_images_augmented):
         if self.config.use_color_aug:
@@ -1228,13 +1209,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             ctx, cty = ct
             extent_x = gt_bboxes[j, 2] * width_ratio
             extent_y = gt_bboxes[j, 3] * height_ratio
-
             radius = g_t.gaussian_radius([extent_y, extent_x], min_overlap=0.1)
             radius = max(2, int(radius))
-            if self.config.predict_vectors:
-                ind = gt_bboxes[j, -2].astype(int)
-            else:
-                ind = gt_bboxes[j, -1].astype(int)
+            ind = gt_bboxes[j, -3].astype(int)
             g_t.gen_gaussian_target(center_heatmap_target[ind], [ctx_int, cty_int], radius)
 
             wh_target[0, cty_int, ctx_int] = extent_x
@@ -1250,14 +1227,14 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 # Using mathematical rounding the split is applied at 0.5
                 brake_target[0, cty_int, ctx_int] = int(round(gt_bboxes[j, 6]))
             
-            if self.config.predict_vectors and calculated_velocity_vectors:
+            if self.config.predict_vectors:
                 box_id=int(box[-1])
-                for velocity_vector_4d in calculated_velocity_vectors:
-                    velocity_vector_3d, id=extract_id_from_vector(velocity_vector_4d)
+                for velocity_vector_5d in calculated_velocity_vectors:
+                    velocity_vector_3d, id,_=extract_id_class_from_vector(velocity_vector_5d)
                     if id==box_id:
                         velocity_vector_target[:, cty_int, ctx_int]=velocity_vector_3d[:-1]
-                for acceleration_vector_4d in calculcated_acceleration_vectors:
-                    acceleration_vector_3d, id=extract_id_from_vector(acceleration_vector_4d)
+                for acceleration_vector_5d in calculcated_acceleration_vectors:
+                    acceleration_vector_3d, id,_=extract_id_class_from_vector(acceleration_vector_5d)
                     if id==box_id:
                         acceleration_vector_target[:, cty_int, ctx_int]=acceleration_vector_3d[:-1]
             offset_target[0, cty_int, ctx_int] = ctx - ctx_int
@@ -1447,7 +1424,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         x, y = position_aug[:2, 0]
         # center_x, center_y, w, h, yaw
-        bbox = np.array([x, y, bbox_dict["extent"][0], bbox_dict["extent"][1], 0, 0, 0, 0,0])
+        bbox = np.array([x, y, bbox_dict["extent"][0], bbox_dict["extent"][1], 0, 0, 0, 0,0,0])
         bbox[4] = t_u.normalize_angle(bbox_dict["yaw"] - aug_yaw_rad)
 
         if bbox_dict["class"] == "car":
@@ -1476,14 +1453,15 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     break
 
         bboxes = []
-        bboxes_with_ego_car=[]
         future_bboxes = []
         for current_box in boxes:
             # Ego car is always at the origin. We don't predict it.
 
 
             bbox, height = self.get_bbox_label(current_box, y_augmentation, yaw_augmentation)
-            bbox[-1]=current_box["id"]
+            bbox[-2]=current_box["id"]
+            bbox[-1]=1 if current_box["class"]=="ego_car" else 0
+            
             # if "num_points" in current_box:
             #     if current_box["num_points"] <= self.config.num_lidar_hits_for_detection:
             #         continue
@@ -1522,11 +1500,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     self.config.min_y,
                 )
             
-            bboxes_with_ego_car.append(bbox)
-            if current_box["class"]!="ego_car":
-                bboxes.append(bbox)
+            
+            bboxes.append(bbox)
 
-        return bboxes, bboxes_with_ego_car,future_bboxes
+        return np.array(bboxes),np.array(future_bboxes)
 
     def extract_inputs(self, data, config):
         """

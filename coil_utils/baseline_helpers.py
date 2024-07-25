@@ -39,13 +39,13 @@ def generate_experiment_name(args, distributed_baseline_folder_name=None):
         return f"{distributed_baseline_folder_name}_"+"_".join([f'{ablation}-{",".join(map(str,value)) if isinstance(value, list) else value}' for ablation, value in ablations_dict.items()]),ablations_dict
 def normalize_vectors(x, config,case, normalize="normalize"):
     ret_lst=[]
-    for vec_4d in x:
-        vec_3d,id=extract_id_from_vector(vec_4d)
+    for vec_5d in x:
+        vec_3d,id,class_=extract_id_class_from_vector(vec_5d)
         if normalize=="normalize":
             vec_3d=(vec_3d-config.normalization_vectors[case]["mean"])/config.normalization_vectors[case]["std"]
         if normalize=="unnormalize":
             vec_3d=vec_3d*config.normalization_vectors[case]["std"]+config.normalization_vectors[case]["mean"]
-        final_vector=append_id_to_vector(vec_3d, id)
+        final_vector=append_id_class_to_vector(vec_3d, id, class_)
         ret_lst.append(final_vector)
     return ret_lst
 def extract_and_normalize_data(args, device_id, merged_config_object, data):
@@ -628,17 +628,25 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             store_path = os.path.join(save_path_root, "without_rgb", f"{step}.jpg")
         Path(store_path).parent.mkdir(parents=True, exist_ok=True)
         final_image_object.save(store_path, quality=95)
-def append_id_to_vector(vector_3d, id):
-        vector_4d=np.zeros(vector_3d.shape[0]+1)
+def append_id_class_to_vector(vector_3d, id, car_class=None):
+        if car_class is not None:
+            vector_4d=np.zeros(vector_3d.shape[0]+2)
+        else:
+            vector_4d=np.zeros(vector_3d.shape[0]+1)
         vector_4d[:3]=vector_3d[:3]
-        vector_4d[-1]=id
+        if car_class is not None:
+            vector_4d[-2]=id
+            vector_4d[-1]=1 if car_class=="ego_car" else 0
+        else:
+            vector_4d[-1]=id
         return vector_4d
-def extract_id_from_vector(vector_4d):
-    vector_3d=vector_4d[:3]
-    id=int(vector_4d[-1])
-    return vector_3d, id
+def extract_id_class_from_vector(vector_5d):
+    vector_3d=vector_5d[:3]
+    id=int(vector_5d[-2])
+    car_class="ego_car" if int(vector_5d[-1])==1 else "other"
+    return vector_3d, id, car_class
 def pad_detected_vectors(vectors, config):
-    vectors_padded = np.zeros((config.max_num_bbs,4), dtype=np.float32)
+    vectors_padded = np.zeros((config.max_num_bbs,5), dtype=np.float32)
     if vectors.shape[0]>0:
         if vectors.shape[0]<=config.max_num_bbs:
             vectors_padded[: vectors.shape[0],:]=vectors
@@ -647,16 +655,16 @@ def pad_detected_vectors(vectors, config):
     return vectors_padded
 def plot_vectors_gt(bbs, vectors, res, image, color,thickness, scale_factor):
     for actor_bb in bbs:
-        for vector_4d in vectors:
-            vector_3d, id=extract_id_from_vector(vector_4d)
+        for vector_5d in vectors:
+            vector_3d, id,car_class=extract_id_class_from_vector(vector_5d)
             vector_3d=vector_3d*res/scale_factor
             #dummy values
             if id==0:
                 continue
             #ego vehicle
-            if id==432:
+            if car_class==1:
                 cv2.arrowedLine(image, (1024//2, 1024//2), (int(1024//2+vector_3d[0]), int(1024//2+vector_3d[1])), color, thickness)
-            start_x, start_y, id_bb=int(actor_bb[0]),int(actor_bb[1]), int(actor_bb[-1])
+            start_x, start_y, id_bb=int(actor_bb[0]),int(actor_bb[1]), int(actor_bb[-2])
             if id_bb==id:
                 cv2.arrowedLine(image, (start_y, start_x), (start_y+int(vector_3d[0]), start_x+int(vector_3d[1])), color, thickness)
 
