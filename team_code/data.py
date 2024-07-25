@@ -818,7 +818,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 y_augmentation=aug_translation,
                 yaw_augmentation=aug_rotation,
             )
-            bounding_boxes_without_ego_car=np.array(bounding_boxes_without_ego_car)[:,:-1]
+
+            bounding_boxes_without_ego_car=np.atleast_2d(np.array(bounding_boxes_without_ego_car))[:,:-1]
 
             bounding_boxes_with_id=bboxes_with_ego_car.copy()
             bounding_boxes_with_id=np.array(bounding_boxes_with_id)
