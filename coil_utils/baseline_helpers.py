@@ -467,12 +467,11 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     images_lidar = t_u.draw_box(images_lidar, config,sample_box, color=firebrick, pixel_per_meter=16, thickness=4)
     if pred_bb is not None:
         for box in pred_bb:
-            if box:
-                inv_brake = 1.0 - box[6]
-                color_box = deepcopy(color_classes[int(box[7])])
-                color_box[1] = color_box[1] * inv_brake
-                box = t_u.bb_vehicle_to_image_system(box, loc_pixels_per_meter, config.min_x, config.min_y)
-                images_lidar = t_u.draw_box(images_lidar, config,box, color=color_box, pixel_per_meter=loc_pixels_per_meter)
+            inv_brake = 1.0 - box[6]
+            color_box = deepcopy(color_classes[int(box[7])])
+            color_box[1] = color_box[1] * inv_brake
+            box = t_u.bb_vehicle_to_image_system(box, loc_pixels_per_meter, config.min_x, config.min_y)
+            images_lidar = t_u.draw_box(images_lidar, config,box, color=color_box, pixel_per_meter=loc_pixels_per_meter)
 
     if gt_bbs is not None:
         real_boxes = gt_bbs.sum(axis=-1) != 0.0
