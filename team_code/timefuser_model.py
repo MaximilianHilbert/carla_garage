@@ -9,6 +9,7 @@ from team_code.center_net import LidarCenterNetHead
 from team_code.video_swin_transformer import SwinTransformer3D
 from team_code.x3d import X3D
 import math
+import numpy as np
 from team_code.video_resnet import VideoResNet
 import os
 from coil_utils.baseline_helpers import download_file
@@ -410,7 +411,7 @@ class TimeFuser(nn.Module):
             )
             carla_bboxes.append(bbox)
 
-        return carla_bboxes,velocity_vectors, acceleration_vectors
+        return np.array(carla_bboxes),velocity_vectors, acceleration_vectors
     def init_weights_without_backbone(self):
         for name, module in self.named_modules():
             if "image_encoder" not in name and name!="":
