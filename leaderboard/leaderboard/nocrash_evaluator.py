@@ -401,7 +401,7 @@ class NoCrashEvaluator(object):
                         prev_wp=curr_pred[iteration-1]["wp_predictions"].squeeze()
                     image_sequence=self.build_image_sequence(list(observations), iteration)
                     if self.config.detectboxes:
-                        batch_of_bbs_pred=self.manager.model.module.convert_features_to_bb_metric(pred_i["pred_bb"])
+                        batch_of_bbs_pred,_,_=self.manager.model.module.convert_features_to_bb_metric(pred_i["pred_bb"])
                     else:
                         batch_of_bbs_pred=None
                     if not self.config.bev:
