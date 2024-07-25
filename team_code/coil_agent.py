@@ -86,7 +86,7 @@ class CoILAgent(AutonomousAgent):
         self.config.replay_seq_len=100
         self.first_iter = True
         self.prev_rgb_queue = deque(maxlen=self.config.img_seq_len*self.config.data_save_freq*self.config.sampling_rate)
-        self.prev_speeds_queue = deque(maxlen=self.config.considered_images_incl_current*self.config.data_save_freq*self.config.sampling_rate) #we fuse the previous and the current timestep velocity
+        self.prev_speeds_queue = deque(maxlen=self.config.img_seq_len*self.config.data_save_freq*self.config.sampling_rate) #we fuse the previous and the current timestep velocity
         self.prev_location_queue=deque(maxlen=self.config.considered_images_incl_current*self.config.data_save_freq*self.config.sampling_rate) # we fuse only the previous 6 timesteps locations
         #queues for replay simulation
         self.replay_image_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
@@ -361,7 +361,7 @@ class CoILAgent(AutonomousAgent):
                     batch_of_bbs_pred=self._policy.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
                 else:
                     batch_of_bbs_pred=self.model.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
-                batch_of_bbs_pred = non_maximum_suppression([batch_of_bbs_pred], self.config.iou_treshold_nms)
+                batch_of_bbs_pred = non_maximum_suppression(batch_of_bbs_pred, self.config.iou_treshold_nms)
             else:
                 batch_of_bbs_pred=None
             if not self.config.bev==1 and (self.config.visualize_without_rgb or self.config.visualize_combined):
