@@ -455,7 +455,7 @@ def non_maximum_suppression(bounding_boxes, iou_treshhold):
     if bounding_boxes.size == 0:  # If no bounding boxes are detected can't do NMS
         return filtered_boxes
 
-    confidences_indices = np.argsort(bounding_boxes[:, -1])
+    confidences_indices = np.argsort(bounding_boxes[:,-1])
     while len(confidences_indices) > 0:
         idx = confidences_indices[-1]
         current_bb = bounding_boxes[idx]

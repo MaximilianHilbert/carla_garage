@@ -236,10 +236,10 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 ):
     
     rgb=t_u.normalization_wrapper(x=rgb, config=config, type="unnormalize")
-    if config.predict_vectors:
+    if velocity_vectors_pred is not None:
         velocity_vectors_pred=normalize_vectors(velocity_vectors_pred,config,"velocity", "unnormalize")
         acceleration_vectors_pred=normalize_vectors(acceleration_vectors_pred,config,"acceleration", "unnormalize")
-    
+    if velocity_vectors_gt is not None:
         velocity_vectors_gt=normalize_vectors(velocity_vectors_gt,config,"velocity", "unnormalize")
         acceleration_vectors_gt=normalize_vectors(acceleration_vectors_gt,config,"acceleration", "unnormalize")
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
@@ -486,13 +486,13 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
                 pixel_per_meter=loc_pixels_per_meter,
             )
     if velocity_vectors_gt is not None:
-        plot_vectors_gt(bbs=gt_bbs, vectors=velocity_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=1, scale_factor=scale_factor)
+        plot_vectors_gt(bbs=gt_bbs, vectors=velocity_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=1, scale_factor=2)
     if acceleration_vectors_gt is not None:
-        plot_vectors_gt(bbs=gt_bbs, vectors=acceleration_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=3, scale_factor=scale_factor)
+        plot_vectors_gt(bbs=gt_bbs, vectors=acceleration_vectors_gt, res=loc_pixels_per_meter, image=images_lidar, color=dark_blue, thickness=3, scale_factor=2)
     if velocity_vectors_pred is not None:
-        plot_vectors_pred(vectors=velocity_vectors_pred, bbs=pred_bb,res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=1, scale_factor=scale_factor)
+        plot_vectors_pred(vectors=velocity_vectors_pred, bbs=pred_bb,res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=1, scale_factor=2)
     if acceleration_vectors_pred is not None:
-        plot_vectors_pred(vectors=acceleration_vectors_pred, bbs=pred_bb,res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=3, scale_factor=scale_factor)
+        plot_vectors_pred(vectors=acceleration_vectors_pred, bbs=pred_bb,res=loc_pixels_per_meter, image=images_lidar, color=firebrick, thickness=3, scale_factor=2)
     
     images_lidar = np.rot90(images_lidar, k=1)
 

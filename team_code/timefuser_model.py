@@ -47,7 +47,7 @@ class TimeFuser(nn.Module):
                 self.remaining_spatial_dimension=256 #dependent on swin transformer
         if self.config.backbone=="videoresnet":
             self.image_encoder=VideoResNet(in_channels=3, pretrained="R2Plus1D_18_Weights.KINETICS400_V1" if self.config.pretrained else None)
-            self.remaining_spatial_dimension=256 #dependent on swin transformer
+            self.remaining_spatial_dimension=256
             self.channel_dimension=self.image_encoder.feature_info.info[-1]["num_chs"]
         if self.config.backbone.startswith("x3d"):
             self.image_encoder=X3D(model_name=self.config.backbone)
@@ -56,13 +56,14 @@ class TimeFuser(nn.Module):
         if self.config.backbone=="resnet":
             self.image_encoder=AIMBackbone(config, channels=self.input_channels, pretrained=True if self.config.pretrained else False)
             original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
-            self.remaining_spatial_dimension=256 #dependent on swin transformer
             self.channel_dimension=self.config.reduced_channel_dimension
             self.change_channel = nn.Conv2d(
                         original_channel_dimension,
                         self.channel_dimension,
                         kernel_size=1,
                     )
+            self.remaining_spatial_dimension=256*self.img_token_len
+            self.remaining_spatial_dimension_memory=256*(self.config.considered_images_incl_current-1)
             #self.time_position_embedding = nn.Parameter(torch.zeros(self.img_token_len, self.channel_dimension,self.config.img_encoding_remaining_spatial_dim[0],self.config.img_encoding_remaining_spatial_dim[1]))
             self.time_position_embedding=get_sinusoidal_positional_embedding_image_order
             self.spatial_position_embedding_per_image=PositionEmbeddingSine(num_pos_feats=self.channel_dimension//2, normalize=True)
@@ -307,29 +308,26 @@ class TimeFuser(nn.Module):
         return pred_dict
 
     def set_img_token_len_and_channels_and_seq_len(self):
-        self.total_steps_considered=self.config.img_seq_len
+        self.total_steps_considered=self.config.considered_images_incl_current
         if self.config.backbone=="stacking":
             self.img_token_len=1
             if self.name=="arp-policy" or self.name=="bcso":
                 self.img_seq_len=1
                 self.input_channels=1*self.config.rgb_input_channels
             elif self.name=="arp-memory":
-                self.img_seq_len=self.config.img_seq_len-1
-                self.input_channels=(self.config.img_seq_len-1)*self.config.rgb_input_channels
+                self.img_seq_len=self.config.considered_images_incl_current-1
+                self.input_channels=(self.config.considered_images_incl_current-1)*self.config.rgb_input_channels
             else:
-                self.img_seq_len=self.config.img_seq_len
-                self.input_channels=(self.config.img_seq_len)*self.config.rgb_input_channels
+                self.img_seq_len=self.config.considered_images_incl_current
+                self.input_channels=(self.config.considered_images_incl_current)*self.config.rgb_input_channels
         else:
             self.input_channels=self.config.rgb_input_channels
             if self.name=="arp-policy" or self.name=="bcso":
                 self.img_token_len=1
-                self.img_seq_len=1
             elif self.name=="arp-memory":
-                self.img_token_len=self.config.img_seq_len-1
-                self.img_seq_len=self.config.img_seq_len-1
+                self.img_token_len=self.config.considered_images_incl_current-1
             else:
-                self.img_seq_len=self.config.img_seq_len
-                self.img_token_len=self.config.img_seq_len
+                self.img_token_len=self.config.considered_images_incl_current
                 
     def compute_loss(self,params, keyframes=False):
         losses={}

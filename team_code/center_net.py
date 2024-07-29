@@ -278,7 +278,7 @@ class LidarCenterNetHead(nn.Module):
         batch_bboxes[:, :, 2] *= width_ratio
         batch_bboxes[:, :, 3] *= height_ratio
 
-        return batch_bboxes, velocity_vectors,acceleration_vectors
+        return batch_bboxes, velocity_vectors.detach().cpu().numpy(),acceleration_vectors.detach().cpu().numpy()
 
 
 def angle2class(angle, num_dir_bins):

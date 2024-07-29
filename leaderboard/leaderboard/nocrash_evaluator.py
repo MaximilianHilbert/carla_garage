@@ -401,7 +401,7 @@ class NoCrashEvaluator(object):
                         prev_wp=curr_pred[iteration-1]["wp_predictions"].squeeze()
                     image_sequence=self.build_image_sequence(list(observations), iteration)
                     if self.config.detectboxes:
-                        batch_of_bbs_pred,_,_=self.manager.model.module.convert_features_to_bb_metric(pred_i["pred_bb"])
+                        batch_of_bbs_pred,vel_vecs,accel_vecs=self.manager.model.module.convert_features_to_bb_metric(pred_i["pred_bb"])
                     else:
                         batch_of_bbs_pred=None
                     if not self.config.bev:
@@ -411,8 +411,11 @@ class NoCrashEvaluator(object):
                     image=visualize_model(rgb=image_sequence,config=self.config,closed_loop=True,
                                           generate_video=True,
                                     save_path_root=root,
+                                    velocity_vectors_pred=vel_vecs if self.config.predict_vectors else None,
+                                acceleration_vectors_pred=accel_vecs if self.config.predict_vectors else None,
                                     target_point=target_point_i, pred_wp=pred_i["wp_predictions"].squeeze().detach().cpu().numpy(),
                                     pred_bb=batch_of_bbs_pred,step=np.round(-1/self.config.carla_fps*(len(observations)-iteration),2),
+
                                     pred_bev_semantic=pred_i["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_i.keys() else None,
                                     road=road, parameters={"pred_residual": pred_residual_i}, pred_wp_prev=prev_wp, args=args)
                     
