@@ -203,7 +203,7 @@ def main(args):
     epochs = ["30"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3
-    benchmark = "longest6"
+    benchmark = args.benchmark
     model_dir = os.path.join(code_root, "_logs")
     carla_root = os.path.join(code_root, "carla")
 
@@ -618,6 +618,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cluster",
         type=str,
+    )
+    parser.add_argument(
+        "--benchmark",
+        type=str,
+        default="nocrash"
     )
     args = parser.parse_args()
     main(args)
