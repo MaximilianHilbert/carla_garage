@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 import os
 import fnmatch
+import xml.etree.ElementTree as ET
 import ujson
 from tqdm import tqdm
 import sys
@@ -38,7 +39,9 @@ def create_run_eval_bash(
     results_save_dir,
     carla_tm_port_start,
     carla_root,
-    eval_rep
+    eval_rep,
+    benchmark,
+    experiment
 ):
     Path(f"{results_save_dir}").mkdir(parents=True, exist_ok=True)
     with open(f"{bash_save_dir}/eval_{eval_filename}.sh", "w", encoding="utf-8") as rsh:
@@ -63,7 +66,6 @@ export PYTHONPATH=$PYTHONPATH:$CONFIG_ROOT
 export PYTHONPATH=$PYTHONPATH:$COIL_NETWORK
 export PYTHONPATH=$PYTHONPATH:$TEAM_CODE
 export PYTHONPATH=$PYTHONPATH:$WORK_DIR
-
 """
         )
         rsh.write(
@@ -85,6 +87,7 @@ export REPETITION={eval_rep}
 export RESUME=1
 export SETTING={setting}
 export ROUTE={route}
+export BENCHMARK={benchmark}
 """)
         if args.cluster=="tcml":
             rsh.write(
@@ -95,10 +98,10 @@ conda activate garage
     """)
         else:
             rsh.write(
-                f""" 
+f""" 
 source ~/.bashrc
 conda activate /mnt/lustre/work/geiger/gwb629/conda/garage
-    """)
+""")
         rsh.write(
             """
 python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
@@ -117,8 +120,19 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --setting=${SETTING} \
 --route=${ROUTE} \
 --visualize-combined=1
-"""
-        )
+""" if benchmark=="nocrash" else f"""python3 $WORK_DIR/leaderboard/leaderboard/leaderboard_evaluator_local.py \
+--track=SENSORS \
+--agent=$WORK_DIR/team_code/coil_agent.py \
+--visualize-without-rgb=0 \
+--visualize-combined=1 \
+--experiment-id={experiment} \
+--agent-config={os.path.dirname(os.path.dirname(model_dir))} \
+--routes={route} \
+--scenarios=$WORK_DIR/leaderboard/data/scenarios/eval_scenarios.json \
+--resume=true \
+--timeout=600 \
+--trafficManagerSeed={seed}
+""")
 
 
 def make_jobsub_file(root,commands, exp_name, exp_root_name, filename, partition):
@@ -185,11 +199,11 @@ def main(args):
     else:
         partition = "2080-galvani"
         username = "gwb629"
-        code_root="/mnt/lustre/work/geiger/gwb629/carla_garage"
+        code_root="/home/maximilian/Master/carla_garage"
     epochs = ["30"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3
-    benchmark = "nocrash"
+    benchmark = "longest6"
     model_dir = os.path.join(code_root, "_logs")
     carla_root = os.path.join(code_root, "carla")
 
@@ -238,8 +252,14 @@ def main(args):
                                       
                                       exp_names_tmp = []
                                       exp_names_tmp.append(experiment_name_stem + f"_e{evaluation_repetition}")
-                                      route_path = f"{code_root}/leaderboard/data/{benchmark}_split/{town}"
-                                      route_pattern = "*.txt"
+                                      if benchmark=="nocrash":  
+                                        route_path = f"{code_root}/leaderboard/data/{benchmark}_split/{town}"
+                                      else:
+                                        route_path = f"{code_root}/leaderboard/data/{benchmark}_split/"
+                                      if benchmark=="nocrash":
+                                        route_pattern = "*.txt"
+                                      else:
+                                        route_pattern = "*.xml"
 
                                       carla_world_port_start = 10000
                                       carla_streaming_port_start = 20000
@@ -274,8 +294,11 @@ def main(args):
                                       for root, _, files in os.walk(route_path):
                                         for name in files:
                                             if fnmatch.fnmatch(name, route_pattern):
-                                                with open(os.path.join(root, name)) as route_split_file:
-                                                    expected_result_lengths.append(len(route_split_file.readlines())*len(weathers[weather]) * traffics_len)
+                                                if benchmark=="nocrash":
+                                                    with open(os.path.join(root, name)) as route_split_file:
+                                                        expected_result_lengths.append(len(route_split_file.readlines())*len(weathers[weather]) * traffics_len)
+                                                else:
+                                                    expected_result_lengths.append(len(ET.parse(os.path.join(root, name)).findall('.//waypoint')))
                                                     route_files.append(os.path.join(root, name))
 
                                       for exp_name in exp_names:
@@ -349,12 +372,13 @@ def main(args):
                                             )
                                           
                                             result_file = f"{results_save_dir}/{eval_filename}.csv"
-                                            if os.path.exists(result_file):
-                                                with open(result_file) as file:
-                                                    length=len(file.readlines()[1:])
-                                                if length == expected_result_length:
-                                                  print("Found existing finished resultfile, skipping...")
-                                                  continue
+                                            if benchmark=="nocrash":
+                                                if os.path.exists(result_file):
+                                                    with open(result_file) as file:
+                                                        length=len(file.readlines()[1:])
+                                                    if length == expected_result_length:
+                                                        print("Found existing finished resultfile, skipping...")
+                                                        continue
                                             commands = []
 
                                             # Finds a free port
@@ -397,6 +421,8 @@ def main(args):
                                                 carla_tm_port_start,
                                                 carla_root,
                                                 evaluation_repetition,
+                                                benchmark,
+                                                experiment
                                             )
                                             commands.append(f"chmod u+x {bash_save_dir}/eval_{eval_filename}.sh")
                                             commands.append(
@@ -458,63 +484,120 @@ def main(args):
                                                 already_placed_files[eval_filename] = job_file
                                                 job_nr += 1
 
-    training_finished = False
-    while not training_finished:
-        num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
-        print(f"{num_running_jobs} jobs are running...")
-        time.sleep(10)
+    if benchmark=="nocrash":
+        training_finished = False
+        while not training_finished:
+            num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
+            print(f"{num_running_jobs} jobs are running...")
+            time.sleep(10)
 
-        # resubmit unfinished jobs
-        for k in list(meta_jobs.keys()):
-            (
-                job_finished,
-                job_file,
-                expected_result_length,
-                result_file,
-                resubmitted,
-            ) = meta_jobs[k]
-            need_to_resubmit = False
-            if not job_finished and resubmitted < 5:
-                # check whether job is running
-                if int(subprocess.check_output(f"squeue | grep {k} | wc -l", shell=True).decode("utf-8").strip()) == 0:
-                    # check whether result file is finished?
-                    if os.path.exists(result_file):
-                        print("file exists")
-                        with open(result_file, "r", encoding="utf-8") as f_result:
-                            evaluation_data_lines = len(f_result.readlines()[1:])
-                            if evaluation_data_lines != expected_result_length:
-                                need_to_resubmit = True
-                        if not need_to_resubmit:
-                            # delete old job
-                            print(f"Finished job {job_file}")
-                            meta_jobs[k] = (True, None, None, None, 0)
-                    else:
-                        need_to_resubmit = True
-
-            if need_to_resubmit:
-                # print("Remove file: ", result_file)
-                # Path(result_file).unlink()
-                print(f"resubmit sbatch {job_file}")
-                jobid = (
-                    subprocess.check_output(f"sbatch {job_file}", shell=True)
-                    .decode("utf-8")
-                    .strip()
-                    .rsplit(" ", maxsplit=1)[-1]
-                )
-                meta_jobs[jobid] = (
-                    False,
+            # resubmit unfinished jobs
+            for k in list(meta_jobs.keys()):
+                (
+                    job_finished,
                     job_file,
                     expected_result_length,
                     result_file,
-                    resubmitted + 1,
-                )
-                meta_jobs[k] = (True, None, None, None, 0)
-                num_running_jobs += 1
-        time.sleep(10)
+                    resubmitted,
+                ) = meta_jobs[k]
+                need_to_resubmit = False
+                if not job_finished and resubmitted < 5:
+                    # check whether job is running
+                    if int(subprocess.check_output(f"squeue | grep {k} | wc -l", shell=True).decode("utf-8").strip()) == 0:
+                        # check whether result file is finished?
+                        if os.path.exists(result_file):
+                            print("file exists")
+                            with open(result_file, "r", encoding="utf-8") as f_result:
+                                evaluation_data_lines = len(f_result.readlines()[1:])
+                                if evaluation_data_lines != expected_result_length:
+                                    need_to_resubmit = True
+                            if not need_to_resubmit:
+                                # delete old job
+                                print(f"Finished job {job_file}")
+                                meta_jobs[k] = (True, None, None, None, 0)
+                        else:
+                            need_to_resubmit = True
 
-        if num_running_jobs == 0:
-            training_finished = True
+                if need_to_resubmit:
+                    # print("Remove file: ", result_file)
+                    # Path(result_file).unlink()
+                    print(f"resubmit sbatch {job_file}")
+                    jobid = (
+                        subprocess.check_output(f"sbatch {job_file}", shell=True)
+                        .decode("utf-8")
+                        .strip()
+                        .rsplit(" ", maxsplit=1)[-1]
+                    )
+                    meta_jobs[jobid] = (
+                        False,
+                        job_file,
+                        expected_result_length,
+                        result_file,
+                        resubmitted + 1,
+                    )
+                    meta_jobs[k] = (True, None, None, None, 0)
+                    num_running_jobs += 1
+            time.sleep(10)
 
+            if num_running_jobs == 0:
+                training_finished = True
+    else:
+        training_finished = False
+        while not training_finished:
+            num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
+            print(f"{num_running_jobs} jobs are running...")
+            time.sleep(10)
+
+            # resubmit unfinished jobs
+            for k in list(meta_jobs.keys()):
+                job_finished, job_file, result_file, resubmitted = meta_jobs[k]
+                need_to_resubmit = False
+                if not job_finished and resubmitted < 5:
+                    # check whether job is running
+                    if int(subprocess.check_output(f"squeue | grep {k} | wc -l", shell=True).decode("utf-8").strip()) == 0:
+                        # check whether result file is finished?
+                        if os.path.exists(result_file):
+                            with open(result_file, "r", encoding="utf-8") as f_result:
+                                evaluation_data = ujson.load(f_result)
+                            progress = evaluation_data["_checkpoint"]["progress"]
+
+                            if len(progress) < 2 or progress[0] < progress[1]:
+                                need_to_resubmit = True
+                            else:
+                                for record in evaluation_data["_checkpoint"]["records"]:
+                                    if record["status"] == "Failed - Agent couldn't be set up":
+                                        need_to_resubmit = True
+                                        print("Resubmit - Agent not setup")
+                                    elif record["status"] == "Failed":
+                                        need_to_resubmit = True
+                                    elif record["status"] == "Failed - Simulation crashed":
+                                        need_to_resubmit = True
+                                    elif record["status"] == "Failed - Agent crashed":
+                                        need_to_resubmit = True
+
+                            if not need_to_resubmit:
+                                # delete old job
+                                print(f"Finished job {job_file}")
+                                meta_jobs[k] = (True, None, None, 0)
+                        else:
+                            need_to_resubmit = True
+
+                if need_to_resubmit:
+                    # Remove crashed results file
+                    if os.path.exists(result_file):
+                        print("Remove file: ", result_file)
+                        Path(result_file).unlink()
+                    print(f"resubmit sbatch {job_file}")
+                    jobid = (
+                        subprocess.check_output(f"sbatch {job_file}", shell=True)
+                        .decode("utf-8")
+                        .strip()
+                        .rsplit(" ", maxsplit=1)[-1]
+                    )
+                    meta_jobs[jobid] = (False, job_file, result_file, resubmitted + 1)
+                    meta_jobs[k] = (True, None, None, 0)
+
+            time.sleep(10)
     print("Evaluation finished. Start parsing results.")
     # eval_root = f'{code_root}/evaluation'
     # subprocess.check_call(
