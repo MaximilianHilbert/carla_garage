@@ -131,8 +131,7 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --scenarios=$WORK_DIR/leaderboard/data/scenarios/eval_scenarios.json \
 --resume=true \
 --timeout=600 \
---trafficManagerPort={carla_tm_port_start}
-
+--trafficManagerPort={carla_tm_port_start} \
 --trafficManagerSeed={seed}
 """)
 
