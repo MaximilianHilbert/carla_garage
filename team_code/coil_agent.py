@@ -358,10 +358,10 @@ class CoILAgent(AutonomousAgent):
 
             if self.config.detectboxes:
                 if "arp" in self.config.baseline_folder_name:
-                    batch_of_bbs_pred=self._policy.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
+                    batch_of_bbs_pred,vel_vecs, accel_vecs=self._policy.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
                 else:
-                    batch_of_bbs_pred=self.model.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
-                batch_of_bbs_pred = non_maximum_suppression(batch_of_bbs_pred, self.config.iou_treshold_nms)
+                    batch_of_bbs_pred,vel_vecs, accel_vecs=self.model.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
+                batch_of_bbs_pred = non_maximum_suppression(np.expand_dims(batch_of_bbs_pred,0), self.config.iou_treshold_nms)
             else:
                 batch_of_bbs_pred=None
             if not self.config.bev==1 and (self.config.visualize_without_rgb or self.config.visualize_combined):
@@ -369,6 +369,8 @@ class CoILAgent(AutonomousAgent):
             else:
                 road=None
             image_to_save=visualize_model(rgb=image_sequence,config=self.config,closed_loop=True,generate_video=True,
+                            velocity_vectors_pred=vel_vecs if self.config.predict_vectors else None,
+                            acceleration_vectors_pred=accel_vecs if self.config.predict_vectors else None,
                             save_path_root="",
                             target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(), pred_wp=pred_dict["wp_predictions"].squeeze().detach().cpu().numpy(),
                             pred_bb=batch_of_bbs_pred,step=f"{timestamp:.2f}",

@@ -365,8 +365,8 @@ def main(args):
                     if merged_config_object.batch_size==1:
                         if "arp" in merged_config_object.baseline_folder_name:
                             visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images.squeeze(0)],axis=1).permute(1, 2, 0).detach().cpu().numpy(),config=merged_config_object,
-                                    save_path_root=os.path.join(os.environ.get("WORK_DIR"), "test"),
-                                    gt_bev_semantic=None,lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
+                                    save_path_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "training"),
+                                    gt_bev_semantic=bev_semantic_labels.detach().cpu().numpy(),lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
                                     target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
                                     pred_wp=torch.squeeze(pred_dict_policy["wp_predictions"],0).detach().cpu().numpy(),
                                     velocity_vectors_gt=torch.squeeze(vel_vecs,0).detach().cpu().numpy() if vel_vecs is not None  else None,
@@ -382,7 +382,7 @@ def main(args):
                         else:
                             visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images.squeeze(0)],axis=1).permute(1, 2, 0).detach().cpu().numpy(),config=merged_config_object,
                                             save_path_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "training"),
-                                            gt_bev_semantic=None,lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
+                                            gt_bev_semantic=bev_semantic_labels.squeeze().detach().cpu().numpy(),lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
                                             target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
                                             pred_wp=torch.squeeze(pred_dict["wp_predictions"],0).detach().cpu().numpy(),
                                             velocity_vectors_gt=torch.squeeze(vel_vecs,0).detach().cpu().numpy() if vel_vecs is not None else None,
