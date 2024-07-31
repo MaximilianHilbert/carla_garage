@@ -466,7 +466,7 @@ class LeaderboardEvaluator(object):
                         prev_wp=curr_pred[iteration-1]["wp_predictions"].squeeze()
                     image_sequence=self.build_image_sequence(list(observations), iteration)
                     if self.manager.scenario_class.config.agent.config.detectboxes:
-                        batch_of_bbs_pred=self.manager.model.module.convert_features_to_bb_metric(pred_i["pred_bb"])
+                        batch_of_bbs_pred,vel_vecs, accel_vecs=self.manager.model.module.convert_features_to_bb_metric(pred_i["pred_bb"])
                     else:
                         batch_of_bbs_pred=None
                     if not self.manager.scenario_class.config.agent.config.bev:
@@ -476,6 +476,8 @@ class LeaderboardEvaluator(object):
                     image=visualize_model(rgb=image_sequence,config=self.manager.scenario_class.config.agent.config,closed_loop=True,
                                           generate_video=True,
                                     save_path_root=root,
+                                     velocity_vectors_pred=vel_vecs if self.manager.scenario_class.config.agent.config.predict_vectors else None,
+                                        acceleration_vectors_pred=accel_vecs if self.manager.scenario_class.config.agent.config.predict_vectors else None,
                                     target_point=target_point_i, pred_wp=pred_i["wp_predictions"].squeeze().detach().cpu().numpy(),
                                     pred_bb=batch_of_bbs_pred,step=np.round(-1/self.manager.scenario_class.config.agent.config.carla_fps*(len(observations)-iteration),2),
                                     pred_bev_semantic=pred_i["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_i.keys() else None,
