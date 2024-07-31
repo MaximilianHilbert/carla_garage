@@ -17,5 +17,8 @@ export PYTHONPATH=$PYTHONPATH:$COIL_NETWORK
 export PYTHONPATH=$PYTHONPATH:$TEAM_CODE
 export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 
-python $WORK_DIR/tools/result_parser.py --xml $WORK_DIR/leaderboard/data/longest6.xml
---results $WORK_DIR/evaluation/ --log_dir $WORK_DIR/evaluation/ --town_maps $WORK_DIR/leaderboard/data/town_maps_xodr --map_dir $WORK_DIR/leaderboard/data/town_maps_tga --device cpu --map_data_folder $WORK_DIR/tools/proxy_simulator/map_data --subsample 1 --strict --visualize_infractions
+python $WORK_DIR/tools/result_parser.py --xml $WORK_DIR/leaderboard/data/longest6.xml \
+ --results $WORK_DIR/evaluation/ --log_dir $WORK_DIR/evaluation/ \
+ --town_maps $WORK_DIR/leaderboard/data/town_maps_xodr --map_dir $WORK_DIR/leaderboard/data/town_maps_tga \
+ --device cpu --map_data_folder $WORK_DIR/tools/proxy_simulator/map_data \
+ --subsample 1 --strict --visualize_infractions
