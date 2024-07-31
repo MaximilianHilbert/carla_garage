@@ -46,8 +46,7 @@ def create_run_eval_bash(
     Path(f"{results_save_dir}").mkdir(parents=True, exist_ok=True)
     with open(f"{bash_save_dir}/eval_{eval_filename}.sh", "w", encoding="utf-8") as rsh:
         rsh.write(
-            f"""\
-          
+f"""
 export WORK_DIR={work_dir}
 export CONFIG_ROOT=$WORK_DIR/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
@@ -69,7 +68,7 @@ export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 """
         )
         rsh.write(
-            f"""
+f"""
 export PORT=$1
 echo 'World Port:' $PORT
 export TM_PORT=`comm -23 <(seq {carla_tm_port_start} {carla_tm_port_start+49} | sort) <(ss -Htan | awk '{{print $4}}' | cut -d':' -f2 | sort -u) | shuf | head -n 1`
@@ -91,11 +90,11 @@ export BENCHMARK={benchmark}
 """)
         if args.cluster=="tcml":
             rsh.write(
-                f"""
+f"""
 source /home/hilbert/.bashrc
 eval "$(conda shell.bash hook)"
 conda activate garage
-    """)
+""")
         else:
             rsh.write(
 f""" 
@@ -103,7 +102,7 @@ source ~/.bashrc
 conda activate /mnt/lustre/work/geiger/gwb629/conda/garage
 """)
         rsh.write(
-            """
+"""
 python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --baseline=${BASELINE} \
 --coil_checkpoint=${COIL_CHECKPOINT} \
@@ -130,7 +129,7 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --routes={route} \
 --scenarios=$WORK_DIR/leaderboard/data/scenarios/eval_scenarios.json \
 --resume=true \
---timeout=600 \
+--timeout=60 \
 --trafficManagerPort={carla_tm_port_start} \
 --trafficManagerSeed={seed}
 """)
@@ -623,7 +622,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--benchmark",
         type=str,
-        default="nocrash"
+        default="longest6"
     )
     args = parser.parse_args()
     main(args)
