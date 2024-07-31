@@ -488,7 +488,7 @@ def main(args):
                                                 job_nr += 1
 
     if benchmark=="nocrash":
-        training_finished = False
+        training_finished = True
         while not training_finished:
             num_running_jobs, max_num_parallel_jobs = get_num_jobs(job_name=experiment_name_stem, username=username)
             print(f"{num_running_jobs} jobs are running...")
@@ -602,15 +602,15 @@ def main(args):
 
             time.sleep(10)
     print("Evaluation finished. Start parsing results.")
-    # eval_root = f'{code_root}/evaluation'
-    # subprocess.check_call(
-    #     f'python {code_root}/tools/result_parser.py --xml {code_root}/leaderboard/data/{benchmark}.xml '
-    #     f'--results {eval_root} --log_dir {eval_root} --town_maps {code_root}/leaderboard/data/town_maps_xodr '
-    #     f'--map_dir {code_root}/leaderboard/data/town_maps_tga --device cpu '
-    #     f'--map_data_folder {code_root}/tools/proxy_simulator/map_data --subsample 1 --strict --visualize_infractions',
-    #     stdout=sys.stdout,
-    #     stderr=sys.stderr,
-    #     shell=True)
+    eval_root = f'{code_root}/evaluation'
+    subprocess.check_call(
+        f'python {code_root}/tools/result_parser.py --xml {code_root}/leaderboard/data/{benchmark}.xml '
+        f'--results {eval_root} --log_dir {eval_root} --town_maps {code_root}/leaderboard/data/town_maps_xodr '
+        f'--map_dir {code_root}/leaderboard/data/town_maps_tga --device cpu '
+        f'--map_data_folder {code_root}/tools/proxy_simulator/map_data --subsample 1 --strict --visualize_infractions',
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        shell=True)
 
 
 if __name__ == "__main__":
