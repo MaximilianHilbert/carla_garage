@@ -83,6 +83,7 @@ export WEATHER={weather}
 export SEED={seed}
 export CHALLENGE_TRACK_CODENAME=SENSORS
 export REPETITION={eval_rep}
+export CHECKPOINT_ENDPOINT={results_save_dir}/{route}.json
 export RESUME=1
 export SETTING={setting}
 export ROUTE={route}
@@ -132,7 +133,8 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --timeout=60 \
 --trafficManagerPort=$TM_PORT \
 --port=$PORT \
---trafficManagerSeed={seed}
+--trafficManagerSeed={seed} \
+--checkpoint=$CHECKPOINT_ENDPOINT
 """)
 
 
