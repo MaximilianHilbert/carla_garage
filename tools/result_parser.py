@@ -529,9 +529,9 @@ class CSVParser:
                 }
         return route_matching
 
-    def get_filenames(self):
+    def get_filenames(self, baseline, experiment, repetition, setting):
         filenames = []
-        for foldername, _, cur_filenames in os.walk(args.results):
+        for foldername, _, cur_filenames in os.walk(os.path.join(args.results, baseline, experiment, repetition, setting)):
             paths = []
             for filename in cur_filenames:
                 if filename.endswith(".json") and not filename.endswith("records.json.gz"):
@@ -539,7 +539,7 @@ class CSVParser:
             filenames += paths
         return filenames
 
-    def aggregate_files(self, route_matching):
+    def aggregate_files(self, route_matching, baseline, experiment, repetition, setting):
         route_evaluation = []
         total_score_labels = []
         total_score_values = []
@@ -549,7 +549,7 @@ class CSVParser:
         total_infractions = {}
         total_infractions_per_km = {}
 
-        filenames = self.get_filenames()
+        filenames = self.get_filenames(baseline, experiment, repetition, setting)
 
         abort = False
         # aggregate files
@@ -780,11 +780,15 @@ class CSVParser:
         evaluation_filtered,
         route_matching,
         route_to_id,
+        baseline,
+        experiment,
+        repetition,
+        setting
     ):
         # write output csv file
         if not os.path.isdir(args.log_dir):
-            os.makedirs(args.log_dir)
-        with open(os.path.join(args.log_dir, "results.csv"), "w", encoding="utf-8") as f:  # Make file object first
+            os.makedirs(os.path.join(args.log_dir, baseline, experiment, repetition, setting))
+        with open(os.path.join(args.log_dir,baseline,experiment, repetition, setting, "results.csv"), "w", encoding="utf-8") as f:  # Make file object first
             csv_writer_object = csv.writer(f)  # Make csv writer object
             csv_writer_object.writerow(["sep=,"])  # to clarify for Excel the separator
             # writerow writes one row of data given as list object
@@ -941,12 +945,11 @@ class CSVParser:
 
         return unique_ids, unique_infractions
 
-    def parse(self, root):
+    def parse(self, root, baseline, experiment,repetition,setting):
         # build route matching dict
         route_matching = self.get_route_matching(root)
-
         # aggregate json files and build content for csv
-        route_evaluation, total_score_labels, total_score_values = self.aggregate_files(route_matching)
+        route_evaluation, total_score_labels, total_score_values = self.aggregate_files(route_matching, baseline, experiment, repetition, setting)
         route_to_id, total_score_info, route_scenarios = self.build_tables(
             route_evaluation, total_score_labels, total_score_values, route_matching
         )
@@ -960,6 +963,10 @@ class CSVParser:
             evaluation_filtered,
             route_matching,
             route_to_id,
+            baseline,
+            experiment,
+            repetition,
+            setting
         )
 
         return route_scenarios, unique_ids, unique_infractions
@@ -1247,7 +1254,11 @@ def main():
     ##################################################################
     root = ET.parse(args.xml).getroot()
     csv_parser = CSVParser()
-    route_scenarios, unique_ids, unique_infractions = csv_parser.parse(root)
+    for baseline in os.listdir(args.results):
+        for experiment in os.listdir(os.path.join(args.results, baseline)):
+            for repetition in os.listdir(os.path.join(args.results, baseline, experiment)):
+                for setting in os.listdir(os.path.join(args.results, baseline, experiment, repetition)):
+                    route_scenarios, unique_ids, unique_infractions = csv_parser.parse(root, baseline, experiment, repetition, setting)
 
     if args.visualize_infractions:
         ##################################################################

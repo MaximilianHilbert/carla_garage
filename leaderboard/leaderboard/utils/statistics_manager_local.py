@@ -13,6 +13,7 @@ from __future__ import print_function
 
 from dictor import dictor
 import math
+from coil_utils.baseline_helpers import get_ablations_dict
 import sys
 
 from srunner.scenariomanager.traffic_events import TrafficEventType
@@ -147,6 +148,8 @@ class StatisticsManager(object):
         route_record.meta["duration_system"] = duration_time_system
         route_record.meta["duration_game"] = duration_time_game
         route_record.meta["route_length"] = compute_route_length(config)
+        for ablation, value in get_ablations_dict().items():
+            route_record.meta[ablation] = value
         route_record.timestamp = route_date_string
 
         if self._master_scenario:

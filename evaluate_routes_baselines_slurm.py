@@ -138,15 +138,15 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 """)
 
 
-def make_jobsub_file(root,commands, exp_name, exp_root_name, filename, partition):
-    os.makedirs(os.path.join(root, 'evaluation', exp_root_name,exp_name,'run_files','logs'), exist_ok=True)
-    os.makedirs(os.path.join(root, 'evaluation', exp_root_name,exp_name,'run_files','job_files'), exist_ok=True)
-    job_file = os.path.join(root, "evaluation",exp_root_name,exp_name,"run_files", "job_files",f"{filename}.sh")
+def make_jobsub_file(root,commands, baseline,experiment,repetition,setting,exp_name, exp_root_name, filename, partition):
+    os.makedirs(os.path.join(root, 'evaluation', baseline,experiment,repetition,setting,exp_root_name,exp_name,'run_files','logs'), exist_ok=True)
+    os.makedirs(os.path.join(root, 'evaluation', baseline,experiment,repetition,setting, exp_root_name,exp_name,'run_files','job_files'), exist_ok=True)
+    job_file = os.path.join(root, "evaluation", baseline,experiment,repetition,setting,exp_root_name,exp_name,"run_files", "job_files",f"{filename}.sh")
     qsub_template = f"""#!/bin/bash
 #SBATCH --job-name={filename}
 #SBATCH --partition={partition}
-#SBATCH -o {os.path.join(root, "evaluation", exp_root_name,exp_name,"run_files","logs",f"qsub_out_{filename}.log")}
-#SBATCH -e {os.path.join(root, "evaluation",exp_root_name,exp_name,"run_files","logs",f"qsub_err_{filename}.log")}
+#SBATCH -o {os.path.join(root, "evaluation", baseline,experiment,repetition,setting,exp_root_name,exp_name,"run_files","logs",f"qsub_out_{filename}.log")}
+#SBATCH -e {os.path.join(root, "evaluation", baseline,experiment,repetition,setting,exp_root_name,exp_name,"run_files","logs",f"qsub_err_{filename}.log")}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=6
@@ -304,38 +304,7 @@ def main(args):
                                                     expected_result_lengths.append(len(ET.parse(os.path.join(root, name)).findall('.//waypoint')))
                                                     route_files.append(os.path.join(root, name))
 
-                                      for exp_name in exp_names:
-                                        for route in route_files:
-                                          bash_save_dir = Path(
-                                              os.path.join(
-                                                  code_root,
-                                                  "evaluation",
-                                                  experiment_name_root,
-                                                  exp_name,
-                                                  "run_bashs",
-                                              )
-                                          )
-                                          results_save_dir = Path(
-                                              os.path.join(
-                                                  code_root,
-                                                  "evaluation",
-                                                  experiment_name_root,
-                                                  exp_name,
-                                                  "results",
-                                              )
-                                          )
-                                          logs_save_dir = Path(
-                                              os.path.join(
-                                                  code_root,
-                                                  "evaluation",
-                                                  experiment_name_root,
-                                                  exp_name,
-                                                  "logs",
-                                              )
-                                          )
-                                          bash_save_dir.mkdir(parents=True, exist_ok=True)
-                                          results_save_dir.mkdir(parents=True, exist_ok=True)
-                                          logs_save_dir.mkdir(parents=True, exist_ok=True)
+
 
                                       for exp_name in exp_names:
                                         for route,expected_result_length in zip(route_files,expected_result_lengths):
@@ -350,6 +319,10 @@ def main(args):
                                                 os.path.join(
                                                     code_root,
                                                     "evaluation",
+                                                    baseline,
+                                                    experiment,
+                                                    repetition,
+                                                    setting,
                                                     experiment_name_root,
                                                     exp_name,
                                                     "run_bashs",
@@ -359,6 +332,10 @@ def main(args):
                                                 os.path.join(
                                                     code_root,
                                                     "evaluation",
+                                                    baseline,
+                                                    experiment,
+                                                    repetition,
+                                                    setting,
                                                     experiment_name_root,
                                                     exp_name,
                                                     "results",
@@ -368,12 +345,18 @@ def main(args):
                                                 os.path.join(
                                                     code_root,
                                                     "evaluation",
+                                                    baseline,
+                                                    experiment,
+                                                    repetition,
+                                                    setting,
                                                     experiment_name_root,
                                                     exp_name,
                                                     "logs",
                                                 )
                                             )
-                                          
+                                            bash_save_dir.mkdir(parents=True, exist_ok=True)
+                                            results_save_dir.mkdir(parents=True, exist_ok=True)
+                                            logs_save_dir.mkdir(parents=True, exist_ok=True)
                                             
                                             if benchmark=="nocrash":
                                                 result_file = f"{results_save_dir}/{eval_filename}.csv"
@@ -467,6 +450,10 @@ def main(args):
                                             job_file = make_jobsub_file(
                                                 root=code_root,
                                                 commands=commands,
+                                                baseline=baseline,
+                                                experiment=experiment,
+                                                repetition=repetition,
+                                                setting=setting,
                                                 exp_name=experiment_name_stem,
                                                 exp_root_name=experiment_name_root,
                                                 filename=eval_filename,
@@ -630,16 +617,7 @@ def main(args):
             time.sleep(10)
             if num_running_jobs == 0:
                 training_finished = True
-    print("Evaluation finished. Start parsing results.")
-    eval_root = f'{code_root}/evaluation'
-    subprocess.check_call(
-        f'python {code_root}/tools/result_parser.py --xml {code_root}/leaderboard/data/{benchmark}.xml '
-        f'--results {eval_root} --log_dir {eval_root} --town_maps {code_root}/leaderboard/data/town_maps_xodr '
-        f'--map_dir {code_root}/leaderboard/data/town_maps_tga --device cpu '
-        f'--map_data_folder {code_root}/tools/proxy_simulator/map_data --subsample 1 --strict --visualize_infractions',
-        stdout=sys.stdout,
-        stderr=sys.stderr,
-        shell=True)
+    print("Evaluation finished")
 
 
 if __name__ == "__main__":
