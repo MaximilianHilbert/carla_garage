@@ -628,6 +628,8 @@ def main(args):
                     meta_jobs[k] = (True, None, None,None, 0)
 
             time.sleep(10)
+            if num_running_jobs == 0:
+                training_finished = True
     print("Evaluation finished. Start parsing results.")
     eval_root = f'{code_root}/evaluation'
     subprocess.check_call(
