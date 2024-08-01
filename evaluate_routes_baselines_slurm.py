@@ -86,6 +86,7 @@ export REPETITION={eval_rep}
 export CHECKPOINT_ENDPOINT={os.path.join(results_save_dir,eval_filename)}.json
 export RESUME=1
 export SETTING={setting}
+export RECORD_PATH={os.path.join(os.path.dirname(results_save_dir), "records")}
 export ROUTE={route}
 export BENCHMARK={benchmark}
 """)
@@ -131,6 +132,7 @@ python3 ${WORK_DIR}/evaluate_nocrash_baselines.py \
 --scenarios=$WORK_DIR/leaderboard/data/scenarios/eval_scenarios.json \
 --resume=true \
 --timeout=600 \
+--record=$RECORD_PATH \
 --trafficManagerPort=$TM_PORT \
 --port=$PORT \
 --trafficManagerSeed={seed} \
