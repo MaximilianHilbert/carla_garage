@@ -553,7 +553,7 @@ def main(args):
 
             # resubmit unfinished jobs
             for k in list(meta_jobs.keys()):
-                job_finished, job_file, result_file, resubmitted = meta_jobs[k]
+                job_finished, job_file, _,result_file, resubmitted = meta_jobs[k]
                 need_to_resubmit = False
                 if not job_finished and resubmitted < 5:
                     # check whether job is running
@@ -581,7 +581,7 @@ def main(args):
                             if not need_to_resubmit:
                                 # delete old job
                                 print(f"Finished job {job_file}")
-                                meta_jobs[k] = (True, None, None, 0)
+                                meta_jobs[k] = (True, None, None,None, 0)
                         else:
                             need_to_resubmit = True
 
@@ -597,8 +597,8 @@ def main(args):
                         .strip()
                         .rsplit(" ", maxsplit=1)[-1]
                     )
-                    meta_jobs[jobid] = (False, job_file, result_file, resubmitted + 1)
-                    meta_jobs[k] = (True, None, None, 0)
+                    meta_jobs[jobid] = (False, job_file, None,result_file, resubmitted + 1)
+                    meta_jobs[k] = (True, None, None,None, 0)
 
             time.sleep(10)
     print("Evaluation finished. Start parsing results.")
