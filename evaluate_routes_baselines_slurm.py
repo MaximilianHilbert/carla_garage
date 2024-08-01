@@ -374,12 +374,38 @@ def main(args):
                                                 )
                                             )
                                           
-                                            result_file = f"{results_save_dir}/{eval_filename}.csv"
+                                            
                                             if benchmark=="nocrash":
+                                                result_file = f"{results_save_dir}/{eval_filename}.csv"
                                                 if os.path.exists(result_file):
                                                     with open(result_file) as file:
                                                         length=len(file.readlines()[1:])
                                                     if length == expected_result_length:
+                                                        print("Found existing finished resultfile, skipping...")
+                                                        continue
+                                            else:
+                                                result_file = f"{results_save_dir}/{eval_filename}.json"
+                                                if os.path.exists(result_file):
+                                                    with open(result_file, "r", encoding="utf-8") as f_result:
+                                                        evaluation_data = ujson.load(f_result)
+                                                    progress = evaluation_data["_checkpoint"]["progress"]
+
+                                                    if len(progress) < 2 or progress[0] < progress[1]:
+                                                        need_to_resubmit = True
+                                                    else:
+                                                        for record in evaluation_data["_checkpoint"]["records"]:
+                                                            if record["status"] == "Failed - Agent couldn't be set up":
+                                                                need_to_resubmit = True
+                                                                print("Resubmit - Agent not setup")
+                                                            elif record["status"] == "Failed":
+                                                                need_to_resubmit = True
+                                                            elif record["status"] == "Failed - Simulation crashed":
+                                                                need_to_resubmit = True
+                                                            elif record["status"] == "Failed - Agent crashed":
+                                                                need_to_resubmit = True
+
+                                                    if not need_to_resubmit:
+                                                        # delete old job
                                                         print("Found existing finished resultfile, skipping...")
                                                         continue
                                             commands = []
