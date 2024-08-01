@@ -384,6 +384,7 @@ def main(args):
                                                         print("Found existing finished resultfile, skipping...")
                                                         continue
                                             else:
+                                                need_to_resubmit=False
                                                 result_file = f"{results_save_dir}/{eval_filename}.json"
                                                 if os.path.exists(result_file):
                                                     with open(result_file, "r", encoding="utf-8") as f_result:
