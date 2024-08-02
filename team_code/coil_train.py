@@ -362,39 +362,41 @@ def main(args):
                             batch_of_bbs_pred=model.module.convert_features_to_bb_metric(pred_dict["pred_bb"])
                     else:
                         batch_of_bbs_pred=None
-                    if merged_config_object.batch_size==1:
-                        if "arp" in merged_config_object.baseline_folder_name:
-                            visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images.squeeze(0)],axis=1).permute(1, 2, 0).detach().cpu().numpy(),config=merged_config_object,
-                                    save_path_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "training"),
-                                    gt_bev_semantic=bev_semantic_labels.detach().cpu().numpy(),lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
-                                    target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
-                                    pred_wp=torch.squeeze(pred_dict_policy["wp_predictions"],0).detach().cpu().numpy(),
-                                    velocity_vectors_gt=torch.squeeze(vel_vecs,0).detach().cpu().numpy() if vel_vecs is not None  else None,
-                                    acceleration_vectors_gt=torch.squeeze(accel_vecs, 0).detach().cpu().numpy() if accel_vecs is not None else None,
-                                    velocity_vectors_pred=batch_of_bbs_pred[1],
-                                    acceleration_vectors_pred=batch_of_bbs_pred[2],
-                                    step=iteration,
-                                    gt_wp=targets.squeeze(0),
-                                    pred_bb=batch_of_bbs_pred[0],
-                                    gt_bbs=bb.detach().cpu().numpy() if bb is not None else None,
-                                    pred_bev_semantic=pred_dict_policy["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict_policy.keys() else None,
-                                    )
-                        else:
-                            visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images.squeeze(0)],axis=1).permute(1, 2, 0).detach().cpu().numpy(),config=merged_config_object,
-                                            save_path_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "training"),
-                                            gt_bev_semantic=bev_semantic_labels.squeeze().detach().cpu().numpy(),lidar_bev=torch.squeeze(data["lidar"],0).detach().cpu().numpy(),
-                                            target_point=torch.squeeze(target_point,0).detach().cpu().numpy(),
-                                            pred_wp=torch.squeeze(pred_dict["wp_predictions"],0).detach().cpu().numpy(),
-                                            velocity_vectors_gt=torch.squeeze(vel_vecs,0).detach().cpu().numpy() if vel_vecs is not None else None,
-                                            acceleration_vectors_gt=torch.squeeze(accel_vecs, 0).detach().cpu().numpy() if accel_vecs is not None else None,
-                                            velocity_vectors_pred=batch_of_bbs_pred[1],
-                                            acceleration_vectors_pred=batch_of_bbs_pred[2],
-                                            step=iteration,
-                                            gt_wp=targets.squeeze(0),
-                                            pred_bb=batch_of_bbs_pred[0],
-                                            gt_bbs=bb.detach().cpu().numpy() if bb is not None else None,
-                                            pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze(0).detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
-                                            )
+                    if "arp" in merged_config_object.baseline_folder_name:
+                        visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images[0]],axis=1).permute(1, 2, 0).detach().cpu().numpy(),
+                                        config=merged_config_object,
+                                save_path_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "training"),
+                                gt_bev_semantic=bev_semantic_labels.detach().cpu().numpy()[0],
+                                lidar_bev=data["lidar"].detach().cpu().numpy()[0],
+                                target_point=target_point.detach().cpu().numpy()[0],
+                                pred_wp=pred_dict_policy["wp_predictions"].detach().cpu().numpy()[0],
+                                velocity_vectors_gt=vel_vecs.detach().cpu().numpy()[0] if vel_vecs is not None  else None,
+                                acceleration_vectors_gt=accel_vecs.detach().cpu().numpy()[0] if accel_vecs is not None else None,
+                                velocity_vectors_pred=batch_of_bbs_pred[1],
+                                acceleration_vectors_pred=batch_of_bbs_pred[2],
+                                step=iteration,
+                                gt_wp=targets[0],
+                                pred_bb=batch_of_bbs_pred[0],
+                                gt_bbs=bb.detach().cpu().numpy()[0] if bb is not None else None,
+                                pred_bev_semantic=pred_dict_policy["pred_bev_semantic"].detach().cpu().numpy()[0] if "pred_bev_semantic" in pred_dict_policy.keys() else None,
+                                )
+                    else:
+                        visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images[0]],axis=1).permute(1, 2, 0).detach().cpu().numpy(),config=merged_config_object,
+                                        save_path_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "training"),
+                                        gt_bev_semantic=bev_semantic_labels.detach().cpu().numpy()[0],
+                                        lidar_bev=data["lidar"].detach().cpu().numpy()[0],
+                                        target_point=target_point.detach().cpu().numpy()[0],
+                                        pred_wp=pred_dict["wp_predictions"].detach().cpu().numpy()[0],
+                                        velocity_vectors_gt=vel_vecs.detach().cpu().numpy()[0] if vel_vecs is not None else None,
+                                        acceleration_vectors_gt=accel_vecs.detach().cpu().numpy()[0] if accel_vecs is not None else None,
+                                        velocity_vectors_pred=batch_of_bbs_pred[1],
+                                        acceleration_vectors_pred=batch_of_bbs_pred[2],
+                                        step=iteration,
+                                        gt_wp=targets[0],
+                                        pred_bb=batch_of_bbs_pred[0],
+                                        gt_bbs=bb.detach().cpu().numpy()[0] if bb is not None else None,
+                                        pred_bev_semantic=pred_dict["pred_bev_semantic"].detach().cpu().numpy()[0] if "pred_bev_semantic" in pred_dict.keys() else None,
+                                        )
                 if merged_config_object.baseline_folder_name!="arp":
                     if is_ready_to_save(epoch, iteration, data_loader, merged_config_object):
                         if bool(args.zero_redundancy_optim):
