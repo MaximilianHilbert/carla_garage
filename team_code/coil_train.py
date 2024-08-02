@@ -354,7 +354,7 @@ def main(args):
                         combined_losses.append(loss.cpu().item())
                         detailed_losses.append(plotable_losses)
                         head_losses_lst.append(head_losses)
-                if args.debug and epoch%100==0:
+                if args.debug and epoch%1==0:
                     if merged_config_object.detectboxes:
                         if "arp" in merged_config_object.baseline_folder_name:
                             batch_of_bbs_pred=policy.module.convert_features_to_bb_metric(pred_dict_policy["pred_bb"])
