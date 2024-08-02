@@ -146,10 +146,10 @@ class LidarCenterNetHead(nn.Module):
         if self.config.predict_vectors:
             loss_velocity_vector = (
                 self.loss_velocity_vector(predictions["velocity_vector_pred"], targets["velocity_vector_target"]) * targets["pixel_weight"][:, 0:1]
-            ).sum() / avg_factor
+            ).sum() / (avg_factor*predictions["velocity_vector_pred"].shape[1])
             loss_acceleration_vector=(
                 self.loss_acceleration_vector(predictions["acceleration_vector_pred"], targets["acceleration_vector_target"]) * targets["pixel_weight"][:, 0:1]
-            ).sum() / avg_factor
+            ).sum() / (avg_factor*predictions["acceleration_vector_pred"].shape[1])
             losses["loss_velocity_vector"] = loss_velocity_vector
             losses["loss_acceleration_vector"] = loss_acceleration_vector
         return losses
