@@ -304,7 +304,7 @@ def main(args):
                                                         expected_result_lengths.append(len(route_split_file.readlines())*len(weathers[weather]) * traffics_len)
                                                 else:
                                                     expected_result_lengths.append(len(ET.parse(os.path.join(root, name)).findall('.//waypoint')))
-                                                    route_files.append(os.path.join(root, name))
+                                                route_files.append(os.path.join(root, name))
 
 
 
