@@ -31,4 +31,6 @@ export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 #seeds must match repetition number
+SDL_VIDEODRIVER=offscreen SDL_HINT_CUDA_DEVICE=0 /home/hilbert/carla_garage/carla/CarlaUE4.sh -opengl &
+sleep 30
 python $WORK_DIR/tools/proxy_simulator/prepare_map_data.py
