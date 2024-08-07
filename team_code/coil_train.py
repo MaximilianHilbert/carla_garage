@@ -572,7 +572,7 @@ if __name__ == "__main__":
         "--augment",
         type=int,
         choices=[0,1],
-        default=1
+        default=0
 
     )
     parser.add_argument(
