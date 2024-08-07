@@ -370,8 +370,8 @@ class GlobalConfig:
             "loss_brake": 1.0,
             "loss_forcast": 0.2,
             "loss_selection": 0.0,
-            "loss_velocity_vector": 10.0,
-            "loss_acceleration_vector": 10.0
+            "loss_velocity_vector": 1.0,
+            "loss_acceleration_vector": 1.0
         }
         self.train_towns = []
         self.val_towns = []
