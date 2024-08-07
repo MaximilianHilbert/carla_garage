@@ -51,10 +51,14 @@ class GlobalConfig:
     }
 
         }
-        self.normalization_vectors={"velocity": {"mean":np.array([3.0237589e+00, -2.3303875e-01,  2.2413948e-04]), 
-                                                 "std": np.array([13.791963, 27.333351, 0.577448])},
-                                    "acceleration": {"mean": np.array([ 0.05399591,  0.00303527, -0.00940528]), "std": np.array([169.62387,1647.3481,7.5485654])}}
-        
+        # self.normalization_vectors={"velocity": {"mean":np.array([3.0237589e+00, -2.3303875e-01,  2.2413948e-04]), 
+        #                                          "std": np.array([13.791963, 27.333351, 0.577448])},
+        #                             "acceleration": {"mean": np.array([ 0.05399591,  0.00303527, -0.00940528]), 
+        #                                              "std": np.array([169.62387,1647.3481,7.5485654])}}
+        self.normalization_vectors={"velocity": {"mean":np.array([0,0,0]), 
+                                                 "std": np.array([1,1,1])},
+                                    "acceleration": {"mean": np.array([0,0,0]), 
+                                                     "std": np.array([1,1,1])}}
         self.considered_images_incl_current=3
         self.target_point_size=2
         self.number_future_waypoints = 1
