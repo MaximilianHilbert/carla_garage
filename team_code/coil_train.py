@@ -208,7 +208,7 @@ def main(args):
                     #the baseline is defined as getting everything except the last (current) frame into the memory stream, same for speed input
                     if iteration>100 and iteration<150 and epoch==1:
                         timer.tic()
-                    pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
+                    pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=None, target_point=target_point, prev_wp=additional_previous_waypoints)
                     if iteration>100 and iteration<150 and epoch==1:
                         timer_memory=timer.tocvalue(restart=True)
                     mem_extract_targets = targets - previous_targets
@@ -229,7 +229,7 @@ def main(args):
                     #the baseline is defined as getting the last (current) frame in the policy stream only, same for speed input
                     if iteration>100 and iteration<150:
                         timer.tic()
-                    pred_dict_policy = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1:,...] if all_speeds is not None else None, target_point=target_point, prev_wp=None, memory_to_fuse=pred_dict_memory["memory"].detach())
+                    pred_dict_policy = policy(x=all_images[:,-1:,...], speed=all_speeds[:,-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=None, memory_to_fuse=pred_dict_memory["memory"].detach())
                     if iteration>100 and iteration<150 and epoch==1:
                         timer_policy=timer.tocvalue()
                         timing.append(timer_policy+timer_memory)
@@ -287,7 +287,6 @@ def main(args):
                         detector_components=[model.module.head.parameters(),
                                             model.module.change_channel_bev_to_bb_and_upscale.parameters(),
                                            model.module.bev_semantic_decoder.parameters(),
-                
                                            ]
                         wp_components=[model.module.wp_gru.parameters(), model.module.transformer_decoder.parameters()]
                         if epoch==1:
@@ -317,7 +316,7 @@ def main(args):
                 if "bcso" in merged_config_object.baseline_folder_name:
                     pred_dict= model(x=all_images, speed=all_speeds[:,-1] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
                 if "bcoh" in merged_config_object.baseline_folder_name or "keyframes" in merged_config_object.baseline_folder_name:
-                    pred_dict= model(x=all_images, speed=all_speeds, target_point=target_point, prev_wp=additional_previous_waypoints)
+                    pred_dict= model(x=all_images, speed=all_speeds[:,-1], target_point=target_point, prev_wp=additional_previous_waypoints)
                     if iteration>100 and iteration<150 and epoch==1:
                         forward_time=timer.tocvalue(restart=True)
                         timing.append(forward_time)
