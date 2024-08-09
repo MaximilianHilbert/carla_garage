@@ -1228,7 +1228,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 brake_target[0, cty_int, ctx_int] = int(round(gt_bboxes[j, 6]))
             
             if self.config.predict_vectors:
-                box_id=int(box[-1])
+                box_id=int(box[-2])
                 for velocity_vector_5d in calculated_velocity_vectors:
                     velocity_vector_3d, id,_=extract_id_class_from_vector(velocity_vector_5d)
                     if id==box_id:
