@@ -39,6 +39,8 @@ class DataAgent(AutoPilot):
             (self.save_path / "lidar").mkdir()
             (self.save_path / "rgb").mkdir()
             (self.save_path / "rgb_augmented").mkdir()
+            (self.save_path / "rgb_rear").mkdir()
+            (self.save_path / "rgb_rear_augmented").mkdir()
             (self.save_path / "semantics").mkdir()
             (self.save_path / "semantics_augmented").mkdir()
             (self.save_path / "depth").mkdir()
@@ -52,7 +54,15 @@ class DataAgent(AutoPilot):
         self._active_traffic_light = None
         self.last_lidar = None
         self.last_ego_transform = None
-
+        #set augmentation values here, to augment same for the whole route
+        self.route_wide_augmentation_translation = np.random.uniform(
+            low=self.config.camera_translation_augmentation_min,
+            high=self.config.camera_translation_augmentation_max,
+        )
+        self.route_wide_augmentation_rotation = np.random.uniform(
+            low=self.config.camera_rotation_augmentation_min,
+            high=self.config.camera_rotation_augmentation_max,
+        )
     def _init(self, hd_map):
         super()._init(hd_map)
         if self.datagen:
@@ -85,11 +95,36 @@ class DataAgent(AutoPilot):
         self.ss_bev_manager_augmented.attach_ego_vehicle(
             self.augmented_vehicle_dummy, criteria_stop=self.stop_sign_criteria
         )
-
     def sensors(self):
         result = super().sensors()
         if self.save_path is not None and (self.datagen or self.tmp_visu):
             result += [
+                {
+                    "type": "sensor.camera.rgb",
+                    "x": self.config.camera_pos_rear[0],
+                    "y": self.config.camera_pos_rear[1],
+                    "z": self.config.camera_pos_rear[2],
+                    "roll": self.config.camera_rot_0_rear[0],
+                    "pitch": self.config.camera_rot_0_rear[1],
+                    "yaw": self.config.camera_rot_0_rear[2],
+                    "width": self.config.camera_width,
+                    "height": self.config.camera_height,
+                    "fov": self.config.camera_fov,
+                    "id": "rgb_rear",
+                },
+                {
+                    "type": "sensor.camera.rgb",
+                    "x": self.config.camera_pos_rear[0],
+                    "y": self.config.camera_pos_rear[1],
+                    "z": self.config.camera_pos_rear[2],
+                    "roll": self.config.camera_rot_0_rear[0],
+                    "pitch": self.config.camera_rot_0_rear[1],
+                    "yaw": self.config.camera_rot_0_rear[2],
+                    "width": self.config.camera_width,
+                    "height": self.config.camera_height,
+                    "fov": self.config.camera_fov,
+                    "id": "rgb_rear_augmented",
+                },
                 {
                     "type": "sensor.camera.rgb",
                     "x": self.config.camera_pos[0],
@@ -193,7 +228,8 @@ class DataAgent(AutoPilot):
         if self.save_path is not None and (self.datagen or self.tmp_visu):
             rgb = input_data["rgb"][1][:, :, :3]
             rgb_augmented = input_data["rgb_augmented"][1][:, :, :3]
-
+            rgb_rear = input_data["rgb_rear"][1][:, :, :3]
+            rgb_rear_augmented = input_data["rgb_rear_augmented"][1][:, :, :3]
             # We store depth at 8 bit to reduce the filesize. 16 bit would be ideal, but we can't afford the extra storage.
             depth = input_data["depth"][1][:, :, :3]
             depth = (t_u.convert_depth(depth) * 255.0 + 0.5).astype(np.uint8)
@@ -207,6 +243,8 @@ class DataAgent(AutoPilot):
         else:
             rgb = None
             rgb_augmented = None
+            rgb_rear = None
+            rgb_rear_augmented = None
             semantics = None
             semantics_augmented = None
             depth = None
@@ -261,6 +299,8 @@ class DataAgent(AutoPilot):
                 "lidar": lidar_360,
                 "rgb": rgb,
                 "rgb_augmented": rgb_augmented,
+                "rgb_rear": rgb_rear,
+                "rgb_rear_augmented": rgb_rear_augmented,
                 "semantics": semantics,
                 "semantics_augmented": semantics_augmented,
                 "depth": depth,
@@ -307,34 +347,41 @@ class DataAgent(AutoPilot):
             return control
 
     def augment_camera(self, sensors):
-        augmentation_translation = np.random.uniform(
-            low=self.config.camera_translation_augmentation_min,
-            high=self.config.camera_translation_augmentation_max,
-        )
-        augmentation_rotation = np.random.uniform(
-            low=self.config.camera_rotation_augmentation_min,
-            high=self.config.camera_rotation_augmentation_max,
-        )
-        self.augmentation_translation.append(augmentation_translation)
-        self.augmentation_rotation.append(augmentation_rotation)
+        self.augmentation_translation.append(self.route_wide_augmentation_translation)
+        self.augmentation_rotation.append(self.route_wide_augmentation_rotation)
         for sensor in sensors:
             if "rgb_augmented" in sensor[0] or "semantics_augmented" in sensor[0] or "depth_augmented" in sensor[0]:
                 camera_pos_augmented = carla.Location(
                     x=self.config.camera_pos[0],
-                    y=self.config.camera_pos[1] + augmentation_translation,
+                    y=self.config.camera_pos[1] + self.route_wide_augmentation_translation,
                     z=self.config.camera_pos[2],
                 )
 
                 camera_rot_augmented = carla.Rotation(
                     pitch=self.config.camera_rot_0[0],
-                    yaw=self.config.camera_rot_0[1] + augmentation_rotation,
+                    yaw=self.config.camera_rot_0[1] + self.route_wide_augmentation_rotation,
                     roll=self.config.camera_rot_0[2],
                 )
 
                 camera_augmented_transform = carla.Transform(camera_pos_augmented, camera_rot_augmented)
 
                 sensor[1].set_transform(camera_augmented_transform)
+            if "rgb_rear_augmented" in sensor[0]:
+                camera_pos_augmented = carla.Location(
+                    x=self.config.camera_pos_rear[0],
+                    y=self.config.camera_pos_rear[1] + self.route_wide_augmentation_translation,
+                    z=self.config.camera_pos_rear[2],
+                )
 
+                camera_rot_augmented = carla.Rotation(
+                    pitch=self.config.camera_rot_0_rear[1],
+                    yaw=self.config.camera_rot_0_rear[2] + self.route_wide_augmentation_rotation,
+                    roll=self.config.camera_rot_0_rear[0],
+                )
+
+                camera_augmented_transform = carla.Transform(camera_pos_augmented, camera_rot_augmented)
+
+                sensor[1].set_transform(camera_augmented_transform)
         # Update dummy vehicle
         if self.initialized:
             # We are still rendering the map for the current frame, so we need to use the translation from the last frame.
@@ -381,7 +428,11 @@ class DataAgent(AutoPilot):
             str(self.save_path / "rgb_augmented" / (f"{frame:04}.jpg")),
             tick_data["rgb_augmented"],
         )
-
+        cv2.imwrite(str(self.save_path / "rgb_rear" / (f"{frame:04}.jpg")), tick_data["rgb_rear"])
+        cv2.imwrite(
+            str(self.save_path / "rgb_rear_augmented" / (f"{frame:04}.jpg")),
+            tick_data["rgb_rear_augmented"],
+        )
         cv2.imwrite(
             str(self.save_path / "semantics" / (f"{frame:04}.png")),
             tick_data["semantics"],

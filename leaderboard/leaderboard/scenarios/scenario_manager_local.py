@@ -14,7 +14,7 @@ from __future__ import print_function
 import signal
 import sys
 import time
-
+import os
 import py_trees
 import carla
 
@@ -155,15 +155,18 @@ class ScenarioManager(object):
             CarlaDataProvider.on_carla_tick()
 
             try:
-                ego_action,replay_parameters,model,image = self._agent()
-                self.replay_parameters=replay_parameters
-                self.model=model
-                if self.scenario_class.config.agent.config.debug:
-                    import cv2
-                    import numpy as np
-                    if image is not None:
-                        image = np.array(image.resize((512,1080)))
-                        self.video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+                if os.environ.get("DATAGEN")==0:
+                    ego_action,replay_parameters,model,image = self._agent()
+                    self.replay_parameters=replay_parameters
+                    self.model=model
+                    if self.scenario_class.config.agent.config.debug:
+                        import cv2
+                        import numpy as np
+                        if image is not None:
+                            image = np.array(image.resize((512,1080)))
+                            self.video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+                else:
+                    ego_action = self._agent()
             # Special exception inside the agent that isn't caused by the agent
             except SensorReceivedNoData as e:
                 raise RuntimeError(e)

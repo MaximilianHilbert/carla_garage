@@ -195,6 +195,8 @@ class GlobalConfig:
         # Change in proportion to the rotation frequency.
         self.lidar_points_per_second = 600000
         self.camera_pos = [-1.5, 0.0, 2.0]  # x, y, z mounting position of the camera
+        self.camera_pos_rear=[-1.5, 0.0, 2.0]
+        self.camera_rot_0_rear=[0.0, 0.0, 180.0] # Roll Pitch Yaw of camera 0 in degree
         self.camera_rot_0 = [0.0, 0.0, 0.0]  # Roll Pitch Yaw of camera 0 in degree
 
         # Therefore their size is smaller
@@ -431,7 +433,7 @@ class GlobalConfig:
         self.clip_throttle = 0.75  # Maximum throttle allowed by the controller
 
         # Whether the model in and outputs will be visualized and saved into SAVE_PATH
-        self.debug = True
+        self.debug = False
 
         # -----------------------------------------------------------------------------
         # Logger
