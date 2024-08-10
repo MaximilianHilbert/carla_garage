@@ -185,7 +185,7 @@ def main():
     dataset_name = "routewise_augmentation_rear_camera" + date
     root_folder = r"/home/hilbert/datasets/"  # With ending slash
     data_save_root = root_folder + dataset_name
-    node = "day"
+    node = "week"
     username = "hilbert"
     mail = ""
     exp_name = "exp_name_"
