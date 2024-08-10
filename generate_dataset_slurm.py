@@ -136,7 +136,7 @@ export BENCHMARK=collection
 export GPU={str(gpu)}
 
 # Agent Paths
-export TEAM_AGENT={code_root}/team_code_latest/{agent}.py # agent
+export TEAM_AGENT={code_root}/team_code/{agent}.py # agent
 
         """
         )
