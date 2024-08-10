@@ -185,7 +185,7 @@ def main():
     dataset_name = "routewise_augmentation_rear_camera" + date
     root_folder = r"/mnt/lustre/work/geiger/gwb629/datasets/"  # With ending slash
     data_save_root = root_folder + dataset_name
-    node = "galvani-2080"
+    node = "2080-galvani"
     username = "gwb629"
     mail = "maximilian.hilbert@gmx.de"
     exp_name = "exp_name_"
