@@ -14,7 +14,6 @@ from __future__ import print_function
 
 import traceback
 import argparse
-from coil_utils.baseline_helpers import visualize_model
 from argparse import RawTextHelpFormatter
 from datetime import datetime
 import cv2
@@ -422,74 +421,7 @@ class LeaderboardEvaluator(object):
                         writer = csv.DictWriter(file, fieldnames=["forward_time_in_s"])
                         writer.writeheader()
                         writer.writerow({"forward_time_in_s": list(self.manager.replay_parameters.values())[-1]})
-            if self.manager.scenario_class.config.agent.config.debug:
-                self.manager.video_writer.release()
-            # fail=False
-            # for criterion in self.manager.scenario_class.scenario.test_criteria:
-            #     if criterion.test_status=="FAILURE" and criterion._terminate_on_failure:
-            #         fail=True
-            if self.manager.scenario_class.config.agent.config.visualize_without_rgb or self.manager.scenario_class.config.agent.config.visualize_combined:
-                observations,curr_pred,target_points, roads, pred_residual,_=self.manager.replay_parameters.values()
-                if collision_ped or collision_veh or collision_lay:
-                    failure_case="collision"
-                elif red_light:
-                    failure_case="red_light"
-                elif stop_infraction:
-                    failure_case="stop_infraction"
-                elif outside_route:
-                    failure_case="outside_route"
-                elif route_dev:
-                    failure_case="route_dev"
-                elif timeout:
-                    failure_case="timeout"
-                elif blocked:
-                    failure_case="blocked"
-                else:
-                    failure_case="misc"
-                root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop", self.manager.scenario_class.config.agent.config.baseline_folder_name,
-                                  failure_case,self.manager.scenario_class.config.agent.config.experiment_id,self.manager.scenario_class.scenario.name)
-                observations.reverse()
-                curr_pred.reverse()
-                target_points.reverse()
-                roads.reverse()
-                pred_residual.reverse()
-                fps = 5
-                os.makedirs(root,exist_ok=True)
-                video_writer = cv2.VideoWriter(os.path.join(root,f"{self.manager.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (512,1080))
-                for iteration, (pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(curr_pred, target_points, roads,pred_residual)):
-                    #to prevent the problem of not having a history
-                    if iteration<self.manager.scenario_class.config.agent.config.considered_images_incl_current:
-                        continue
-                    if iteration==0:
-                        prev_wp=None
-                    else:
-                        prev_wp=curr_pred[iteration-1]["wp_predictions"].squeeze()
-                    image_sequence=self.build_image_sequence(list(observations), iteration)
-                    if self.manager.scenario_class.config.agent.config.detectboxes:
-                        batch_of_bbs_pred,vel_vecs, accel_vecs=self.manager.model.module.convert_features_to_bb_metric(pred_i["pred_bb"])
-                    else:
-                        batch_of_bbs_pred=None
-                    if not self.manager.scenario_class.config.agent.config.bev:
-                        road=roads_i
-                    else:
-                        road=None
-                    image=visualize_model(rgb=image_sequence,config=self.manager.scenario_class.config.agent.config,closed_loop=True,
-                                          generate_video=True,
-                                    save_path_root=root,
-                                     velocity_vectors_pred=vel_vecs if self.manager.scenario_class.config.agent.config.predict_vectors else None,
-                                        acceleration_vectors_pred=accel_vecs if self.manager.scenario_class.config.agent.config.predict_vectors else None,
-                                    target_point=target_point_i, pred_wp=pred_i["wp_predictions"].squeeze().detach().cpu().numpy(),
-                                    pred_bb=batch_of_bbs_pred,step=np.round(-1/self.manager.scenario_class.config.agent.config.carla_fps*(len(observations)-iteration),2),
-                                    pred_bev_semantic=pred_i["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_i.keys() else None,
-                                    road=road, parameters={"pred_residual": pred_residual_i}, pred_wp_prev=prev_wp, args=args)
-                    
-                    image = np.array(image.resize((512,1080)))
-                    video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-                   
-                video_writer.release()
-                
-                with open(os.path.join(root, "predictions.pkl"), "wb") as file:
-                    pickle.dump({"predictions":curr_pred}, file)
+
             
             
             
@@ -511,18 +443,7 @@ class LeaderboardEvaluator(object):
 
         if crash_message == "Simulation crashed":
             sys.exit(-1)
-    def build_image_sequence(self,recorded_images, index):
-        prev_images=recorded_images[index-self.manager.scenario_class.config.agent.config.considered_images_incl_current:index]
-        current_image=recorded_images[index]
-        
-        if self.manager.scenario_class.config.agent.config.img_seq_len<self.manager.scenario_class.config.agent.config.considered_images_incl_current:
-            empties=np.concatenate([np.zeros_like(recorded_images[0])]*(self.manager.scenario_class.config.agent.config.considered_images_incl_current+1-self.manager.scenario_class.config.agent.config.img_seq_len), axis=1)
-            image_sequence=np.concatenate([empties, current_image], axis=1)
-        else:
-            prev_images.append(current_image)
-            image_sequence=np.concatenate(prev_images, axis=1)
-        image_sequence=np.transpose(image_sequence,(1,2,0))
-        return image_sequence
+
     def run(self, args):
         """
         Run the challenge mode
