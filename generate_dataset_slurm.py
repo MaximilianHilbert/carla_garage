@@ -175,19 +175,19 @@ CUDA_VISIBLE_DEVICES=${GPU} python3 ${LEADERBOARD_ROOT}/leaderboard/leaderboard_
 
 def main():
     carla_port = 15000
-    code_root = r"/mnt/lustre/work/geiger/gwb629/carla_garage"
-    carla_root = r"/mnt/lustre/work/geiger/gwb629/carla_garage/carla"
+    code_root = r"/home/hilbert/carla_garage"
+    carla_root = r"/home/hilbert/carla_garage/carla"
     data_routes_dir = code_root + r"/leaderboard/data/training"
     # Our centOS is missing some c libraries.
     # Usually miniconda has them, so we tell the linker to look there as well.
-    lib_path = r"/mnt/lustre/work/geiger/gwb629/conda/garage/lib"
+    lib_path = r"/home/hilbert/conda/garage/lib"
     date = "2024_08_10"
     dataset_name = "routewise_augmentation_rear_camera" + date
-    root_folder = r"/mnt/lustre/work/geiger/gwb629/datasets/"  # With ending slash
+    root_folder = r"/home/hilbert/datasets/"  # With ending slash
     data_save_root = root_folder + dataset_name
-    node = "2080-galvani"
-    username = "gwb629"
-    mail = "maximilian.hilbert@gmx.de"
+    node = "day"
+    username = "hilbert"
+    mail = ""
     exp_name = "exp_name_"
 
     log_root = root_folder + dataset_name + "_logs"
