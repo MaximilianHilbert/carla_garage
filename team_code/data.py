@@ -700,7 +700,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 if not self.config.waypoint_weight_generation:
                     if self.config.augment and augment_sample:
                         processed_images = self.augment_images(loaded_images_augmented)
-                        processed_temporal_images = self.augment_images(loaded_temporal_images)
+                        processed_temporal_images = self.augment_images(loaded_temporal_images_augmented)
                         if self.config.use_semantic:
                             semantics_i = self.converter[
                                 loaded_semantics_augmented[self.config.seq_len - 1]
