@@ -8,7 +8,7 @@
 export WORK_DIR=/mnt/lustre/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export CARLA_ROOT=${WORK_DIR}/carla
-export DATASET_ROOT=/mnt/lustre/work/geiger/bjaeger25/old_repos/datasets/hb_dataset_v08_2023_05_10
+export DATASET_ROOT=/mnt/lustre/work/geiger/gwb629/datasets/routewise_augmentation_rear_camera2024_08_10
 export LD_LIBRARY_PATH="/mnt/lustre/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 export TEAM_CODE=$WORK_DIR/team_code
 export CARLA_ROOT=${WORK_DIR}/carla
@@ -32,7 +32,7 @@ export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
 #seeds must match repetition number
 python $WORK_DIR/train_nocrash_baselines.py --repetitions 3 \
- --seeds 10214 43534 53543 --bev 1 --detectboxes 1 --backbone swin \
- --baseline-folder-names bcso bcoh --batch-sizes 5 2 \
- --walltimes 72 72 --velocity-brake-prediction 1 --ego-velocity-prediction 1 --train-local 0 --eval-id id_000 \
+ --seeds 10214 43534 53543 --bev 1 --detectboxes 1 --backbone swin --augment 1 --rear-cam 0 \
+ --baseline-folder-names bcso bcoh arp --batch-sizes 5 2 3 \
+ --walltimes 72 72 72 --velocity-brake-prediction 1 --train-local 0 --experiment-id id_000 \
  --cluster galvani
