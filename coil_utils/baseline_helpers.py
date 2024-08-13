@@ -146,7 +146,7 @@ def merge_with_command_line_args(config, args):
 
 def get_ablations_dict():
     return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "framehandling": "unrolling", "datarep":1, 
-            "augment": 0, "freeze": 0, "backbone": "resnet", "pretrained": 0, "subsampling": 0, "velocity_brake_prediction": 1, "ego_velocity_prediction": 0, "init": 0, "predict_vectors": 0}
+            "augment": 0, "freeze": 0, "backbone": "resnet", "pretrained": 0, "subsampling": 0, "velocity_brake_prediction": 1, "ego_velocity_prediction": 0, "init": 0, "predict_vectors": 0, "rear_cam": "0"}
 
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
