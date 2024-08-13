@@ -604,7 +604,7 @@ class CSVParser:
                     route_length_km = record["meta"]["route_length"] / 1000.0
                     driven_km = percentage_of_route_completed * route_length_km
                     route_time_hours = record["meta"]["duration_game"] / 3600.0  # conversion from seconds to hours
-                    if route_time_hours==0.0:
+                    if route_time_hours==0:
                         print(f)
                     total_driven_hours += route_time_hours
                     total_km_driven += driven_km
@@ -1014,7 +1014,7 @@ class Utils:
         return [num1, num2, num3]
 
     @staticmethod
-    def parse_infractions(route_scenarios):
+    def parse_infractions(route_scenarios, experiment_dir):
         town_dict = {}
         town_color_dict = {}
         infractions = []
@@ -1034,7 +1034,7 @@ class Utils:
                 records_files.extend(sorted(glob.glob(directory + "/records.json.gz")))
             return records_files
 
-        directories = parse_scenario_log_dir(args.log_dir)
+        directories = parse_scenario_log_dir(experiment_dir)
         infr_idx = 0
 
         for route_idx, scenario in enumerate(route_scenarios):
@@ -1122,13 +1122,13 @@ class Utils:
 class InfractionVisualizer:
     """Visualizes infractions"""
 
-    def mark_on_townmap(self, route_scenarios):
+    def mark_on_townmap(self, route_scenarios, experiment_dir):
         # load town maps for plotting infractions
         town_maps = {}
         for town_name in towns:
             town_maps[town_name] = np.array(Image.open(os.path.join(args.town_maps, town_name + ".png")))[:, :, :3]
 
-        town_dict, town_color_dict, infractions = Utils.parse_infractions(route_scenarios)
+        town_dict, town_color_dict, infractions = Utils.parse_infractions(route_scenarios, experiment_dir)
 
         for town in tqdm(town_dict.keys(), desc="Plotting all used Towns"):
             map_image = MapImage(carla_map_name=town, pixels_per_meter=args.ppm, map_dir=args.map_dir)
@@ -1260,94 +1260,95 @@ def main():
         for experiment in os.listdir(os.path.join(args.results, baseline)):
             for repetition in os.listdir(os.path.join(args.results, baseline, experiment)):
                 for setting in os.listdir(os.path.join(args.results, baseline, experiment, repetition)):
+                    experiment_dir=os.path.join(args.log_dir, baseline, experiment, repetition, setting)
                     route_scenarios, unique_ids, unique_infractions = csv_parser.parse(root, baseline, experiment, repetition, setting)
 
-    if args.visualize_infractions:
-        ##################################################################
-        # Plotting Town Map ##############################################
-        ##################################################################
-        infr_visualizer = InfractionVisualizer()
-        infr_visualizer.mark_on_townmap(route_scenarios)
-        infr_visualizer.create_legend()
+                    if args.visualize_infractions:
+                        ##################################################################
+                        # Plotting Town Map ##############################################
+                        ##################################################################
+                        infr_visualizer = InfractionVisualizer()
+                        infr_visualizer.mark_on_townmap(route_scenarios, experiment_dir)
+                        infr_visualizer.create_legend()
 
-        ##################################################################
-        # Preparing infraction data ######################################
-        ##################################################################
-        _, _, infractions = Utils.parse_infractions(route_scenarios)
-        infraction_id = 0
-        infraction_frames = {}
-        infractions_not_found = []
-        id_counter = 0
-        unique_id = 0
-        subsample = args.subsample
-        for infr in tqdm(infractions, desc="Loading record files"):
-            visualizer = BEVVisualizer(args)
+                        ##################################################################
+                        # Preparing infraction data ######################################
+                        ##################################################################
+                        _, _, infractions = Utils.parse_infractions(route_scenarios)
+                        infraction_id = 0
+                        infraction_frames = {}
+                        infractions_not_found = []
+                        id_counter = 0
+                        unique_id = 0
+                        subsample = args.subsample
+                        for infr in tqdm(infractions, desc="Loading record files"):
+                            visualizer = BEVVisualizer(args)
 
-            record_files = {}
+                            record_files = {}
 
-            if infraction_id not in unique_ids or infr["type"] not in [
-                "collisions_vehicle",
-                "vehicle_blocked",
-                "red_light",
-            ]:
-                infraction_id += 1
-                continue
-            with gzip.open(infr["record_file"], "rt", encoding="utf-8") as f:
-                records = ujson.load(f)
-                if subsample > 1:
-                    records["states"] = np.array(records["states"])[::subsample].tolist()
-                    records["lights"] = np.array(records["lights"])[::subsample].tolist()
-                    records["route"] = np.array(records["route"])[::subsample].tolist()
-                    records["adv_actions"] = np.array(records["adv_actions"])[::subsample].tolist()
-            record_files[infraction_id] = records
+                            if infraction_id not in unique_ids or infr["type"] not in [
+                                "collisions_vehicle",
+                                "vehicle_blocked",
+                                "red_light",
+                            ]:
+                                infraction_id += 1
+                                continue
+                            with gzip.open(infr["record_file"], "rt", encoding="utf-8") as f:
+                                records = ujson.load(f)
+                                if subsample > 1:
+                                    records["states"] = np.array(records["states"])[::subsample].tolist()
+                                    records["lights"] = np.array(records["lights"])[::subsample].tolist()
+                                    records["route"] = np.array(records["route"])[::subsample].tolist()
+                                    records["adv_actions"] = np.array(records["adv_actions"])[::subsample].tolist()
+                            record_files[infraction_id] = records
 
-            (
-                infraction_frames,
-                infractions_not_found,
-            ) = Utils.find_infraction_frame_single(
-                infr,
-                record_files,
-                infraction_frames,
-                infractions_not_found,
-                infraction_id,
-            )
+                            (
+                                infraction_frames,
+                                infractions_not_found,
+                            ) = Utils.find_infraction_frame_single(
+                                infr,
+                                record_files,
+                                infraction_frames,
+                                infractions_not_found,
+                                infraction_id,
+                            )
 
-            ##################################################################
-            # Creating Infraction Gifs #######################################
-            ##################################################################
-            # skip stop infractions
-            if infraction_id not in infraction_frames:
-                infraction_id += 1
-                continue
-            unique_id += 1
-            infr_visualizer.create_infraction_clips_single(
-                infr,
-                unique_id,
-                unique_infractions,
-                infraction_frames,
-                record_files,
-                id_counter,
-                infraction_id,
-                visualizer,
-            )
+                            ##################################################################
+                            # Creating Infraction Gifs #######################################
+                            ##################################################################
+                            # skip stop infractions
+                            if infraction_id not in infraction_frames:
+                                infraction_id += 1
+                                continue
+                            unique_id += 1
+                            infr_visualizer.create_infraction_clips_single(
+                                infr,
+                                unique_id,
+                                unique_infractions,
+                                infraction_frames,
+                                record_files,
+                                id_counter,
+                                infraction_id,
+                                visualizer,
+                            )
 
-            id_counter += 1
-            infraction_id += 1
-            record_files.clear()
-            del records
-            del visualizer
+                            id_counter += 1
+                            infraction_id += 1
+                            record_files.clear()
+                            del records
+                            del visualizer
 
-        ##################################################################
-        # Print Summary ##################################################
-        ##################################################################
-        print("Parsing is done and was successful! \n")
-        print(
-            f"In total {len(infractions_not_found)} infraction-clips were skipped because the infraction "
-            f"frame could not be found"
-        )
-        print("Here is the overview of those infractions:")
-        for index, infr_type in infractions_not_found:
-            print(f"Id: {index}, Type: {infr_type}")
+                        ##################################################################
+                        # Print Summary ##################################################
+                        ##################################################################
+                        print("Parsing is done and was successful! \n")
+                        print(
+                            f"In total {len(infractions_not_found)} infraction-clips were skipped because the infraction "
+                            f"frame could not be found"
+                        )
+                        print("Here is the overview of those infractions:")
+                        for index, infr_type in infractions_not_found:
+                            print(f"Id: {index}, Type: {infr_type}")
 
 
 if __name__ == "__main__":
