@@ -51,6 +51,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
         self.images = []
         self.images_augmented = []
+        if config.rear_cam:
+            self.images_rear = []
+            self.images_rear_augmented = []
         self.semantics = []
         self.semantics_augmented = []
         self.bev_semantics = []
@@ -70,7 +73,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         self.future_measurements = []
         self.temporal_images = []
         self.temporal_images_augmented = []
-
+        if config.rear_cam:
+            self.temporal_images_rear = []
+            self.temporal_images_rear_augmented = []
         self.image_augmenter_func = image_augmenter(config.color_aug_prob, cutout=config.use_cutout)
         self.lidar_augmenter_func = lidar_augmenter(config.lidar_aug_prob, cutout=config.use_cutout)
 
@@ -115,6 +120,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     if seq % config.train_sampling_rate != 0:
                         continue
                     # load input seq and pred seq jointly
+                    if config.rear_cam:
+                        image_rear = []
+                        image_rear_augmented = []
                     image = []
                     image_augmented = []
                     semantic = []
@@ -134,6 +142,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             if not self.config.use_plant:
                                 image.append(route_dir + "/rgb" + (f"/{(seq + idx):04}.jpg"))
                                 image_augmented.append(route_dir + "/rgb_augmented" + (f"/{(seq + idx):04}.jpg"))
+                                if config.rear_cam:
+                                    image_rear.append(route_dir + "/rgb_rear" + (f"/{(seq + idx):04}.jpg"))
+                                    image_rear_augmented.append(route_dir + "/rgb_rear_augmented" + (f"/{(seq + idx):04}.jpg"))
                                 semantic.append(route_dir + "/semantics" + (f"/{(seq + idx):04}.png"))
                                 semantic_augmented.append(route_dir + "/semantics_augmented" + (f"/{(seq + idx):04}.png"))
                                 bev_semantic.append(route_dir + "/bev_semantics" + (f"/{(seq + idx):04}.png"))
@@ -202,6 +213,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                         self.temporal_measurements.append(temporal_measurements)
 
                     if self.config.img_seq_len > 1:
+                        if config.rear_cam:
+                            temporal_images_rear = []
+                            temporal_images_rear_augmented = []
                         temporal_images = []
                         temporal_images_augmented = []
                         for idx in range(1, self.config.img_seq_len):
@@ -211,8 +225,16 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                     temporal_images_augmented.append(
                                         route_dir + "/rgb_augmented" + (f"/{(seq - idx):04}.jpg")
                                     )
+                                    if config.rear_cam:
+                                        temporal_images_rear.append(route_dir + "/rgb_rear" + (f"/{(seq - idx):04}.jpg"))
+                                        temporal_images_rear_augmented.append(
+                                        route_dir + "/rgb_rear_augmented" + (f"/{(seq - idx):04}.jpg")
+                                    )
                         self.temporal_images.append(temporal_images)
                         self.temporal_images_augmented.append(temporal_images_augmented)
+                        if config.rear_cam:
+                            self.temporal_images_rear.append(temporal_images_rear)
+                            self.temporal_images_rear_augmented.append(temporal_images_rear_augmented)
                     temporal_box=[]
                     if bool(self.config.predict_vectors):
                         #for n timesteps we got n-1 velocities
@@ -220,8 +242,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             temporal_box.append(route_dir + "/boxes" + (f"/{(seq - idx):04}.json.gz"))
                     self.temporal_boxes.append(temporal_box)
                     self.images.append(image)
-
                     self.images_augmented.append(image_augmented)
+                    if config.rear_cam:
+                        self.images_rear.append(image_rear)
+                        self.images_rear_augmented.append(image_rear_augmented)
                     self.semantics.append(semantic)
                     self.semantics_augmented.append(semantic_augmented)
                     self.bev_semantics.append(bev_semantic)
@@ -276,6 +300,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         # because they only have 1 refcount.
         self.images = np.array(self.images).astype(np.string_)
         self.images_augmented = np.array(self.images_augmented).astype(np.string_)
+        if config.rear_cam:
+            self.images_rear = np.array(self.images_rear).astype(np.string_)
+            self.images_rear_augmented = np.array(self.images_rear_augmented).astype(np.string_)
         self.semantics = np.array(self.semantics).astype(np.string_)
         self.semantics_augmented = np.array(self.semantics_augmented).astype(np.string_)
         self.bev_semantics = np.array(self.bev_semantics).astype(np.string_)
@@ -292,6 +319,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         self.temporal_images = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_images])
         self.temporal_images_augmented = np.array(
             [list(map(np.string_, sublist)) for sublist in self.temporal_images_augmented]
+        )
+        if config.rear_cam:
+            self.temporal_images_rear = np.array([list(map(np.string_, sublist)) for sublist in self.temporal_images_rear])
+            self.temporal_images_rear_augmented = np.array(
+            [list(map(np.string_, sublist)) for sublist in self.temporal_images_rear_augmented]
         )
         self.temporal_measurements = np.array(
             [list(map(np.string_, sublist)) for sublist in self.temporal_measurements]
@@ -326,8 +358,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         data = {}
         if not self.config.waypoint_weight_generation:
             images = self.images[index]
+            if self.config.rear_cam:
+                images_rear = self.images_rear[index]
         if self.config.augment:
             images_augmented = self.images_augmented[index]
+            if self.config.rear_cam:
+                images_rear_augmented = self.images_rear_augmented[index]
         else:
             images_augmented = []
         semantics = self.semantics[index]
@@ -346,18 +382,30 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             temporal_measurements = self.temporal_measurements[index]
         if self.config.lidar_seq_len > 1:
             temporal_lidars = self.temporal_lidars[index]
+        
+        
         if self.config.img_seq_len > 1:
             if self.config.correlation_weights:
                 current_correlation_weight = self.correlation_weights[index].reshape(self.config.seq_len, -1)
             temporal_images = self.temporal_images[index]
             if self.config.augment:
                 temporal_images_augmented = self.temporal_images_augmented[index]
+                if self.config.rear_cam:
+                    temporal_images_rear_augmented = self.temporal_images_rear_augmented[index]
             else:
                 temporal_images_augmented = []
+                temporal_images_rear_augmented =[]
+            if self.config.rear_cam:
+                temporal_images_rear = self.temporal_images_rear[index]
         # load measurements
 
         loaded_images = []
         loaded_images_augmented = []
+        if self.config.rear_cam:
+            loaded_images_rear = []
+            loaded_images_rear_augmented = []
+            loaded_temporal_images_rear = []
+            loaded_temporal_images_rear_augmented = []
         loaded_semantics = []
         loaded_semantics_augmented = []
         loaded_bev_semantics = []
@@ -513,7 +561,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     lidars_i = None
                     future_boxes_i = None
                     boxes_i = None
-
+                    images_augmented_i=None
+                    images_rear_augmented_i=None
                     # Load bounding boxes
                     if self.config.detectboxes or self.config.use_plant:
                         with gzip.open(str(boxes[i], encoding="utf-8"), "rt", encoding="utf-8") as f2:
@@ -531,6 +580,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                         lidars_i = las_object.xyz
                         images_i = cv2.imread(str(images[i], encoding="utf-8"), cv2.IMREAD_COLOR)
                         images_i = cv2.cvtColor(images_i, cv2.COLOR_BGR2RGB)
+                        if self.config.rear_cam:
+                            images_i_rear = cv2.imread(str(images_rear[i], encoding="utf-8"), cv2.IMREAD_COLOR)
+                            images_i_rear = cv2.cvtColor(images_i_rear, cv2.COLOR_BGR2RGB)
                         if self.config.lidar_seq_len > 1:
                             loaded_temporal_lidars = change_axes_and_reverse(temporal_lidars)
                         if self.config.img_seq_len > 1:
@@ -538,7 +590,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                 loaded_temporal_images,
                                 loaded_temporal_images_augmented,
                             ) = self.load_temporal_images(temporal_images, temporal_images_augmented)
-
+                            if self.config.rear_cam:
+                                (
+                                loaded_temporal_images_rear,
+                                loaded_temporal_images_rear_augmented,
+                            ) = self.load_temporal_images(temporal_images_rear, temporal_images_rear_augmented)
                         if self.config.use_semantic:
                             semantics_i = cv2.imread(
                                 str(semantics[i], encoding="utf-8"),
@@ -557,6 +613,12 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                 cv2.IMREAD_COLOR,
                             )
                             images_augmented_i = cv2.cvtColor(images_augmented_i, cv2.COLOR_BGR2RGB)
+                            if self.config.rear_cam:
+                                images_rear_augmented_i = cv2.imread(
+                                str(images_rear_augmented[i], encoding="utf-8"),
+                                cv2.IMREAD_COLOR,
+                            )
+                                images_rear_augmented_i = cv2.cvtColor(images_rear_augmented_i, cv2.COLOR_BGR2RGB)
                             if self.config.use_semantic:
                                 semantics_augmented_i = cv2.imread(
                                     str(semantics_augmented[i], encoding="utf-8"),
@@ -652,6 +714,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                             )
             loaded_images.append(images_i)
             loaded_images_augmented.append(images_augmented_i)
+            if self.config.rear_cam:
+                loaded_images_rear.append(images_i_rear)
+                loaded_images_rear_augmented.append(images_rear_augmented_i)
             if self.config.bev:
                 loaded_semantics.append(semantics_i)
                 loaded_semantics_augmented.append(semantics_augmented_i)
@@ -701,6 +766,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     if self.config.augment and augment_sample:
                         processed_images = self.augment_images(loaded_images_augmented)
                         processed_temporal_images = self.augment_images(loaded_temporal_images_augmented)
+                        if self.config.rear_cam:
+                            processed_images_rear = self.augment_images(loaded_images_rear_augmented)
+                            processed_temporal_images_rear = self.augment_images(loaded_temporal_images_rear_augmented)
                         if self.config.use_semantic:
                             semantics_i = self.converter[
                                 loaded_semantics_augmented[self.config.seq_len - 1]
@@ -718,7 +786,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                     else:
                         processed_images = loaded_images
                         processed_temporal_images = loaded_temporal_images
-
+                        if self.config.rear_cam:
+                            processed_images_rear = loaded_images_rear
+                            processed_temporal_images_rear = loaded_temporal_images_rear
                         if self.config.use_semantic:
                             semantics_i = self.converter[
                                 loaded_semantics[self.config.seq_len - 1]
@@ -752,6 +822,15 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                         )
                     single_image = np.array([transpose_image(image) for image in processed_images])
                     transposed_temporal_images = np.array([transpose_image(image) for image in processed_temporal_images])
+                    if self.config.rear_cam:
+                        single_image_rear = np.array([transpose_image(image) for image in processed_images_rear])
+                        transposed_temporal_images_rear = np.array([transpose_image(image) for image in processed_temporal_images_rear])
+                        if transposed_temporal_images_rear.size==0:
+                            data["rgb"]=single_image
+                            data["rgb_rear"]=single_image_rear
+                        else:
+                            data["rgb"] = np.concatenate((transposed_temporal_images, single_image), axis=0)
+                            data["rgb_rear"] = np.concatenate((transposed_temporal_images_rear, single_image_rear), axis=0)
                     if transposed_temporal_images.size==0:
                         data["rgb"]=single_image
                     else:
@@ -1065,8 +1144,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 #else is the ego car case
                 if not car_class=="ego_car":
                     image_point,z=self.transform_point_onto_image_plane(vector_3d)
-                    #center point lies outside of current viewing cone, we want to drop the id then from the current timestep
-                    if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
+                    #center point lies outside of current viewing cone, we want to drop the id then from the current timestep, but when we have a rear camera negative z values are allowed (because visible)
+                    if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (False if self.config.rear_cam else (z<0)):
                         keys_to_remove[timestep].append(id)
         #here we remove all non-visible ids
         for timestep, ids in keys_to_remove.items():
@@ -1490,7 +1569,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
             if current_box["class"]!="ego_car":
                 image_point,z=self.transform_point_onto_image_plane(bbox[:3])
-                if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (z<0):
+                if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (False if self.config.rear_cam else (z<self.config.camera_pos[0])):
                     continue
             if not self.config.use_plant:
                 bbox = t_u.bb_vehicle_to_image_system(

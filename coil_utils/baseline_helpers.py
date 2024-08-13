@@ -49,9 +49,15 @@ def normalize_vectors(x, config,case, normalize="normalize"):
         ret_lst.append(final_vector)
     return ret_lst
 def extract_and_normalize_data(args, device_id, merged_config_object, data):
-        
-    all_images=data["rgb"].to(device_id).to(torch.float32)
-    all_images=t_u.normalization_wrapper(x=all_images,config=merged_config_object,type="normalize")
+    if merged_config_object.rear_cam:
+        all_images_rear=data["rgb_rear"].to(device_id).to(torch.float32)
+        all_images_rear=t_u.normalization_wrapper(x=all_images_rear,config=merged_config_object,type="normalize")
+        all_images=data["rgb"].to(device_id).to(torch.float32)
+        all_images=t_u.normalization_wrapper(x=all_images,config=merged_config_object,type="normalize")
+        all_images=torch.cat([all_images, all_images_rear], axis=4)
+    else:
+        all_images=data["rgb"].to(device_id).to(torch.float32)
+        all_images=t_u.normalization_wrapper(x=all_images,config=merged_config_object,type="normalize")
     
     if merged_config_object.speed or merged_config_object.ego_velocity_prediction==1:
         all_speeds = data["speed"].to(device_id).unsqueeze(2)
@@ -545,6 +551,16 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 
         # Extract the ROI from the zoomed-in image
         images_lidar = images_lidar_zoomed[start_row:end_row, start_col:end_col]
+        
+    if config.rear_cam:
+        images_lidar = cv2.resize(
+            images_lidar,
+            dsize=(
+                images_lidar.shape[1]*2,
+                images_lidar.shape[0] ,
+            ),
+            interpolation=cv2.INTER_NEAREST,
+        )
     all_images = np.concatenate([rgb,images_lidar],axis=0)
     font = ImageFont.truetype("Ubuntu-B.ttf", 40)
     font_baseline = ImageFont.truetype("Ubuntu-B.ttf", 100)

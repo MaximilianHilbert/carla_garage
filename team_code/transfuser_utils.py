@@ -692,7 +692,7 @@ def convert_depth(data):
     return normalized
 
 
-def create_projection_grid(config):
+def create_projection_grid(config,camera_rot_vector, camera_pos_vector):
     """
     Creates a voxel grid around the car with each voxel containing the pixel index indicating the pixel
     it would land on if you project it into the camera of the car with a pinhole camera model.
@@ -716,10 +716,9 @@ def create_projection_grid(config):
     depths, widths, heights = torch.meshgrid(depths, widths, heights, indexing="ij")
     test_cloud = torch.stack((depths, widths, heights), dim=0)  # CARLA coordinate system
     _, d, w, h = test_cloud.shape  # channel, depth, width, height
-    # If you rotate the camera adjust the rotation matrix here
-    assert config.camera_rot_0[0] == config.camera_rot_0[1] == config.camera_rot_0[2] == 0.0
-    rotation_matrix = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
-    t = torch.tensor(config.camera_pos).unsqueeze(1)
+    
+    rotation_matrix = torch.tensor([[np.cos(np.deg2rad(camera_rot_vector[2])), -np.sin(np.deg2rad(camera_rot_vector[2])), 0.0], [np.sin(np.deg2rad(camera_rot_vector[2])), np.cos(np.deg2rad(camera_rot_vector[2])), 0.0], [0.0, 0.0, 1.0]], dtype=torch.float32)
+    t = torch.tensor(camera_pos_vector).unsqueeze(1)
     test_cloud2 = (rotation_matrix.T @ test_cloud.view(3, -1)) - (rotation_matrix.T @ t)
 
     # Convert CARLA coordiante system x front, y right, z up to pinhole coordinate system: x right, y down, z front

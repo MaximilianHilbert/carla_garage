@@ -662,6 +662,13 @@ if __name__ == "__main__":
         required=True
 
     )
+    parser.add_argument(
+        "--rear-cam",
+        type=int,
+        required=True,
+        choices=[0,1],
+
+    )
     parser.add_argument("--datarep",type=int, default=1)
     parser.add_argument("--backbone",type=str, default="resnet", choices=["videoresnet", "resnet", "swin", "x3d_xs", "x3d_s"])
     arguments = parser.parse_args()
