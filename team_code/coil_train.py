@@ -663,9 +663,8 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
-        "--rear-cam",
+        "--rear_cam",
         type=int,
-        required=True,
         choices=[0,1],
 
     )
