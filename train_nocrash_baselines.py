@@ -299,5 +299,10 @@ if __name__ == "__main__":
         "--experiment-id",
         required=True
     )
+    parser.add_argument(
+        "--rear-cam",
+        type=int,
+        default=0
+    )
     args = parser.parse_args()
     main(args)
