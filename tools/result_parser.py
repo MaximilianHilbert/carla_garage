@@ -604,8 +604,6 @@ class CSVParser:
                     route_length_km = record["meta"]["route_length"] / 1000.0
                     driven_km = percentage_of_route_completed * route_length_km
                     route_time_hours = record["meta"]["duration_game"] / 3600.0  # conversion from seconds to hours
-                    if route_time_hours==0:
-                        print(f)
                     total_driven_hours += route_time_hours
                     total_km_driven += driven_km
                     if route_time_hours > 0.0:
@@ -1260,7 +1258,7 @@ def main():
         for experiment in os.listdir(os.path.join(args.results, baseline)):
             for repetition in os.listdir(os.path.join(args.results, baseline, experiment)):
                 for setting in os.listdir(os.path.join(args.results, baseline, experiment, repetition)):
-                    experiment_dir=os.path.join(args.log_dir, baseline, experiment, repetition, setting)
+                    experiment_dir=os.path.join(args.log_dir, baseline, experiment, repetition, setting, "longest6_30")
                     route_scenarios, unique_ids, unique_infractions = csv_parser.parse(root, baseline, experiment, repetition, setting)
 
                     if args.visualize_infractions:
