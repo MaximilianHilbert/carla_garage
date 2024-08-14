@@ -905,7 +905,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 else:
                     bounding_boxes_padded[: self.config.max_num_bbs, :] = bounding_boxes[: self.config.max_num_bbs]
             if self.config.predict_vectors:
-                velocity_vectors, acceleration_vectors=self.extract_vectors(loaded_temporal_boxes)
+                velocity_vectors, acceleration_vectors=self.extract_vectors(loaded_temporal_boxes,y_augmentation=aug_translation,
+                yaw_augmentation=aug_rotation,)
             
                 target_result, avg_factor=self.get_targets(bounding_boxes,
                                         self.config.lidar_resolution_height // self.config.bev_down_sample_factor,
@@ -1114,25 +1115,30 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         z=-image_point[-1]
         image_point=image_point/-z
         return image_point, z
-    def extract_vectors(self,boxes):
+    def extract_vectors(self,boxes,y_augmentation,
+                yaw_augmentation):
         # Find ego matrix of the current time step, i.e. the coordinate frame we want to use:
         current_timestep=boxes[-1]
         # ego_car always exists
         for ego_candiate in current_timestep:
             if ego_candiate["class"] == "ego_car":
-                ego_matrix_current_timestep=np.array(ego_candiate["matrix"])
+                ego_matrix_current_timestep = self.augment_bb(ego_candiate["matrix"], y_augmentation, yaw_augmentation)
                 ego_yaw_current_timestep=t_u.extract_yaw_from_matrix(ego_matrix_current_timestep)
                 break
         positions={}
         #first we transform all boxes into the ego system at the latest timestep
         for idx,timestep in enumerate(boxes):
             positions[idx]=[]
-            for box in timestep:
-                id=box["id"]
-                class_=box["class"]
+            for current_box in timestep:
+                if current_box['class'] == 'ego_car' and not self.config.predict_ego_car:
+                    continue
+
+                current_matrix = self.augment_bb(current_box["matrix"], y_augmentation, yaw_augmentation)
+                id=current_box["id"]
+                class_=current_box["class"]
                 if id==0:
                     continue
-                position_in_ego_system = t_u.get_relative_transform(ego_matrix_current_timestep, np.array(box["matrix"]))
+                position_in_ego_system = t_u.get_relative_transform(ego_matrix_current_timestep, current_matrix)
                 position_in_ego_system=append_id_class_to_vector(position_in_ego_system, id, class_)
                 positions[idx].append(position_in_ego_system)
         #here we collect all ids for a given timestep, that are not visible by the viewing cone for that specific timestep
@@ -1485,7 +1491,26 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             features = np.stack([above_features], axis=-1)
         features = np.transpose(features, (2, 0, 1)).astype(np.float32)
         return features
+    def augment_bb(self,matrix,y_augmentation=0.0, yaw_augmentation=0):
+        current_matrix=np.array(matrix)
+        aug_yaw_rad = np.deg2rad(yaw_augmentation)
+        augment_rotation_matrix = np.array(
+            [
+                [np.cos(aug_yaw_rad), -np.sin(aug_yaw_rad), 0.0],
+                [np.sin(aug_yaw_rad), np.cos(aug_yaw_rad), 0.0],
+                [0.0,0.0,1.0]
+            ]
+        )
 
+        current_position = current_matrix[:,-1][:3].copy()
+        current_rotation=current_matrix[:3,:3].copy()
+        augment_translation = np.array([0.0, y_augmentation, 0.0])
+        rotation_matrix_aug=augment_rotation_matrix@current_rotation
+        position_aug = augment_rotation_matrix @ (current_position - augment_translation)
+
+        current_matrix[:3,:3]=rotation_matrix_aug
+        current_matrix[:,-1][:3]=position_aug
+        return current_matrix
     def get_bbox_label(self, bbox_dict, y_augmentation=0.0, yaw_augmentation=0):
         # augmentation
         aug_yaw_rad = np.deg2rad(yaw_augmentation)
@@ -1535,6 +1560,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         future_bboxes = []
         for current_box in boxes:
             # Ego car is always at the origin. We don't predict it.
+            if not self.config.predict_ego_car and current_box['class'] == 'ego_car':
+                continue
 
 
             bbox, height = self.get_bbox_label(current_box, y_augmentation, yaw_augmentation)

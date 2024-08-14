@@ -49,8 +49,9 @@ class GlobalConfig:
         "sampling_rate": 2,
         "fps": 30
     }
-
+        
         }
+        self.predict_ego_car=False
         # self.normalization_vectors={"velocity": {"mean":np.array([3.0237589e+00, -2.3303875e-01,  2.2413948e-04]), 
         #                                          "std": np.array([13.791963, 27.333351, 0.577448])},
         #                             "acceleration": {"mean": np.array([ 0.05399591,  0.00303527, -0.00940528]), 
