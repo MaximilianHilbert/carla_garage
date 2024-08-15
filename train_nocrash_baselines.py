@@ -45,7 +45,7 @@ export WORK_DIR=/home/hilbert/carla_garage
 export CONFIG_ROOT=$WORK_DIR/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
 export CARLA_ROOT=$WORK_DIR/carla
-export DATASET_ROOT=$DATASET_ROOT
+export DATASET_ROOT=/mnt/lustre/work/geiger/gwb629/datasets/routewise_augmentation_rear_camera2024_08_10
 export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
 
 
@@ -85,7 +85,7 @@ torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
 export WORK_DIR=/mnt/lustre/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=$WORK_DIR/coil_configuration
 export CARLA_ROOT=$WORK_DIR/carla
-export DATASET_ROOT=$DATASET_ROOT
+export DATASET_ROOT=/mnt/lustre/work/geiger/gwb629/datasets/routewise_augmentation_rear_camera2024_08_10
 export LD_LIBRARY_PATH="/mnt/lustre/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 export TEAM_CODE=$WORK_DIR/team_code
 
