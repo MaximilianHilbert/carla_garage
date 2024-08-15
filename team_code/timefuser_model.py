@@ -145,7 +145,10 @@ class TimeFuser(nn.Module):
             if self.config.bev:
                 # Computes which pixels are visible in the camera. We mask the others.
                 _, valid_voxels_front = t_u.create_projection_grid(self.config, config.camera_rot_0,config.camera_pos)
-                _,valid_voxels_rear=t_u.create_projection_grid(self.config, config.camera_rot_0_rear,config.camera_pos_rear)
+                if self.config.rear_cam:
+                    _,valid_voxels_rear=t_u.create_projection_grid(self.config, config.camera_rot_0_rear,config.camera_pos_rear)
+                else:
+                    valid_voxels_rear=torch.zeros_like(valid_voxels_front)
                 valid_voxels=torch.logical_or(valid_voxels_front, valid_voxels_rear)
                 valid_bev_pixels = torch.max(valid_voxels, dim=3, keepdim=False)[0].unsqueeze(1)
                 # Conversion from CARLA coordinates x depth, y width to image coordinates x width, y depth.
