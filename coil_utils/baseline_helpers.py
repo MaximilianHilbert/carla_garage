@@ -553,14 +553,12 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         images_lidar = images_lidar_zoomed[start_row:end_row, start_col:end_col]
         
     if config.rear_cam:
-        images_lidar = cv2.resize(
-            images_lidar,
-            dsize=(
-                images_lidar.shape[1]*2,
-                images_lidar.shape[0] ,
-            ),
-            interpolation=cv2.INTER_NEAREST,
-        )
+
+        total_padding = 2048 - images_lidar.shape[1]
+        left_padding = total_padding // 2
+        right_padding = total_padding - left_padding
+
+        images_lidar = np.pad(images_lidar, ((0, 0), (left_padding, right_padding), (0, 0)), mode='constant', constant_values=0)
     all_images = np.concatenate([rgb,images_lidar],axis=0)
     font = ImageFont.truetype("Ubuntu-B.ttf", 40)
     font_baseline = ImageFont.truetype("Ubuntu-B.ttf", 100)
