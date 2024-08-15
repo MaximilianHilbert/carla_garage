@@ -116,7 +116,9 @@ class ScenarioManager(object):
             root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop",  self.scenario_class.agent.config.baseline_folder_name,
                     "debug", self.scenario_class.agent.config.eval_id)
             os.makedirs(root,exist_ok=True)
-            self.video_writer = cv2.VideoWriter(os.path.join(root,f"{self.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (512,1080))
+            self.width_video=1920 if self.scenario_class.agent.config.rear_cam else 512
+            self.height_video=1080
+            self.video_writer = cv2.VideoWriter(os.path.join(root,f"{self.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (self.width_video,self.height_video))
         
         # To print the scenario tree uncomment the next line
         # py_trees.display.render_dot_tree(self.scenario_tree)
@@ -163,7 +165,10 @@ class ScenarioManager(object):
                     import cv2
                     import numpy as np
                     if image is not None:
-                        image = np.array(image.resize((512,1080)))
+                        if not self.scenario_class.agent.config.rear_cam:
+                            image = np.array(image.resize((self.width_video,self.height_video)))
+                        else:
+                            image = np.array(image.resize((self.width_video,self.height_video)))
                         self.video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
             # Special exception inside the agent that isn't caused by the agent
             except SensorReceivedNoData as e:

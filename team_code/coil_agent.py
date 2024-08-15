@@ -155,6 +155,20 @@ class CoILAgent(AutonomousAgent):
                 "id": "CentralRGB",
                 "sensor_tick": self.config.carla_fps,
             },
+                {
+                    "type": "sensor.camera.rgb",
+                    "x": self.config.camera_pos_rear[0],
+                    "y": self.config.camera_pos_rear[1],
+                    "z": self.config.camera_pos_rear[2],
+                    "roll": self.config.camera_rot_0_rear[0],
+                    "pitch": self.config.camera_rot_0_rear[1],
+                    "yaw": self.config.camera_rot_0_rear[2],
+                    "width": self.config.camera_width,
+                    "height": self.config.camera_height,
+                    "fov": self.config.camera_fov,
+                    "id": "rgb_rear",
+                    "sensor_tick": self.config.carla_fps,
+                },
             {
                 "type": "sensor.other.imu",
                 "x": 0.0,
@@ -204,16 +218,23 @@ class CoILAgent(AutonomousAgent):
             control.steer = 0.0
             control.brake = 0.0
             control.throttle = 0.0
-            current_image = current_data.get("CentralRGB")[1][..., :3]
-            current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
-            current_image=torch.from_numpy(current_image).type(torch.FloatTensor)
-            current_image=t_u.normalization_wrapper(x=current_image,config=self.config, type="normalize")
+            image = current_data.get("CentralRGB")[1][..., :3]
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image=torch.from_numpy(image).type(torch.FloatTensor)
+            image=t_u.normalization_wrapper(x=image,config=self.config, type="normalize")
+            if self.config.rear_cam:
+                current_image_rear= current_data.get("rgb_rear")[1][..., :3]
+                current_image_rear = cv2.cvtColor(current_image_rear, cv2.COLOR_BGR2RGB)
+                current_image_rear=torch.from_numpy(current_image_rear).type(torch.FloatTensor)
+                current_image_rear=t_u.normalization_wrapper(x=current_image_rear,config=self.config, type="normalize")
+                image=torch.cat([image, current_image_rear], axis=1)
+
             current_speed=current_data.get("speed")[1]["speed"]
             current_position = self.vehicle.get_location()
             current_position = np.array([current_position.x, current_position.y])
             replay_params={}
             model=None
-            self.prev_rgb_queue.append(current_image)
+            self.prev_rgb_queue.append(image)
             self.prev_speeds_queue.append(current_speed)
             self.prev_location_queue.append(current_position)
             saveable_image=None
@@ -290,6 +311,12 @@ class CoILAgent(AutonomousAgent):
         current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2RGB)
         current_image=torch.from_numpy(current_image).type(torch.FloatTensor)
         current_image=t_u.normalization_wrapper(x=current_image, config=self.config, type="normalize")
+        if self.config.rear_cam:
+                current_image_rear= sensor_data.get("rgb_rear")[1][..., :3]
+                current_image_rear = cv2.cvtColor(current_image_rear, cv2.COLOR_BGR2RGB)
+                current_image_rear=torch.from_numpy(current_image_rear).type(torch.FloatTensor)
+                current_image_rear=t_u.normalization_wrapper(x=current_image_rear,config=self.config, type="normalize")
+                current_image=torch.cat([current_image, current_image_rear], axis=1)
         vehicle_speed=sensor_data.get("speed")[1]["speed"]
         #add data to queues in beginning of the loop, so we have historical information + current information and then subsample before it comes into the model
         # here we add the current one but the self.prev_location_queue does append later, we fuse only historical locations, but also current speeds and observations

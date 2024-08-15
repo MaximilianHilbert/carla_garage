@@ -666,6 +666,7 @@ if __name__ == "__main__":
         "--rear_cam",
         type=int,
         choices=[0,1],
+        default=0
 
     )
     parser.add_argument("--datarep",type=int, default=1)
