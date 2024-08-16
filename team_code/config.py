@@ -66,7 +66,7 @@ class GlobalConfig:
         self.closed_loop_previous_waypoint_predictions=5
         self.waypoint_weight_generation = False
         self.epochs_baselines =31
-        self.every_epoch =2
+        self.every_epoch =1
         self.epochs_after_freeze=15
         self.lidar_seq_len = 1
         self.rgb_input_channels=3
