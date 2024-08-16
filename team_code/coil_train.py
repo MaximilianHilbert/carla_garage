@@ -30,8 +30,7 @@ from coil_utils.baseline_helpers import (
     set_seed,
     merge_config,
     is_ready_to_save,
-    get_latest_saved_checkpoint,
-    
+    get_latest_saved_checkpoint
 )
 
 def main(args):
@@ -188,6 +187,9 @@ def main(args):
             accumulated_time = 0
             already_trained_epochs = 0
         print("Before the loss")
+        
+        with open(os.path.join(basepath,"config_training.pkl"), "wb") as file:
+            pickle.dump(merged_config_object, file)
         for epoch in tqdm(
             range(1 + already_trained_epochs, merged_config_object.epochs_baselines + 1),
             disable=rank != 0,
@@ -471,8 +473,7 @@ def main(args):
             
                 torch.cuda.empty_cache()
         torch.cuda.empty_cache()
-        with open(os.path.join(basepath,"config_training.pkl"), "wb") as file:
-            pickle.dump(merged_config_object, file)
+        
         with open(os.path.join(basepath,"training_time.csv"), mode='w', newline='') as file:
             writer = csv.DictWriter(file, fieldnames=["total_training_time_in_h", "forward_time_in_s"])
             writer.writeheader()
