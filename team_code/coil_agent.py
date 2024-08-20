@@ -41,7 +41,7 @@ class CoILAgent(AutonomousAgent):
             for ablation, value in get_ablations_dict().items():
                 if ablation not in config.__dict__:
                     setattr(config, ablation, value)
-            checkpoint = torch.load(os.path.join(config_path, "checkpoints", "30.pth"))
+            checkpoint = torch.load(os.path.join(config_path, "checkpoints", "31.pth"))
         self.config = config
         self.initialized = False
     

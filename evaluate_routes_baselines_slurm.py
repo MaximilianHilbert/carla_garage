@@ -205,7 +205,7 @@ def main(args):
         partition = "2080-galvani"
         username = "gwb629"
         code_root="/home/maximilian/Master/carla_garage"
-    epochs = ["30"]
+    epochs = ["31"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3
     benchmark = args.benchmark
