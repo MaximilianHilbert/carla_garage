@@ -390,7 +390,9 @@ class NoCrashEvaluator(object):
                 pred_residual.reverse()
                 fps = 5
                 os.makedirs(root,exist_ok=True)
-                video_writer = cv2.VideoWriter(os.path.join(root,f"{self.manager.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (512,1080))
+                self.width_video=1920 if self.config.rear_cam else 512
+                self.height_video=1080
+                video_writer = cv2.VideoWriter(os.path.join(root,f"{self.manager.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (self.width_video,self.height_video))
                 for iteration, (pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(curr_pred, target_points, roads,pred_residual)):
                     #to prevent the problem of not having a history
                     if iteration<self.config.considered_images_incl_current:
@@ -419,7 +421,7 @@ class NoCrashEvaluator(object):
                                     pred_bev_semantic=pred_i["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_i.keys() else None,
                                     road=road, parameters={"pred_residual": pred_residual_i}, pred_wp_prev=prev_wp, args=args)
                     
-                    image = np.array(image.resize((512,1080)))
+                    image = np.array(image.resize((self.width_video,self.height_video)))
                     video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
                    
                 video_writer.release()
