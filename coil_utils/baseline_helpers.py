@@ -374,32 +374,6 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     else:
         pred_size=7
         prev_pred_size=4
-    # Draw wps
-    # Red ground truth
-    if gt_wp is not None:
-        for wp in gt_wp:
-            wp_x = wp[0] * loc_pixels_per_meter + origin[0]
-            wp_y = wp[1] * loc_pixels_per_meter + origin[1]
-            cv2.circle(
-                images_lidar,
-                (int(wp_x), int(wp_y)),
-                radius=gt_size,
-                color=gt_wp_color,
-                thickness=-1,
-            )
-    # Draw wps previous
-
-    if prev_gt is not None and not isinstance(prev_gt, np.float):
-        for wp_prev in prev_gt:
-            wp_x = wp_prev[0] * loc_pixels_per_meter + origin[0]
-            wp_y = wp_prev[1] * loc_pixels_per_meter + origin[1]
-            cv2.circle(
-                images_lidar,
-                (int(wp_x), int(wp_y)),
-                radius=prev_gt_size,
-                color=prev_gt_wp_color,
-                thickness=-1,
-            )
 
 
     # Green predicted checkpoint
@@ -417,35 +391,61 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             )
 
     # Blue predicted wp
-    if pred_wp is not None:
-        pred_wps = pred_wp
-        num_wp = len(pred_wps)
-        for idx, wp in enumerate(pred_wps):
-            color_weight = 0.5 + 0.5 * float(idx) / num_wp
-            wp_x = wp[0] * loc_pixels_per_meter + origin[0]
-            wp_y = wp[1] * loc_pixels_per_meter + origin[1]
-            cv2.circle(
-                images_lidar,
-                (int(wp_x), int(wp_y)),
-                radius=pred_size,
-                lineType=cv2.LINE_AA,
-                color=pred_wp_color,
-                thickness=-1,
-            )
-    if pred_wp_prev is not None and not isinstance(pred_wp_prev, np.float):
-        num_wp = len(pred_wp_prev)
-        for idx, wp in enumerate(pred_wp_prev):
-            color_weight = 0.5 + 0.5 * float(idx) / num_wp
-            wp_x = wp[0] * loc_pixels_per_meter + origin[0]
-            wp_y = wp[1] * loc_pixels_per_meter + origin[1]
-            cv2.circle(
-                images_lidar,
-                (int(wp_x), int(wp_y)),
-                radius=prev_pred_size,
-                lineType=cv2.LINE_AA,
-                color=pred_wp_prev_color,
-                thickness=-1,
-            )
+    if velocity_vectors_pred is None:
+        if gt_wp is not None:
+            for wp in gt_wp:
+                wp_x = wp[0] * loc_pixels_per_meter + origin[0]
+                wp_y = wp[1] * loc_pixels_per_meter + origin[1]
+                cv2.circle(
+                    images_lidar,
+                    (int(wp_x), int(wp_y)),
+                    radius=gt_size,
+                    color=gt_wp_color,
+                    thickness=-1,
+                )
+        # Draw wps previous
+
+        if prev_gt is not None and not isinstance(prev_gt, np.float):
+            for wp_prev in prev_gt:
+                wp_x = wp_prev[0] * loc_pixels_per_meter + origin[0]
+                wp_y = wp_prev[1] * loc_pixels_per_meter + origin[1]
+                cv2.circle(
+                    images_lidar,
+                    (int(wp_x), int(wp_y)),
+                    radius=prev_gt_size,
+                    color=prev_gt_wp_color,
+                    thickness=-1,
+                )
+
+        if pred_wp is not None:
+            pred_wps = pred_wp
+            num_wp = len(pred_wps)
+            for idx, wp in enumerate(pred_wps):
+                color_weight = 0.5 + 0.5 * float(idx) / num_wp
+                wp_x = wp[0] * loc_pixels_per_meter + origin[0]
+                wp_y = wp[1] * loc_pixels_per_meter + origin[1]
+                cv2.circle(
+                    images_lidar,
+                    (int(wp_x), int(wp_y)),
+                    radius=pred_size,
+                    lineType=cv2.LINE_AA,
+                    color=pred_wp_color,
+                    thickness=-1,
+                )
+        if pred_wp_prev is not None and not isinstance(pred_wp_prev, np.float):
+            num_wp = len(pred_wp_prev)
+            for idx, wp in enumerate(pred_wp_prev):
+                color_weight = 0.5 + 0.5 * float(idx) / num_wp
+                wp_x = wp[0] * loc_pixels_per_meter + origin[0]
+                wp_y = wp[1] * loc_pixels_per_meter + origin[1]
+                cv2.circle(
+                    images_lidar,
+                    (int(wp_x), int(wp_y)),
+                    radius=prev_pred_size,
+                    lineType=cv2.LINE_AA,
+                    color=pred_wp_prev_color,
+                    thickness=-1,
+                )
     # Draw target points
     if config.use_tp:
         x_tp = target_point[0] * loc_pixels_per_meter + origin[0]
