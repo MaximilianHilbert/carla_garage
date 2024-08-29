@@ -186,13 +186,13 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
                         self.angle_distribution.append(angle_index)
                         self.speed_distribution.append(target_speed_index)
-                    if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0:
+                    if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0 or self.config.img_seq_len>1:
                         temporal_measurements = []
                         temporal_lidars = []
                         number_of_required_measurements = max(
                             self.config.lidar_seq_len,
                             self.config.number_previous_waypoints,
-                            self.config.considered_images_incl_current-1 if bool(self.config.speed) or self.config.prevnum>0 else 0
+                            self.config.considered_images_incl_current-1 if bool(self.config.speed) or self.config.prevnum>0 or self.config.img_seq_len>1 else 0
                         )
                         #if we have arp as baseline we want to go one timestep into the past
                         for idx in reversed(range(1, number_of_required_measurements + 1)):
@@ -378,7 +378,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
         temporal_boxes=self.temporal_boxes[index]
         measurements = self.measurements[index]
         sample_start = self.sample_start[index]
-        if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0:
+        if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0 or self.config.img_seq_len>1:
             temporal_measurements = self.temporal_measurements[index]
         if self.config.lidar_seq_len > 1:
             temporal_lidars = self.temporal_lidars[index]
@@ -730,8 +730,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             loaded_boxes.append(boxes_i)
             loaded_future_boxes.append(future_boxes_i)
 
-        if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0:
+        if self.config.lidar_seq_len > 1 or self.config.number_previous_waypoints > 0 or bool(self.config.speed) or self.config.prevnum>0 or self.config.img_seq_len>1:
             loaded_temporal_measurements = self.load_temporal_measurements(temporal_measurements)
+            
         if bool(self.config.predict_vectors):
             for temporal_box in temporal_boxes:
                 with gzip.open(str(temporal_box, encoding="utf-8"), "rt", encoding="utf-8") as f2:
@@ -746,13 +747,22 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             ), "Length of loaded_temporal_images_augmented is not equal to img_seq_len!"
 
         current_measurement = loaded_measurements[self.config.seq_len - 1]
-
+        
         # Determine whether the augmented camera or the normal camera is used.
 
         if random.random() <= self.config.augment_percentage and self.config.augment:
             augment_sample = True
             aug_rotation = current_measurement["augmentation_rotation"]
             aug_translation = current_measurement["augmentation_translation"]
+            if self.config.img_seq_len>1:
+
+                aug_rotations=[measurement["augmentation_rotation"] for measurement in loaded_temporal_measurements]
+                aug_rotations.append(aug_rotation)
+                aug_rotation=np.mean(np.array(aug_rotations))
+                aug_translations=[measurement["augmentation_translation"] for measurement in loaded_temporal_measurements]
+                aug_translations.append(aug_translation)
+                aug_translation=np.mean(np.array(aug_translation))
+                
         else:
             augment_sample = False
             aug_rotation = 0.0
@@ -1077,25 +1087,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             data["correlation_weight"] = np.array([])
 
         return data
-    def get_vector_targets(self,bbs,velocity_vectors, acceleration_vectors, feat_h, feat_w):
-        img_h = self.config.lidar_resolution_height
-        img_w = self.config.lidar_resolution_width
-
-        width_ratio = float(feat_w / img_w)
-        height_ratio = float(feat_h / img_h)
-        velocity_vector_target = np.zeros([2, feat_h, feat_w], dtype=np.float32)
-        acceleration_vector_target = np.zeros([2, feat_h, feat_w], dtype=np.float32)
-
-        current_timestep=list(velocity_vectors.keys())[-1]
-        current_velocities=velocity_vectors[current_timestep]
-        current_accelerations=acceleration_vectors[current_timestep]
-        for box in bbs[0]:
-            box_id=box["id"]
-            center_x = box[:, [0]] * width_ratio
-            center_y = box[:, [1]] * height_ratio
-            for id, (class_,velocity_vector) in current_velocities.items():
-                if id==box_id:
-                    pass
+    
     def transform_point_onto_image_plane(self,point):
         intrinsic_matrix = torch.from_numpy(
                 t_u.calculate_intrinsic_matrix(
@@ -1596,7 +1588,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
             if current_box["class"]!="ego_car":
                 image_point,z=self.transform_point_onto_image_plane(bbox[:3])
-                if (image_point[0]<0) or (image_point[0]>self.config.camera_width) or (image_point[1]<0) or (image_point[1]>self.config.camera_height) or (False if self.config.rear_cam else (z<self.config.camera_pos[0])):
+                if (image_point[0]<0) or (image_point[0]>self.config.camera_width) \
+                or (image_point[1]<0) or (image_point[1]>self.config.camera_height) \
+                or (False if self.config.rear_cam else (z<self.config.camera_pos[0])):
                     continue
             if not self.config.use_plant:
                 bbox = t_u.bb_vehicle_to_image_system(
