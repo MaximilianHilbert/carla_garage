@@ -754,8 +754,7 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
             augment_sample = True
             aug_rotation = current_measurement["augmentation_rotation"]
             aug_translation = current_measurement["augmentation_translation"]
-            if self.config.img_seq_len>1:
-
+            if self.config.img_seq_len>1 and self.config.mean_augment:
                 aug_rotations=[measurement["augmentation_rotation"] for measurement in loaded_temporal_measurements]
                 aug_rotations.append(aug_rotation)
                 aug_rotation=np.mean(np.array(aug_rotations))
@@ -775,7 +774,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 if not self.config.waypoint_weight_generation:
                     if self.config.augment and augment_sample:
                         processed_images = self.augment_images(loaded_images_augmented)
-                        processed_temporal_images = self.augment_images(loaded_temporal_images_augmented)
+                        if not self.config.last_augment:
+                            processed_temporal_images = self.augment_images(loaded_temporal_images_augmented)
+                        else:
+                            processed_temporal_images=loaded_temporal_images
                         if self.config.rear_cam:
                             processed_images_rear = self.augment_images(loaded_images_rear_augmented)
                             processed_temporal_images_rear = self.augment_images(loaded_temporal_images_rear_augmented)

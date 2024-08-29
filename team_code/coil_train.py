@@ -603,7 +603,20 @@ if __name__ == "__main__":
         default=0
 
     )
+    parser.add_argument(
+        "--mean-augment",
+        type=int,
+        choices=[0,1],
+        default=0
 
+    )
+    parser.add_argument(
+        "--last-augment",
+        type=int,
+        choices=[0,1],
+        default=0
+
+    )
     parser.add_argument(
         "--zero-redundancy-optim",
         type=int,
