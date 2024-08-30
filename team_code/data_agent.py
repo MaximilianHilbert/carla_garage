@@ -41,10 +41,10 @@ class DataAgent(AutoPilot):
             (self.save_path / "rgb_augmented").mkdir()
             (self.save_path / "rgb_rear").mkdir()
             (self.save_path / "rgb_rear_augmented").mkdir()
-            (self.save_path / "semantics").mkdir()
-            (self.save_path / "semantics_augmented").mkdir()
-            (self.save_path / "depth").mkdir()
-            (self.save_path / "depth_augmented").mkdir()
+            # (self.save_path / "semantics").mkdir()
+            # (self.save_path / "semantics_augmented").mkdir()
+            # (self.save_path / "depth").mkdir()
+            # (self.save_path / "depth_augmented").mkdir()
             (self.save_path / "bev_semantics").mkdir()
             (self.save_path / "bev_semantics_augmented").mkdir()
             (self.save_path / "boxes").mkdir()
@@ -54,15 +54,6 @@ class DataAgent(AutoPilot):
         self._active_traffic_light = None
         self.last_lidar = None
         self.last_ego_transform = None
-        #set augmentation values here, to augment same for the whole route
-        self.route_wide_augmentation_translation = np.random.uniform(
-            low=self.config.camera_translation_augmentation_min,
-            high=self.config.camera_translation_augmentation_max,
-        )
-        self.route_wide_augmentation_rotation = np.random.uniform(
-            low=self.config.camera_rotation_augmentation_min,
-            high=self.config.camera_rotation_augmentation_max,
-        )
     def _init(self, hd_map):
         super()._init(hd_map)
         if self.datagen:
@@ -327,7 +318,8 @@ class DataAgent(AutoPilot):
 
         # Must be called before run_step, so that the correct augmentation shift is saved
         if self.datagen:
-            self.augment_camera(sensors)
+            if self.step % self.config.data_save_freq == 0:
+                self.augment_camera(sensors)
 
         control = super().run_step(input_data, timestamp, plant=plant)
 
@@ -347,19 +339,32 @@ class DataAgent(AutoPilot):
             return control
 
     def augment_camera(self, sensors):
-        self.augmentation_translation.append(self.route_wide_augmentation_translation)
-        self.augmentation_rotation.append(self.route_wide_augmentation_rotation)
+        #set augmentation values here, to augment same for the whole route
+        if self.step==-1:
+            self.augmentation_translation_per_img_seq = 0
+            self.augmentation_rotation_per_img_seq = 0
+        if self.step%self.config.considered_images_incl_current==0:
+            self.augmentation_translation_per_img_seq = np.random.uniform(
+                low=self.config.camera_translation_augmentation_min,
+                high=self.config.camera_translation_augmentation_max,
+            )
+            self.augmentation_rotation_per_img_seq = np.random.uniform(
+                low=self.config.camera_rotation_augmentation_min,
+                high=self.config.camera_rotation_augmentation_max,
+            )
+        self.augmentation_translation.append(self.augmentation_translation_per_img_seq)
+        self.augmentation_rotation.append(self.augmentation_rotation_per_img_seq)
         for sensor in sensors:
             if "rgb_augmented" in sensor[0] or "semantics_augmented" in sensor[0] or "depth_augmented" in sensor[0]:
                 camera_pos_augmented = carla.Location(
                     x=self.config.camera_pos[0],
-                    y=self.config.camera_pos[1] + self.route_wide_augmentation_translation,
+                    y=self.config.camera_pos[1] + self.augmentation_translation_per_img_seq,
                     z=self.config.camera_pos[2],
                 )
 
                 camera_rot_augmented = carla.Rotation(
                     pitch=self.config.camera_rot_0[0],
-                    yaw=self.config.camera_rot_0[1] + self.route_wide_augmentation_rotation,
+                    yaw=self.config.camera_rot_0[1] + self.augmentation_rotation_per_img_seq,
                     roll=self.config.camera_rot_0[2],
                 )
 
@@ -369,13 +374,13 @@ class DataAgent(AutoPilot):
             if "rgb_rear_augmented" in sensor[0]:
                 camera_pos_augmented = carla.Location(
                     x=self.config.camera_pos_rear[0],
-                    y=self.config.camera_pos_rear[1] + self.route_wide_augmentation_translation,
+                    y=self.config.camera_pos_rear[1] + self.augmentation_translation_per_img_seq,
                     z=self.config.camera_pos_rear[2],
                 )
 
                 camera_rot_augmented = carla.Rotation(
                     pitch=self.config.camera_rot_0_rear[1],
-                    yaw=self.config.camera_rot_0_rear[2] + self.route_wide_augmentation_rotation,
+                    yaw=self.config.camera_rot_0_rear[2] + self.augmentation_rotation_per_img_seq,
                     roll=self.config.camera_rot_0_rear[0],
                 )
 
@@ -433,20 +438,20 @@ class DataAgent(AutoPilot):
             str(self.save_path / "rgb_rear_augmented" / (f"{frame:04}.jpg")),
             tick_data["rgb_rear_augmented"],
         )
-        cv2.imwrite(
-            str(self.save_path / "semantics" / (f"{frame:04}.png")),
-            tick_data["semantics"],
-        )
-        cv2.imwrite(
-            str(self.save_path / "semantics_augmented" / (f"{frame:04}.png")),
-            tick_data["semantics_augmented"],
-        )
+        # cv2.imwrite(
+        #     str(self.save_path / "semantics" / (f"{frame:04}.png")),
+        #     tick_data["semantics"],
+        # )
+        # cv2.imwrite(
+        #     str(self.save_path / "semantics_augmented" / (f"{frame:04}.png")),
+        #     tick_data["semantics_augmented"],
+        # )
 
-        cv2.imwrite(str(self.save_path / "depth" / (f"{frame:04}.png")), tick_data["depth"])
-        cv2.imwrite(
-            str(self.save_path / "depth_augmented" / (f"{frame:04}.png")),
-            tick_data["depth_augmented"],
-        )
+        # cv2.imwrite(str(self.save_path / "depth" / (f"{frame:04}.png")), tick_data["depth"])
+        # cv2.imwrite(
+        #     str(self.save_path / "depth_augmented" / (f"{frame:04}.png")),
+        #     tick_data["depth_augmented"],
+        # )
 
         cv2.imwrite(
             str(self.save_path / "bev_semantics" / (f"{frame:04}.png")),
