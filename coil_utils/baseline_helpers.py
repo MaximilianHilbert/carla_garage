@@ -64,7 +64,12 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
     else:
         all_speeds = None
     target_point = data["target_point"].to(device_id)
-    wp_targets = data["ego_waypoints"].to(device_id)
+    if merged_config_object.tf_pp_rep:
+        wp_targets = data["route"].to(device_id)
+        target_speed_target=data["target_speed"].to(torch.float32).to(device_id)
+    else:
+        wp_targets = data["ego_waypoints"].to(device_id)
+        target_speed_target=None
     if merged_config_object.number_previous_waypoints>0:
         previous_wp_targets = data["previous_ego_waypoints"].to(device_id)
     else:
@@ -95,7 +100,7 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
         gt_bb.update({"velocity_vector_target": data["velocity_vector_target"].to(device_id, dtype=torch.float32),"acceleration_vector_target":data["acceleration_vector_target"].to(device_id, dtype=torch.float32) })
     else:
         vel_vecs, accel_vecs=None, None
-    return all_images,all_speeds,target_point,wp_targets,previous_wp_targets,additional_previous_wp_targets,bev_semantic_labels, gt_bb,bb, vel_vecs, accel_vecs
+    return all_images,all_speeds,target_point,wp_targets,previous_wp_targets,additional_previous_wp_targets,bev_semantic_labels, gt_bb,bb, vel_vecs, accel_vecs, target_speed_target
 def find_free_port():
     """https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number"""
     import socket
@@ -146,7 +151,7 @@ def merge_with_command_line_args(config, args):
 
 def get_ablations_dict():
     return {"bev":0, "detectboxes": 0,"speed":0, "prevnum":0, "framehandling": "unrolling", "datarep":1, 
-            "augment": 0, "freeze": 0, "backbone": "resnet", "pretrained": 0, "subsampling": 0, "velocity_brake_prediction": 1, "ego_velocity_prediction": 0, "init": 0, "predict_vectors": 0, "rear_cam": "0"}
+            "augment": 0, "freeze": 0, "backbone": "resnet", "pretrained": 0, "subsampling": 0, "velocity_brake_prediction": 1, "ego_velocity_prediction": 0, "init": 0, "predict_vectors": 0, "rear_cam": 0, "tf_pp_rep": 0}
 
 def set_baseline_specific_args(config, experiment_name, args):
     setattr(config, "experiment", experiment_name)
@@ -529,7 +534,6 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         )
 
     if pred_speed is not None:
-        pred_speed = pred_speed
         images_lidar = np.ascontiguousarray(images_lidar, dtype=np.uint8)
         t_u.draw_probability_boxes(images_lidar, pred_speed, config.target_speeds)
     if closed_loop:
