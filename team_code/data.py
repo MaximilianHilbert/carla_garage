@@ -145,14 +145,10 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                                 if config.rear_cam:
                                     image_rear.append(route_dir + "/rgb_rear" + (f"/{(seq + idx):04}.jpg"))
                                     image_rear_augmented.append(route_dir + "/rgb_rear_augmented" + (f"/{(seq + idx):04}.jpg"))
-                                semantic.append(route_dir + "/semantics" + (f"/{(seq + idx):04}.png"))
-                                semantic_augmented.append(route_dir + "/semantics_augmented" + (f"/{(seq + idx):04}.png"))
                                 bev_semantic.append(route_dir + "/bev_semantics" + (f"/{(seq + idx):04}.png"))
                                 bev_semantic_augmented.append(
                                     route_dir + "/bev_semantics_augmented" + (f"/{(seq + idx):04}.png")
                                 )
-                                depth.append(route_dir + "/depth" + (f"/{(seq + idx):04}.png"))
-                                depth_augmented.append(route_dir + "/depth_augmented" + (f"/{(seq + idx):04}.png"))
                                 lidar.append(route_dir + "/lidar" + (f"/{(seq + idx):04}.laz"))
 
                                 if estimate_sem_distribution:
@@ -352,7 +348,6 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
     def __getitem__(self, index):
         """Returns the item at index idx."""
-
         # Disable threading because the data loader will already split in threads.
         cv2.setNumThreads(0)
         data = {}
@@ -366,12 +361,8 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 images_rear_augmented = self.images_rear_augmented[index]
         else:
             images_augmented = []
-        semantics = self.semantics[index]
-        semantics_augmented = self.semantics_augmented[index]
         bev_semantics = self.bev_semantics[index]
         bev_semantics_augmented = self.bev_semantics_augmented[index]
-        depth = self.depth[index]
-        depth_augmented = self.depth_augmented[index]
         lidars = self.lidars[index]
         boxes = self.boxes[index]
         future_boxes = self.future_boxes[index]
