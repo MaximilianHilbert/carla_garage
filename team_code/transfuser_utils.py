@@ -717,7 +717,9 @@ def create_projection_grid(config,camera_rot_vector, camera_pos_vector):
     test_cloud = torch.stack((depths, widths, heights), dim=0)  # CARLA coordinate system
     _, d, w, h = test_cloud.shape  # channel, depth, width, height
     
-    rotation_matrix = torch.tensor([[np.cos(np.deg2rad(camera_rot_vector[2])), -np.sin(np.deg2rad(camera_rot_vector[2])), 0.0], [np.sin(np.deg2rad(camera_rot_vector[2])), np.cos(np.deg2rad(camera_rot_vector[2])), 0.0], [0.0, 0.0, 1.0]], dtype=torch.float32)
+    rotation_matrix = torch.tensor([[np.cos(np.deg2rad(camera_rot_vector[2])), -np.sin(np.deg2rad(camera_rot_vector[2])), 0.0], 
+                                     [np.sin(np.deg2rad(camera_rot_vector[2])), np.cos(np.deg2rad(camera_rot_vector[2])), 0.0], 
+                                      [0.0, 0.0, 1.0]], dtype=torch.float32)
     t = torch.tensor(camera_pos_vector).unsqueeze(1)
     test_cloud2 = (rotation_matrix.T @ test_cloud.view(3, -1)) - (rotation_matrix.T @ t)
 
