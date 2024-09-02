@@ -3,6 +3,7 @@ import torch
 from team_code.aim import AIMBackbone
 import team_code.transfuser_utils as t_u
 from torch.nn.functional import l1_loss
+import matplotlib.pyplot as plt
 from torch.nn import CrossEntropyLoss
 from team_code.model import PositionEmbeddingSine, GRUWaypointsPredictorTransFuser, get_sinusoidal_positional_embedding_image_order
 from team_code.center_net import LidarCenterNetHead
@@ -149,8 +150,10 @@ class TimeFuser(nn.Module):
                     _,valid_voxels_rear=t_u.create_projection_grid(self.config, config.camera_rot_0_rear,config.camera_pos_rear)
                 else:
                     valid_voxels_rear=torch.zeros_like(valid_voxels_front)
-                valid_voxels=torch.logical_or(valid_voxels_front, valid_voxels_rear)
-                valid_bev_pixels = torch.max(valid_voxels, dim=3, keepdim=False)[0].unsqueeze(1)
+                valid_bev_pixels_front = torch.max(valid_voxels_front, dim=3, keepdim=False)[0].unsqueeze(1)
+                valid_bev_pixels_rear = torch.max(valid_voxels_rear, dim=3, keepdim=False)[0].unsqueeze(1)
+
+                valid_bev_pixels=torch.logical_or(valid_bev_pixels_front, valid_bev_pixels_rear)
                 # Conversion from CARLA coordinates x depth, y width to image coordinates x width, y depth.
                 # Analogous to transpose after the LiDAR histogram
                 valid_bev_pixels = torch.transpose(valid_bev_pixels, 2, 3)
