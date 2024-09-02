@@ -114,11 +114,11 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
                 # seq=timestep; substract seq_len here, to iterate not too far, later we iterate over the last seq value into the "future" hitting the latest datapoint avail.
                 # skip first introduce config.skip_first
                 for seq in range(
-                    config.skip_first+3,
-                    num_seq - self.config.pred_len - self.config.seq_len-2,
+                    config.skip_first,#+3,
+                    num_seq - self.config.pred_len - self.config.seq_len,#-2,
                 ):
-                    if (seq-config.skip_first) % config.considered_images_incl_current != 0:
-                        continue
+                    # if (seq-config.skip_first) % config.considered_images_incl_current != 0:
+                    #     continue
                     if seq % config.train_sampling_rate != 0:
                         continue
                     # load input seq and pred seq jointly
