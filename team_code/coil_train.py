@@ -204,7 +204,7 @@ def main(args):
                 head_losses_lst=[]
             for iteration, data in enumerate(tqdm(data_loader, disable=rank != 0), start=1):
                 capture_time = time.time()
-                all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb,vel_vecs, accel_vecs= extract_and_normalize_data(args, device_id, merged_config_object, data)
+                all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb,vel_vecs, accel_vecs, target_speed_target= extract_and_normalize_data(args, device_id, merged_config_object, data)
                 if "arp" in merged_config_object.baseline_folder_name:
                     mem_extract.zero_grad()
                     #the baseline is defined as getting everything except the last (current) frame into the memory stream, same for speed input
@@ -217,6 +217,7 @@ def main(args):
                     loss_function_params_memory = {
                         **pred_dict_memory,
                         "targets": mem_extract_targets,
+                        "target_speed_target": target_speed_target,
                         "bev_targets": bev_semantic_labels,
                         "targets_bb": targets_bb,
                         "device_id": device_id,
@@ -239,6 +240,7 @@ def main(args):
                     loss_function_params_policy = {
                         **pred_dict_policy,
                         "targets": targets,
+                        "target_speed_target": target_speed_target,
                         "bev_targets": bev_semantic_labels,
                         "targets_bb": targets_bb,
                         "device_id": device_id,
@@ -338,6 +340,7 @@ def main(args):
                         "bev_targets": bev_semantic_labels if merged_config_object.bev else None,
                         "targets": targets,
                         "targets_bb": targets_bb,
+                        "target_speed_target": target_speed_target,
                         **reweight_params,
                         "device_id": device_id,
                         "epoch": epoch,
@@ -385,6 +388,7 @@ def main(args):
                         visualize_model(training=True,args=args,rgb=torch.cat([image for image in all_images[0]],axis=1).permute(1, 2, 0).detach().cpu().numpy(),config=merged_config_object,
                                         save_path_root=os.path.join(os.environ.get("WORK_DIR"), "visualisation", "training"),
                                         gt_bev_semantic=bev_semantic_labels.detach().cpu().numpy()[0],
+                                        
                                         lidar_bev=data["lidar"].detach().cpu().numpy()[0],
                                         target_point=target_point.detach().cpu().numpy()[0],
                                         pred_wp=pred_dict["wp_predictions"].detach().cpu().numpy()[0],
@@ -392,6 +396,7 @@ def main(args):
                                         acceleration_vectors_gt=accel_vecs.detach().cpu().numpy()[0] if accel_vecs is not None else None,
                                         velocity_vectors_pred=batch_of_bbs_pred[1],
                                         acceleration_vectors_pred=batch_of_bbs_pred[2],
+                                        pred_speed=torch.nn.functional.softmax(pred_dict["pred_target_speed"], dim=0).detach().cpu().numpy() if merged_config_object.tf_pp_rep else None,
                                         step=iteration,
                                         gt_wp=targets[0],
                                         pred_bb=batch_of_bbs_pred[0],
@@ -678,6 +683,13 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--rear_cam",
+        type=int,
+        choices=[0,1],
+        default=0
+
+    )
+    parser.add_argument(
+        "--tf_pp_rep",
         type=int,
         choices=[0,1],
         default=0

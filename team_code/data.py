@@ -1059,9 +1059,9 @@ class CARLA_Data(Dataset):  # pylint: disable=locally-disabled, invalid-name
 
                 route = self.augment_route(route, y_augmentation=aug_translation, yaw_augmentation=aug_rotation)
                 if self.config.smooth_route:
-                    data["route"] = self.smooth_path(route)
+                    data["route"] = self.smooth_path(route)[::2][:-2]
                 else:
-                    data["route"] = route
+                    data["route"] = route[::2][:-2]
         if not self.config.waypoint_weight_generation:
             target_point = np.array(current_measurement["target_point"])
             target_point = self.augment_target_point(

@@ -212,6 +212,12 @@ class TimeFuser(nn.Module):
                     align_corners=False,
                 ),
                 )
+        if self.config.tf_pp_rep:
+            self.target_speed_network = nn.Sequential(
+                    nn.Linear(int(self.config.gru_input_size**0.5)*self.channel_dimension, int(self.config.gru_input_size**0.5)*self.channel_dimension//2),
+                    nn.ReLU(inplace=True),
+                    nn.Linear(int(self.config.gru_input_size**0.5)*self.channel_dimension//2, len(self.config.target_speeds)),
+                )
         if self.config.init:
             self.init_weights_without_backbone()
     
@@ -296,6 +302,9 @@ class TimeFuser(nn.Module):
         else:
             queries=self.wp_query.repeat(bs,1,1)
         all_tokens_output=self.transformer_decoder(queries, x)
+        if self.config.tf_pp_rep:
+            pred_target_speed = self.target_speed_network(all_tokens_output[:, :self.wp_query.shape[0],...].flatten())
+            pred_dict.update({"pred_target_speed": pred_target_speed})
         wp_tokens=self.wp_gru(all_tokens_output[:, :self.wp_query.shape[0],...], target_point)
         pred_dict.update({"wp_predictions": wp_tokens})
         if self.config.bev or self.config.detectboxes:
@@ -343,13 +352,13 @@ class TimeFuser(nn.Module):
             factor = 1.0 / sum(self.config.detailed_loss_weights.values())
             for k in self.config.detailed_loss_weights:
                 self.detailed_loss_weights[k] = self.config.detailed_loss_weights[k] * factor
-        
-        
+        if self.config.use_label_smoothing:
+            label_smoothing =self.config.label_smoothing_alpha
+        else:
+            label_smoothing = 0.0
+
+            
         if (self.config.bev and not self.config.freeze) or (self.config.freeze and (params["epoch"]>self.config.epochs_baselines-self.config.epochs_after_freeze)):
-            if self.config.use_label_smoothing:
-                label_smoothing =self.config.label_smoothing_alpha
-            else:
-                label_smoothing = 0.0
             loss_bev_semantic = CrossEntropyLoss(
                     weight=torch.tensor(self.config.bev_semantic_weights, dtype=torch.float32, device=params["device_id"]),
                     label_smoothing=label_smoothing,
@@ -363,6 +372,12 @@ class TimeFuser(nn.Module):
         if self.config.detectboxes:
             head_loss=self.head.loss(params["pred_bb"], 
                                      params["targets_bb"])
+            if self.config.tf_pp_rep:
+                self.loss_speed = nn.CrossEntropyLoss(weight=torch.tensor(self.config.target_speed_weights, dtype=torch.float32, device=params["device_id"]), label_smoothing=label_smoothing)
+                one_hot_vector=torch.zeros(len(self.config.target_speed_weights), dtype=torch.float32, device=params["device_id"])
+                one_hot_vector[int(params["target_speed_target"])]=1
+                target_speed_loss=self.loss_speed(params["pred_target_speed"], one_hot_vector)
+                head_loss["loss_target_speed"]=target_speed_loss
             sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
             for key, value in head_loss.items():
                 sub_loss += self.detailed_loss_weights[key] * value
