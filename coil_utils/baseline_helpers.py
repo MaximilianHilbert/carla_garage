@@ -391,7 +391,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
             )
 
     # Blue predicted wp
-    if velocity_vectors_pred is None:
+    if velocity_vectors_pred is None or velocity_vectors_pred==[]:
         if gt_wp is not None:
             for wp in gt_wp:
                 wp_x = wp[0] * loc_pixels_per_meter + origin[0]
