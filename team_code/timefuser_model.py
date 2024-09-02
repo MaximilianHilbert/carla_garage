@@ -132,10 +132,19 @@ class TimeFuser(nn.Module):
                     )
         # positional embeddings with respect to themselves (between individual tokens of the same type)
         if self.config.bev or self.config.detectboxes:
-            self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len, self.channel_dimension))
-     
+            if self.config.tf_pp_rep:
+                self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len+1, self.channel_dimension))
+            else:
+                self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len, self.channel_dimension))
 
         self.wp_gru = GRUWaypointsPredictorTransFuser(config, pred_len=self.config.pred_len, hidden_size=self.config.gru_hidden_size,target_point_size=self.config.target_point_size)
+        if self.config.tf_pp_rep:
+            self.target_speed_query=nn.Parameter(
+                            torch.zeros(
+                                1,
+                                self.channel_dimension,
+                            )
+                        )
         if self.config.bev or self.config.detectboxes:
             self.bev_query=nn.Parameter(
                             torch.zeros(
@@ -143,6 +152,7 @@ class TimeFuser(nn.Module):
                                 self.channel_dimension,
                             )
                         )
+            
             if self.config.bev:
                 # Computes which pixels are visible in the camera. We mask the others.
                 _, valid_voxels_front = t_u.create_projection_grid(self.config, config.camera_rot_0,config.camera_pos)
@@ -217,9 +227,9 @@ class TimeFuser(nn.Module):
                 )
         if self.config.tf_pp_rep:
             self.target_speed_network = nn.Sequential(
-                    nn.Linear(int(self.config.gru_input_size**0.5)*self.channel_dimension, int(self.config.gru_input_size**0.5)*self.channel_dimension//2),
+                    nn.Linear(self.channel_dimension, self.channel_dimension//2),
                     nn.ReLU(inplace=True),
-                    nn.Linear(int(self.config.gru_input_size**0.5)*self.channel_dimension//2, len(self.config.target_speeds)),
+                    nn.Linear(self.channel_dimension//2, len(self.config.target_speeds)),
                 )
         if self.config.init:
             self.init_weights_without_backbone()
@@ -301,17 +311,20 @@ class TimeFuser(nn.Module):
         x=x+self.sensor_fusion_embedding.repeat(bs,1,1)
         x=self.transformer_encoder(x)
         if self.config.bev or self.config.detectboxes:
-            queries=torch.cat((self.wp_query, self.bev_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
+            if self.config.tf_pp_rep:
+                queries=torch.cat((self.wp_query, self.bev_query, self.target_speed_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
+            else:
+                queries=torch.cat((self.wp_query, self.bev_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
         else:
             queries=self.wp_query.repeat(bs,1,1)
         all_tokens_output=self.transformer_decoder(queries, x)
         if self.config.tf_pp_rep:
-            pred_target_speed = self.target_speed_network(all_tokens_output[:, :self.wp_query.shape[0],...].flatten())
+            pred_target_speed = self.target_speed_network(all_tokens_output[:, -1,...])
             pred_dict.update({"pred_target_speed": pred_target_speed})
         wp_tokens=self.wp_gru(all_tokens_output[:, :self.wp_query.shape[0],...], target_point)
         pred_dict.update({"wp_predictions": wp_tokens})
         if self.config.bev or self.config.detectboxes:
-            bev_tokens=all_tokens_output[:, self.wp_query.shape[0]:,...]
+            bev_tokens=all_tokens_output[:, self.wp_query.shape[0]+self.target_speed_query.shape[0]:,...]
             bev_tokens=bev_tokens.permute(0,2,1).reshape(bs, self.channel_dimension, self.config.num_bev_query, self.config.num_bev_query).contiguous()
         if self.config.bev:
             pred_bev_grid=self.bev_semantic_decoder(bev_tokens)
@@ -377,8 +390,8 @@ class TimeFuser(nn.Module):
                                      params["targets_bb"])
             if self.config.tf_pp_rep:
                 self.loss_speed = nn.CrossEntropyLoss(weight=torch.tensor(self.config.target_speed_weights, dtype=torch.float32, device=params["device_id"]), label_smoothing=label_smoothing)
-                one_hot_vector=torch.zeros(len(self.config.target_speed_weights), dtype=torch.float32, device=params["device_id"])
-                one_hot_vector[int(params["target_speed_target"])]=1
+                one_hot_vector=torch.zeros(self.config.batch_size,len(self.config.target_speed_weights), dtype=torch.float32, device=params["device_id"])
+                one_hot_vector.scatter_(1, params["target_speed_target"], 1)
                 target_speed_loss=self.loss_speed(params["pred_target_speed"], one_hot_vector)
                 head_loss["loss_target_speed"]=target_speed_loss
             sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
