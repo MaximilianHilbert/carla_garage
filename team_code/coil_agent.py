@@ -434,8 +434,12 @@ class CoILAgent(AutonomousAgent):
 
             pred_aim_wp = pred_aim_wp.squeeze().detach().cpu().numpy()
             pred_angle = -math.degrees(math.atan2(-pred_aim_wp[1], pred_aim_wp[0])) / 90.0
-            pred_target_speed_index = torch.argmax(pred_dict["pred_target_speed"])
-            pred_target_speed = self.config.target_speeds[pred_target_speed_index]
+
+            uncertainty = pred_dict["pred_target_speed"].squeeze().detach().cpu().numpy()
+            if uncertainty[0] > self.config.brake_uncertainty_threshold:
+                pred_target_speed = self.config.target_speeds[0]
+            else:
+                pred_target_speed = sum(uncertainty * self.config.target_speeds)
 
             steer, throttle, brake = self.control_pid_direct(
             pred_target_speed, pred_angle, vehicle_speed
