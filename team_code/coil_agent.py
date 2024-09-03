@@ -435,7 +435,7 @@ class CoILAgent(AutonomousAgent):
             pred_aim_wp = pred_aim_wp.squeeze().detach().cpu().numpy()
             pred_angle = -math.degrees(math.atan2(-pred_aim_wp[1], pred_aim_wp[0])) / 90.0
 
-            uncertainty = pred_dict["pred_target_speed"].squeeze().detach().cpu().numpy()
+            uncertainty = torch.nn.functional.softmax(pred_dict["pred_target_speed"], dim=1).squeeze().detach().cpu().numpy()
             if uncertainty[0] > self.config.brake_uncertainty_threshold:
                 pred_target_speed = self.config.target_speeds[0]
             else:
