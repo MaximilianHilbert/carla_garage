@@ -389,10 +389,10 @@ class TimeFuser(nn.Module):
             head_loss=self.head.loss(params["pred_bb"], 
                                      params["targets_bb"])
             if self.config.tf_pp_rep:
-                self.loss_speed = nn.CrossEntropyLoss(weight=torch.tensor(self.config.target_speed_weights, dtype=torch.float32, device=params["device_id"]), label_smoothing=label_smoothing)
+                loss_speed = nn.CrossEntropyLoss(weight=torch.tensor(self.config.target_speed_weights, dtype=torch.float32, device=params["device_id"]), label_smoothing=label_smoothing)
                 one_hot_vector=torch.zeros(self.config.batch_size,len(self.config.target_speed_weights), dtype=torch.float32, device=params["device_id"])
                 one_hot_vector.scatter_(1, params["target_speed_target"], 1)
-                target_speed_loss=self.loss_speed(params["pred_target_speed"], one_hot_vector)
+                target_speed_loss=loss_speed(params["pred_target_speed"], one_hot_vector)
                 head_loss["loss_target_speed"]=target_speed_loss
             sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
             for key, value in head_loss.items():

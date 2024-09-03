@@ -7,6 +7,7 @@ import cv2
 from pytictoc import TicToc
 import torch.distributed as dist
 import pickle
+import math
 from collections import deque
 from torch.nn.parallel import DistributedDataParallel as DDP
 from coil_utils.baseline_helpers import merge_with_command_line_args
@@ -47,6 +48,7 @@ class CoILAgent(AutonomousAgent):
     
         os.environ["MASTER_ADDR"] = "127.0.0.1"
         os.environ["MASTER_PORT"] = find_free_port()
+        self.speed_histogram = []
         if not torch.distributed.is_initialized():
             dist.init_process_group(
                 backend="nccl",
@@ -58,7 +60,7 @@ class CoILAgent(AutonomousAgent):
             model = TimeFuser(config.baseline_folder_name, self.config, training=False)
             model.to("cuda:0")
             self.model = DDP(model, device_ids=["cuda:0"])
-            self.model.load_state_dict(checkpoint["state_dict"])
+            self.model.load_state_dict(checkpoint["state_dict"],strict=False)
             self.model.cuda()
             self.model.eval()
         else:
@@ -73,15 +75,27 @@ class CoILAgent(AutonomousAgent):
             self._mem_extract.load_state_dict(checkpoint["mem_extract_state_dict"])
             self._mem_extract.eval()
             self._policy.eval()
-        self.turn_controller = PIDController(
+        if self.config.tf_pp_rep:
+            self.turn_controller_direct = PIDController(
             k_p=config.turn_kp, k_i=config.turn_ki, k_d=config.turn_kd, n=config.turn_n
         )
-        self.speed_controller = PIDController(
-            k_p=config.speed_kp,
-            k_i=config.speed_ki,
-            k_d=config.speed_kd,
-            n=config.speed_n,
-        )
+            self.speed_controller_direct = PIDController(
+                k_p=config.speed_kp,
+                k_i=config.speed_ki,
+                k_d=config.speed_kd,
+                n=config.speed_n,
+            )
+        else:
+
+            self.turn_controller = PIDController(
+                k_p=config.turn_kp, k_i=config.turn_ki, k_d=config.turn_kd, n=config.turn_n
+            )
+            self.speed_controller = PIDController(
+                k_p=config.speed_kp,
+                k_i=config.speed_ki,
+                k_d=config.speed_kd,
+                n=config.speed_n,
+            )
         #TODO remove after configs are correctly trained
         self.config.replay_seq_len=100
         self.first_iter = True
@@ -399,6 +413,7 @@ class CoILAgent(AutonomousAgent):
                             velocity_vectors_pred=vel_vecs if self.config.predict_vectors else None,
                             acceleration_vectors_pred=accel_vecs if self.config.predict_vectors else None,
                             save_path_root="",
+                            pred_speed=torch.nn.functional.softmax(pred_dict["pred_target_speed"], dim=1).squeeze().detach().cpu().numpy() if self.config.tf_pp_rep else None,
                             target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(), pred_wp=pred_dict["wp_predictions"].squeeze().detach().cpu().numpy(),
                             pred_bb=batch_of_bbs_pred,step=f"{timestamp:.2f}",
                             pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
@@ -414,10 +429,21 @@ class CoILAgent(AutonomousAgent):
         if self.config.visualize_without_rgb or self.config.visualize_combined:
             self.replay_road_queue.append(self.ss_bev_manager.get_road())
         self.replay_pred_residual_queue.append(prediction_residual)
-        
-        steer, throttle, brake = self.control_pid(
-            waypoints=pred_dict["wp_predictions"].cpu().detach(), speed=vehicle_speed
+        if self.config.tf_pp_rep:
+            pred_aim_wp = pred_dict["wp_predictions"].mean(dim=1)
+
+            pred_aim_wp = pred_aim_wp.squeeze().detach().cpu().numpy()
+            pred_angle = -math.degrees(math.atan2(-pred_aim_wp[1], pred_aim_wp[0])) / 90.0
+            pred_target_speed_index = torch.argmax(pred_dict["pred_target_speed"])
+            pred_target_speed = self.config.target_speeds[pred_target_speed_index]
+
+            steer, throttle, brake = self.control_pid_direct(
+            pred_target_speed, pred_angle, vehicle_speed
         )
+        else:
+            steer, throttle, brake = self.control_pid(
+                waypoints=pred_dict["wp_predictions"].cpu().detach(), speed=vehicle_speed
+            )
  
         control = carla.VehicleControl()
         control.steer = float(steer)
@@ -487,7 +513,43 @@ class CoILAgent(AutonomousAgent):
         steer = np.clip(steer, -1.0, 1.0)  # Valid steering values are in [-1,1]
 
         return steer, throttle, brake
+    def control_pid_direct(self, pred_target_speed, pred_angle, speed):
+        """
+        PID controller used for direct predictions
+        """
+        self.speed_histogram.append(pred_target_speed * 3.6)
 
+        # Target speed of 0 means brake
+        brake = pred_target_speed < 0.01
+
+        # We can't steer while the car is stopped
+        if speed < 0.01:
+            pred_angle = 0.0
+
+        steer = self.turn_controller_direct.step(pred_angle)
+
+        steer = np.clip(steer, -1.0, 1.0)
+        steer = round(float(steer), 3)
+
+        if not brake:
+            if (speed / pred_target_speed) > self.config.brake_ratio:
+                brake = True
+
+        if brake:
+            target_speed = 0.0
+        else:
+            target_speed = pred_target_speed
+
+        delta = np.clip(target_speed - speed, 0.0, self.config.clip_delta)
+
+        throttle = self.speed_controller_direct.step(delta)
+
+        throttle = np.clip(throttle, 0.0, self.config.clip_throttle)
+
+        if brake:
+            throttle = 0.0
+
+        return steer, throttle, brake
     def get_attentions(self, layers=None):
         """
 
