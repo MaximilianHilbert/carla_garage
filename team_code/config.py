@@ -224,7 +224,6 @@ class GlobalConfig:
         # Number of initial frames to skip during data loading
         self.skip_first = int(2.5 * self.carla_fps) // self.data_save_freq
         self.pred_len = int(2.0 * self.carla_fps) // self.data_save_freq  # number of future waypoints predicted
-        self.pred_len_tf_pp_rep=20
         ##########################################################################################################
         # baselines
 
