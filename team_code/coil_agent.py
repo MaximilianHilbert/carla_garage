@@ -417,7 +417,7 @@ class CoILAgent(AutonomousAgent):
                             target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(), pred_wp=pred_dict["wp_predictions"].squeeze().detach().cpu().numpy(),
                             pred_bb=batch_of_bbs_pred,step=f"{timestamp:.2f}",
                             pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
-                            road=road, parameters={"pred_residual": prediction_residual}, pred_wp_prev=previous_waypoints, args=self.config)
+                            road=road, parameters={"pred_residual": prediction_residual}, args=self.config)
         
         else:
             image_to_save=None
