@@ -430,7 +430,7 @@ class CoILAgent(AutonomousAgent):
             self.replay_road_queue.append(self.ss_bev_manager.get_road())
         self.replay_pred_residual_queue.append(prediction_residual)
         if self.config.tf_pp_rep:
-            pred_aim_wp = pred_dict["wp_predictions"].mean(dim=1)
+            pred_aim_wp = pred_dict["wp_predictions"][:,1]
 
             pred_aim_wp = pred_aim_wp.squeeze().detach().cpu().numpy()
             pred_angle = -math.degrees(math.atan2(-pred_aim_wp[1], pred_aim_wp[0])) / 90.0

@@ -501,7 +501,7 @@ class GlobalConfig:
         self.gpt_layer_norm_init_weight = 1.0
 
         # Number of route checkpoints to predict. Needs to be smaller than num_route_points!
-        self.predict_checkpoint_len = 10
+        self.predict_checkpoint_len = 8
 
         # Semantic Segmentation
         self.use_semantic = False  # Whether to use semantic segmentation as auxiliary loss
