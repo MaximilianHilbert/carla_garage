@@ -420,15 +420,15 @@ class NoCrashEvaluator(object):
                                     pred_bb=batch_of_bbs_pred,step=np.round(-1/self.config.carla_fps*(len(observations)-iteration),2),
 
                                     pred_bev_semantic=pred_i["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_i.keys() else None,
-                                    road=road, parameters={"pred_residual": pred_residual_i}, pred_wp_prev=prev_wp, args=args)
+                                    road=road, parameters={"pred_residual": pred_residual_i}, pred_wp_prev=None, args=args)
                     
                     image = np.array(image.resize((self.width_video,self.height_video)))
                     video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
                    
                 video_writer.release()
                 
-                with open(os.path.join(root, "predictions.pkl"), "wb") as file:
-                    pickle.dump({"predictions":curr_pred}, file)
+                # with open(os.path.join(root, "predictions.pkl"), "wb") as file:
+                #     pickle.dump({"predictions":curr_pred}, file)
                 
             self.statistics_manager.log(
                 self.town,
