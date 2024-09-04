@@ -65,7 +65,7 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
         all_speeds = None
     target_point = data["target_point"].to(device_id)
     if merged_config_object.tf_pp_rep:
-        wp_targets = data["route"].to(device_id)
+        wp_targets = data["route"][:, :merged_config_object.predict_checkpoint_len].to(device_id, dtype=torch.float32)
         target_speed_target=data["target_speed"].unsqueeze(1).to(torch.long).to(device_id)
     else:
         wp_targets = data["ego_waypoints"].to(device_id)
