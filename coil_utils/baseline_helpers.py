@@ -365,20 +365,20 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     dark_yellow=(214,	168,	31)
     firebrick=(178, 34, 34)
     gt_wp_color = dark_blue
-    pred_wp_color=dark_yellow
+    pred_wp_color=firebrick if config.tf_pp_rep else dark_yellow
 
     prev_gt_wp_color =  light_blue
     pred_wp_prev_color= firebrick
 
     
-    gt_size=12
-    prev_gt_size=9
+    gt_size=6 if config.tf_pp_rep else 12 
+    prev_gt_size=4 if config.tf_pp_rep else 9
     if closed_loop:
-        pred_size=12
-        prev_pred_size=9
+        pred_size=6 if config.tf_pp_rep else 12
+        prev_pred_size=4 if config.tf_pp_rep else 9
     else:
-        pred_size=7
-        prev_pred_size=4
+        pred_size=3 if config.tf_pp_rep else 7
+        prev_pred_size=2 if config.tf_pp_rep else 4
 
 
     # Green predicted checkpoint
