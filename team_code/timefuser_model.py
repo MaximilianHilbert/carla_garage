@@ -126,18 +126,18 @@ class TimeFuser(nn.Module):
         self.transformer_decoder=nn.TransformerDecoder(decoder_layer=transformer_decoder_layer, num_layers=self.config.numtransformerlayers, norm=decoder_norm)
         self.wp_query = nn.Parameter(
                         torch.zeros(
-                            self.config.pred_len,
+                            self.config.pred_len_tf_pp_rep if self.config.tf_pp_rep else self.config.pred_len,
                             self.channel_dimension,
                         )
                     )
         # positional embeddings with respect to themselves (between individual tokens of the same type)
         if self.config.bev or self.config.detectboxes:
             if self.config.tf_pp_rep:
-                self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len+1, self.channel_dimension))
+                self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len_tf_pp_rep+1, self.channel_dimension))
             else:
                 self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len, self.channel_dimension))
 
-        self.wp_gru = GRUWaypointsPredictorTransFuser(config, pred_len=self.config.pred_len, hidden_size=self.config.gru_hidden_size,target_point_size=self.config.target_point_size)
+        self.wp_gru = GRUWaypointsPredictorTransFuser(config, pred_len=self.config.pred_len_tf_pp_rep if self.config.tf_pp_rep else self.config.pred_len, hidden_size=self.config.gru_hidden_size,target_point_size=self.config.target_point_size)
         if self.config.tf_pp_rep:
             self.target_speed_query=nn.Parameter(
                             torch.zeros(
