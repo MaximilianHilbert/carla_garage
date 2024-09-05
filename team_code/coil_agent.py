@@ -441,6 +441,8 @@ class CoILAgent(AutonomousAgent):
             # else:
             #     pred_target_speed = sum(uncertainty * self.config.target_speeds)
             pred_target_speed_index = np.argmax(pred_target_speed)
+            self.config.target_speeds[2] = self.config.target_speeds[2] - 2.0
+            self.config.target_speeds[3] = self.config.target_speeds[3] - 2.0
             pred_target_speed = self.config.target_speeds[pred_target_speed_index]
             steer, throttle, brake = self.control_pid_direct(
             pred_target_speed, pred_angle, vehicle_speed
