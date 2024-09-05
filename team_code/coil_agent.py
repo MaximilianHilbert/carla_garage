@@ -430,20 +430,17 @@ class CoILAgent(AutonomousAgent):
             self.replay_road_queue.append(self.ss_bev_manager.get_road())
         self.replay_pred_residual_queue.append(prediction_residual)
         if self.config.tf_pp_rep:
-            pred_aim_wp = pred_dict["wp_predictions"][:,1]
-
-            pred_aim_wp = pred_aim_wp.squeeze().detach().cpu().numpy()
-            pred_angle = -math.degrees(math.atan2(-pred_aim_wp[1], pred_aim_wp[0])) / 90.0
-
-            pred_target_speed = torch.nn.functional.softmax(pred_dict["pred_target_speed"], dim=1).squeeze().detach().cpu().numpy()
-            # if uncertainty[0] > self.config.brake_uncertainty_threshold:
-            #     pred_target_speed = self.config.target_speeds[0]
-            # else:
-            #     pred_target_speed = sum(uncertainty * self.config.target_speeds)
-            pred_target_speed_index = np.argmax(pred_target_speed)
             self.config.target_speeds[2] = self.config.target_speeds[2] - 2.0
             self.config.target_speeds[3] = self.config.target_speeds[3] - 2.0
-            pred_target_speed = self.config.target_speeds[pred_target_speed_index]
+
+            pred_aim_wp = pred_dict["wp_predictions"][:,1]
+            pred_aim_wp = pred_aim_wp.squeeze().detach().cpu().numpy()
+            pred_angle = -math.degrees(math.atan2(-pred_aim_wp[1], pred_aim_wp[0])) / 90.0
+            uncertainty = torch.nn.functional.softmax(pred_dict["pred_target_speed"], dim=1).squeeze().detach().cpu().numpy()
+            if uncertainty[0] > self.config.brake_uncertainty_threshold:
+                pred_target_speed = self.config.target_speeds[0]
+            else:
+                pred_target_speed = sum(uncertainty * self.config.target_speeds)
             steer, throttle, brake = self.control_pid_direct(
             pred_target_speed, pred_angle, vehicle_speed
         )
