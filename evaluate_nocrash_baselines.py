@@ -15,7 +15,9 @@ def main(args):
     for ablation, value in get_ablations_dict().items():
         if ablation not in config.__dict__:
             setattr(config, ablation, value)
-
+    #to solve overconfident predictions
+    config.target_speeds[2] = config.target_speeds[2] - 2.0
+    config.target_speeds[3] = config.target_speeds[3] - 2.0
     runner = NoCrashEvalRunner(args, config,town, weather, port=port, tm_port=args.tm_port, debug=debug)
     runner.run()
 

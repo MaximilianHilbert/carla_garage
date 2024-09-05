@@ -109,9 +109,6 @@ class CoILAgent(AutonomousAgent):
         self.replay_road_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
         self.replay_pred_residual_queue=deque(maxlen=self.config.replay_seq_len*self.config.data_save_freq*self.config.sampling_rate)
         self.track = Track.SENSORS
-        #to solve overconfident predictions
-        self.config.target_speeds[2] = self.config.target_speeds[2] - 2.0
-        self.config.target_speeds[3] = self.config.target_speeds[3] - 2.0
         self._global_plan = None
         self._global_plan_world_coord = None
         self.sensor_interface = SensorInterface()
