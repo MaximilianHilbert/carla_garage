@@ -10,7 +10,7 @@ import pathlib
 import statistics
 import gzip
 from collections import deque, defaultdict
-
+from coil_utils.baseline_helpers import triangular_augmentation
 import math
 import numpy as np
 import carla
@@ -113,7 +113,7 @@ class AutoPilot(autonomous_agent_local.AutonomousAgent):
         self.throttle = 0.0
         self.brake = 0.0
         self.target_speed = self.config.target_speed_fast
-
+        self.perturb_active=False
         # Shift applied to the augmentation camera at the current frame [0] and the next frame [1]
         # Need to buffer because the augmentation set now, will be applied to the next rendered frame.
         self.augmentation_translation = deque(maxlen=2)
@@ -273,7 +273,25 @@ class AutoPilot(autonomous_agent_local.AutonomousAgent):
                 return control
 
         control, data = self._get_control(input_data, plant)
-
+        if self.perturb_route:
+            current_time=self.step/self.config.carla_fps
+            print("current_time",current_time)
+            if np.random.uniform(0,1)<=self.config.p_perturb and not self.perturb_active:
+                self.starting_time=current_time
+                self.duration=np.random.uniform(self.config.perturb_duration_low,self.config.perturb_duration_high)
+                self.sign=-1 if np.random.uniform(0,1)<0.5 else +1
+                self.perturb_active=True
+                print("Perturbation started at time:", self.starting_time)
+                print("duration", self.duration)
+            if self.perturb_active and current_time<=self.starting_time+self.duration:
+                perturb_value=triangular_augmentation(current_time=current_time, starting_time=self.starting_time, duration_in_s=self.duration, intensity=self.config.perturb_intensity,sign=self.sign)
+                control.steer=control.steer+perturb_value
+                print("perturb value", perturb_value)
+                print("final perturbed value", control.steer)
+                    
+            else:
+                self.perturb_active=False
+                print("not perturbed value",control.steer)
         if plant:
             return data
         else:

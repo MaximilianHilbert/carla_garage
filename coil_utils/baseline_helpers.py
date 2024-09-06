@@ -201,7 +201,8 @@ def merge_config(args, experiment_name, training=True):
     shared_configuration=set_subsampling_strategy(shared_configuration)
     return shared_configuration
 
-
+def triangular_augmentation(current_time, starting_time, duration_in_s, intensity, sign,):
+    return sign*intensity*max(0, np.absolute(2*(current_time-starting_time)/duration_in_s-1))
 
 
 def visualize_model(  # pylint: disable=locally-disabled, unused-argument

@@ -74,6 +74,12 @@ class GlobalConfig:
         self.height_rgb=256
         self.speed_factor = 12
         # Training
+        #datacollection
+        self.p_perturb_route=0.2
+        self.p_perturb=0.1
+        self.perturb_duration_low=0.5
+        self.perturb_duration_high=2
+        self.perturb_intensity=0.15
         #TimeFuser
         self.numtransformerlayers=2
         self.img_encoding_remaining_spatial_dim=(8,32)
