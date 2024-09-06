@@ -284,7 +284,8 @@ class AutoPilot(autonomous_agent_local.AutonomousAgent):
                 print("Perturbation started at time:", self.starting_time)
                 print("duration", self.duration)
             if self.perturb_active and current_time<=self.starting_time+self.duration:
-                perturb_value=triangular_augmentation(current_time=current_time, starting_time=self.starting_time, duration_in_s=self.duration, intensity=self.config.perturb_intensity,sign=self.sign)
+                perturb_value=triangular_augmentation(current_time=current_time, starting_time=self.starting_time,
+                                                      duration_in_s=self.duration, intensity=self.config.perturb_intensity,sign=self.sign)
                 control.steer=control.steer+perturb_value
                 print("perturb value", perturb_value)
                 print("final perturbed value", control.steer)
