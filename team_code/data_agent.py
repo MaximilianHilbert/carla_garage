@@ -238,7 +238,7 @@ class DataAgent(AutoPilot):
             transform_copy.rotation.yaw = transform_copy.rotation.yaw + last_rotation
             self.augmented_vehicle_dummy.bounding_box = bb_copy
             self.augmented_vehicle_dummy.transform = transform_copy
-
+        return control
     def shuffle_weather(self):
         # change weather for visual diversity
         index = random.choice(range(len(self.config.weathers)))
