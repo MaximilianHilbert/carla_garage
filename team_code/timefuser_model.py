@@ -324,7 +324,10 @@ class TimeFuser(nn.Module):
         wp_tokens=self.wp_gru(all_tokens_output[:, :self.wp_query.shape[0],...], target_point)
         pred_dict.update({"wp_predictions": wp_tokens})
         if self.config.bev or self.config.detectboxes:
-            bev_tokens=all_tokens_output[:, self.wp_query.shape[0]+self.target_speed_query.shape[0]:,...]
+            if self.config.tf_pp_rep:
+                bev_tokens=all_tokens_output[:, self.wp_query.shape[0]+self.target_speed_query.shape[0]:,...]
+            else:
+                bev_tokens=all_tokens_output[:, self.wp_query.shape[0]:,...]
             bev_tokens=bev_tokens.permute(0,2,1).reshape(bs, self.channel_dimension, self.config.num_bev_query, self.config.num_bev_query).contiguous()
         if self.config.bev:
             pred_bev_grid=self.bev_semantic_decoder(bev_tokens)
