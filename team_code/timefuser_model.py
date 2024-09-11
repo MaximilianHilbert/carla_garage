@@ -21,7 +21,7 @@ class TimeFuser(nn.Module):
         super().__init__()
         self.config = config
         self.name=name
-        measurement_contribution=1 if self.config.speed else 0
+        measurement_contribution=1 if (self.config.speed and self.name!="arp-memory") else 0
         previous_wp_contribution=1 if self.config.prevnum>0 else 0
         memory_contribution=1 if self.name=="arp-policy" else 0
         
@@ -53,7 +53,8 @@ class TimeFuser(nn.Module):
         if self.config.backbone.startswith("x3d"):
             self.image_encoder=X3D(model_name=self.config.backbone)
             self.channel_dimension=self.image_encoder.output_channels
-            self.remaining_spatial_dimension=256*2 if self.config.rear_cam else 256
+            self.remaining_spatial_dimension=(256*2 if self.config.rear_cam else 256)*self.img_token_len
+            self.remaining_spatial_dimension_memory=(256*2 if self.config.rear_cam else 256)*(self.config.considered_images_incl_current-1)
         if self.config.backbone=="resnet":
             self.image_encoder=AIMBackbone(config, channels=self.input_channels, pretrained=True if self.config.pretrained else False)
             original_channel_dimension = self.image_encoder.image_encoder.feature_info[-1]["num_chs"]
@@ -110,10 +111,7 @@ class TimeFuser(nn.Module):
             if self.name=="arp-policy":
                 # 1 time the velocity (current timestep only)
                 self.speed_layer = nn.Linear(in_features=1, out_features=self.channel_dimension)
-            elif self.name=="arp-memory":
-                # 6 times the velocity (of previous timesteps only)
-                self.speed_layer = nn.Linear(in_features=1, out_features=self.channel_dimension)
-            else:
+            if self.name=="bcso" or self.name=="bcoh":
                 self.speed_layer = nn.Linear(in_features=1, out_features=self.channel_dimension)
         if self.config.prevnum>0 and self.name!="arp-policy":
             #we input the previous waypoints in our ablations only in the memory stream of arp
@@ -272,7 +270,7 @@ class TimeFuser(nn.Module):
                 for _,layer in self.image_encoder.items():
                     x=layer(x)
                 x=x.flatten(start_dim=2, end_dim=4).permute(0,2,1).contiguous()
-        if self.config.speed:
+        if speed is not None:
             measurement_enc = self.speed_layer(speed.flatten(start_dim=1)).unsqueeze(1) #we add the token dimension here
         else:
             measurement_enc = None
@@ -287,6 +285,7 @@ class TimeFuser(nn.Module):
             time_positional_embeddung=self.time_position_embedding(x).unsqueeze(0).unsqueeze(3).unsqueeze(4)
             time_positional_embeddung=time_positional_embeddung.expand(*x.shape)
             x=x+time_positional_embeddung
+            x=x.permute(0,1,3,4,2).flatten(start_dim=1,end_dim=3).contiguous()
         if self.config.ego_velocity_prediction:
             downsampled_x=self.downsample_to_ego_velocity(x.permute(0,2,1).reshape(bs, -1,16,32))
             ego_velocity_prediction=self.ego_velocity_predictor(downsampled_x.flatten(start_dim=1))
@@ -294,17 +293,11 @@ class TimeFuser(nn.Module):
             del downsampled_x
         if self.name=="arp-memory":
             #we (positionally) embed the memory and flatten it to use it directly in the forwardpass of arp-policy
-            if self.config.backbone!="swin":
-                generated_memory=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
-            else:
-                generated_memory=x
-            pred_dict.update({"memory": generated_memory})
+            pred_dict.update({"memory": x.clone()})
         additional_inputs=[input for input in [memory_to_fuse, measurement_enc, prev_wp_enc] if input is not None]
-        if len(additional_inputs)!=0 and self.config.backbone=="resnet":
+        if len(additional_inputs)!=0 and (self.config.backbone=="resnet" or self.config.backbone.startswith("x3d")):
             additional_inputs=torch.cat(additional_inputs, dim=1)
-            x=torch.cat((x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3),additional_inputs), axis=1).contiguous()
-        if len(additional_inputs)==0 and self.config.backbone=="resnet":
-            x=x.permute(0, 1, 3,4,2).flatten(start_dim=1, end_dim=3).contiguous()
+            x=torch.cat((x,additional_inputs), axis=1).contiguous()
         if len(additional_inputs)!=0 and self.config.backbone=="swin":
             additional_inputs=torch.cat(additional_inputs, dim=1)
             x=torch.cat((x,additional_inputs), axis=1).contiguous()
