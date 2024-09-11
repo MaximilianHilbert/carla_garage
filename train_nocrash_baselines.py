@@ -241,6 +241,12 @@ if __name__ == "__main__":
 
     )
     parser.add_argument(
+        "--tf_pp_rep",
+        type=int,
+        default=0
+
+    )
+    parser.add_argument(
         "--predict_vectors",
         type=int,
         default=0,
