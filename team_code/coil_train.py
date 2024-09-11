@@ -396,7 +396,7 @@ def main(args):
                                         acceleration_vectors_gt=accel_vecs.detach().cpu().numpy()[0] if accel_vecs is not None else None,
                                         velocity_vectors_pred=batch_of_bbs_pred[1],
                                         acceleration_vectors_pred=batch_of_bbs_pred[2],
-                                        pred_speed=torch.nn.functional.softmax(pred_dict["pred_target_speed"], dim=0).detach().cpu().numpy() if merged_config_object.tf_pp_rep else None,
+                                        pred_speed=torch.nn.functional.softmax(pred_dict["pred_target_speed"], dim=1).squeeze().detach().cpu().numpy() if merged_config_object.tf_pp_rep else None,
                                         step=iteration,
                                         gt_wp=targets[0],
                                         pred_bb=batch_of_bbs_pred[0],
