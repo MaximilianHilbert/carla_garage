@@ -286,17 +286,14 @@ class AutoPilot(autonomous_agent_local.AutonomousAgent):
             if self.perturb_active and current_time<=self.starting_time+self.duration:
                 perturb_value=triangular_augmentation(current_time=current_time, starting_time=self.starting_time,
                                                       duration_in_s=self.duration, intensity=self.config.perturb_intensity,sign=self.sign)
-                control.steer=control.steer+perturb_value
+                setattr(control, "steer", control.steer+perturb_value)
                 print("perturb value", perturb_value)
                 print("final perturbed value", control.steer)
                     
             else:
                 self.perturb_active=False
                 print("not perturbed value",control.steer)
-        if plant:
-            return data
-        else:
-            return control
+        return control
 
     def _get_control(self, input_data, plant=False):
         tick_data = self.tick_autopilot(input_data)
