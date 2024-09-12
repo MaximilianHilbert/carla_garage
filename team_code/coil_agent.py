@@ -392,7 +392,7 @@ class CoILAgent(AutonomousAgent):
             if self.config.baseline_folder_name=="bcso":
                 empties=np.concatenate([np.zeros_like(current_image)]*(7-self.config.img_seq_len), axis=0)
                 image_sequence=np.concatenate([empties, current_image], axis=0)
-                image_sequence=image_sequence
+                image_sequence=current_image
             else:
                 image_sequence=np.concatenate(image_input_queue, axis=0)
  
@@ -417,7 +417,7 @@ class CoILAgent(AutonomousAgent):
                             target_point=end_point_location_ego_system.squeeze().detach().cpu().numpy(), pred_wp=pred_dict["wp_predictions"].squeeze().detach().cpu().numpy(),
                             pred_bb=batch_of_bbs_pred,step=f"{timestamp:.2f}",
                             pred_bev_semantic=pred_dict["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_dict.keys() else None,
-                            road=road, parameters={"pred_residual": prediction_residual}, args=self.config)
+                            road=road, parameters=None, args=self.config)
         
         else:
             image_to_save=None

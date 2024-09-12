@@ -61,6 +61,10 @@ class GlobalConfig:
                                     "acceleration": {"mean": np.array([0,0,0]), 
                                                      "std": np.array([1,1,1])}}
         self.considered_images_incl_current=3
+        self.video_width_single_cam=750
+        self.video_width_two_cam=1920
+        self.video_height=1080
+        self.video_fps=10
         self.target_point_size=2
         self.number_future_waypoints = 1
         self.closed_loop_previous_waypoint_predictions=5

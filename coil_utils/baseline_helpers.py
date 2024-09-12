@@ -248,7 +248,20 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     loss_brake=None,
     loss_velocity=None
 ):
-    
+    #point colors
+    light_blue=(104,	195,	212)
+    dark_blue=(22,	71,	80	)
+
+    light_yellow=(	252,	209,	78	)
+    dark_yellow=[214,	168,	31]
+    firebrick=(178, 34, 34)
+    gt_wp_color = dark_blue
+    pred_wp_color=firebrick
+
+    prev_gt_wp_color =  light_blue
+    pred_wp_prev_color= firebrick
+
+
     rgb=t_u.normalization_wrapper(x=rgb, config=config, type="unnormalize")
     if velocity_vectors_pred is not None:
         velocity_vectors_pred=normalize_vectors(velocity_vectors_pred,config,"velocity", "unnormalize")
@@ -258,7 +271,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         acceleration_vectors_gt=normalize_vectors(acceleration_vectors_gt,config,"acceleration", "unnormalize")
     # 0 Car, 1 Pedestrian, 2 Red light, 3 Stop sign
     color_classes = [
-        np.array([144, 238, 144]),
+        np.array([0,0,0]) if road is None else np.array([211,211,211]),
         np.array([0, 255, 0]),
         np.array([255, 0, 0]),
         np.array([250, 160, 160]),
@@ -360,24 +373,11 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
 
         images_lidar = np.ascontiguousarray(images_lidar, dtype=np.uint8)
 
-    #point colors
-    light_blue=(104,	195,	212)
-    dark_blue=(22,	71,	80	)
-
-    light_yellow=(	252,	209,	78	)
-    dark_yellow=(214,	168,	31)
-    firebrick=(178, 34, 34)
-    gt_wp_color = dark_blue
-    pred_wp_color=firebrick if config.tf_pp_rep else dark_yellow
-
-    prev_gt_wp_color =  light_blue
-    pred_wp_prev_color= firebrick
-
     
     gt_size=6 if config.tf_pp_rep else 12 
     prev_gt_size=4 if config.tf_pp_rep else 9
     if closed_loop:
-        pred_size=6 if config.tf_pp_rep else 12
+        pred_size=6 if config.tf_pp_rep else 6
         prev_pred_size=4 if config.tf_pp_rep else 9
     else:
         pred_size=3 if config.tf_pp_rep else 7
@@ -560,7 +560,6 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         images_lidar = images_lidar_zoomed[start_row:end_row, start_col:end_col]
         
     if config.rear_cam:
-
         total_padding = 2048 - images_lidar.shape[1]
         left_padding = total_padding // 2
         right_padding = total_padding - left_padding
@@ -568,7 +567,7 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
         images_lidar = np.pad(images_lidar, ((0, 0), (left_padding, right_padding), (0, 0)), mode='constant', constant_values=0)
     all_images = np.concatenate([rgb,images_lidar],axis=0)
     font = ImageFont.truetype("Ubuntu-B.ttf", 40)
-    font_baseline = ImageFont.truetype("Ubuntu-B.ttf", 100)
+    font_baseline = ImageFont.truetype("Ubuntu-B.ttf", 50)
     font_copycat=ImageFont.truetype("Ubuntu-B.ttf", 70)
     distance_from_left=600
     distance_from_left_left_side=50
@@ -587,15 +586,13 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
     if not training:
             draw = ImageDraw.Draw(image)
             if closed_loop:
-                draw.text((distance_from_left,start), f"time {step}", fill=(0, 0, 0), font=font)
+                pass
             else:
                 draw.text((distance_from_left,start), f"frame {frame}", fill=(0, 0, 0), font=font)
             if parameters is not None:
                 if "pred_residual" in parameters.keys():
                     if parameters["pred_residual"] is not None:
                         draw.text((distance_from_left,start+40*3), f"pred. res.: {parameters['pred_residual']:.2f}", fill=firebrick, font=font)
-            else:
-                draw.text((distance_from_left,start+40*3), f"pred. res.: None", fill=firebrick, font=font)
             if not closed_loop:
                 if loss_velocity is not None:
                     draw.text((distance_from_left_left_side,start+40*3), f"velocity_loss: {loss_velocity:.2f}", fill=firebrick, font=font)
@@ -628,9 +625,9 @@ def visualize_model(  # pylint: disable=locally-disabled, unused-argument
                 if detect_kf:
                     #font.set_variation_by_name("Bold")
                     draw.text((distance_from_left,start+40*13), f"kf. copycat", fill=dark_blue, font=font_copycat)
-
-            draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
-            draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
+            if parameters is not None:
+                draw.text((distance_from_left,start+40*8), f"previous predictions", fill=pred_wp_prev_color, font=font)
+                draw.text((distance_from_left,start+40*9), f"current predictions", fill=pred_wp_color, font=font)
             if ego_speed is not None:
                 draw.text((distance_from_left,start+40*22), f"ego speed: {ego_speed[-1]:.2f} km/h", fill=firebrick, font=font)
 

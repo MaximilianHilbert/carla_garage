@@ -388,10 +388,10 @@ class NoCrashEvaluator(object):
                 target_points.reverse()
                 roads.reverse()
                 pred_residual.reverse()
-                fps = 5
+                fps = self.config.video_fps//2
                 os.makedirs(root,exist_ok=True)
-                self.width_video=1920 if self.config.rear_cam else 512
-                self.height_video=1080
+                self.width_video=self.config.video_width_two_cam if self.config.rear_cam else self.config.video_width_single_cam
+                self.height_video=self.config.video_height
                 video_writer = cv2.VideoWriter(os.path.join(root,f"{self.manager.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (self.width_video,self.height_video))
                 for iteration, (pred_i, target_point_i, roads_i, pred_residual_i) in enumerate(zip(curr_pred, target_points, roads,pred_residual)):
                     #to prevent the problem of not having a history
@@ -420,7 +420,7 @@ class NoCrashEvaluator(object):
                                     pred_bb=batch_of_bbs_pred,step=np.round(-1/self.config.carla_fps*(len(observations)-iteration),2),
 
                                     pred_bev_semantic=pred_i["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_i.keys() else None,
-                                    road=road, parameters={"pred_residual": pred_residual_i}, pred_wp_prev=None, args=args)
+                                    road=road, parameters=None, pred_wp_prev=None, args=args)
                     
                     image = np.array(image.resize((self.width_video,self.height_video)))
                     video_writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))

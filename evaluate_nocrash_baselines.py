@@ -15,6 +15,12 @@ def main(args):
     for ablation, value in get_ablations_dict().items():
         if ablation not in config.__dict__:
             setattr(config, ablation, value)
+    #to handle inconsistent config arguments
+    setattr(config, "video_fps", 10)
+    setattr(config, "video_width_single_cam", 750)
+    setattr(config, "video_width_two_cam", 1920)
+    setattr(config, "video_height", 1080)
+    
     #to solve overconfident predictions
     config.target_speeds[2] = config.target_speeds[2] - 2.0
     config.target_speeds[3] = config.target_speeds[3] - 2.0
