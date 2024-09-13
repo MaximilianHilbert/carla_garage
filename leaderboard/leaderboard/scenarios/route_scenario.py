@@ -282,7 +282,7 @@ class RouteScenario(BasicScenario):
             route_length += dist
             prev_point = current_point
 
-        return int(SECONDS_GIVEN_PER_METERS * route_length + INITIAL_SECONDS_DELAY)
+        return int(SECONDS_GIVEN_PER_METERS * route_length + INITIAL_SECONDS_DELAY)*2
 
     # pylint: disable=no-self-use
     def _draw_waypoints(self, world, waypoints, vertical_shift, persistency=-1):
