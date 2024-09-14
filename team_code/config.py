@@ -79,7 +79,7 @@ class GlobalConfig:
         self.speed_factor = 12
         # Training
         #datacollection
-        self.p_perturb_route=0.2
+        self.p_perturb_route=0.5
         self.p_perturb=0.1
         self.perturb_duration_low=0.5
         self.perturb_duration_high=2

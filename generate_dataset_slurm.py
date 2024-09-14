@@ -181,8 +181,8 @@ def main():
     # Our centOS is missing some c libraries.
     # Usually miniconda has them, so we tell the linker to look there as well.
     lib_path = r"/home/hilbert/conda/garage/lib"
-    date = "2024_09_06"
-    dataset_name = "triangular_augmentation_rear_camera" + date
+    date = "2024_09_14"
+    dataset_name = "triangular_augmentation_50_augmented_rear_camera" + date
     root_folder = r"/home/hilbert/datasets/"  # With ending slash
     data_save_root = root_folder + dataset_name
     node = "week"
