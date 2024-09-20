@@ -36,7 +36,7 @@
 export WORK_DIR=/mnt/lustre/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export CARLA_ROOT=${WORK_DIR}/carla
-export DATASET_ROOT=/mnt/lustre/work/geiger/gwb629/datasets/routewise_augmentation_rear_camera2024_08_10
+export DATASET_ROOT=/mnt/lustre/work/geiger/gwb629/datasets/triangular_25_intensity
 export LD_LIBRARY_PATH="/mnt/lustre/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 export TEAM_CODE=$WORK_DIR/team_code
 export COIL_NETWORK=${WORK_DIR}/coil_network
@@ -62,8 +62,8 @@ export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores thre
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
 torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 \
  --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 10214 \
- --baseline-folder-name arp --number-of-workers 8 \
- --batch-size 10 \
- --bev 1 --detectboxes 1 --predict_vectors 1 \
+ --baseline-folder-name bcso --number-of-workers 8 \
+ --batch-size 18 \
+ --bev 1 --detectboxes 1 --velocity-brake-prediction 1 --predict_vectors 0 --augment 0 --tf_pp_rep 1 \
  --training-repetition 0 --backbone resnet \
- --experiment-id id_000
+ --experiment-id triangular_intensity_25
