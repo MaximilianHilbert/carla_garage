@@ -64,6 +64,6 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 \
  --rdzv_backend=c10d $TEAM_CODE/coil_train.py --seed 10214 \
  --baseline-folder-name bcso --number-of-workers 8 \
  --batch-size 18 \
- --bev 1 --detectboxes 1 --velocity-brake-prediction 1 --predict_vectors 0 --augment 0 --tf_pp_rep 1 \
+ --bev 1 --detectboxes 1 --velocity_brake_prediction 1 --predict_vectors 0 --augment 0 --tf_pp_rep 1 \
  --training-repetition 0 --backbone resnet \
  --experiment-id triangular_intensity_25
