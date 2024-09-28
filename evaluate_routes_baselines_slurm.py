@@ -204,7 +204,7 @@ def main(args):
     else:
         partition = "2080-galvani"
         username = "gwb629"
-        code_root="/home/maximilian/Master/carla_garage"
+        code_root="/mnt/lustre/work/geiger/gwb629/carla_garage"
     epochs = ["31"]
     seeds = [234213, 252534, 290246]
     num_repetitions = 3
