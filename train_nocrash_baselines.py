@@ -45,7 +45,7 @@ export WORK_DIR=/home/hilbert/carla_garage
 export CONFIG_ROOT=$WORK_DIR/coil_configuration
 export TEAM_CODE=$WORK_DIR/team_code
 export CARLA_ROOT=$WORK_DIR/carla
-export DATASET_ROOT=$DATASET_ROOT
+export DATASET_ROOT=/mnt/lustre/work/geiger/bjaeger25/old_repos/datasets/hb_dataset_v08_2023_05_10
 export LD_LIBRARY_PATH="/home/hilbert/miniconda3/envs/garage/lib":$LD_LIBRARY_PATH
 
 
