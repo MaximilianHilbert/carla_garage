@@ -337,7 +337,7 @@ class CoILAgent(AutonomousAgent):
         self.prev_rgb_queue.append(current_image)
         self.prev_speeds_queue.append(vehicle_speed)
         
-        #TODO test if reversal is correct also for ablations @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+        
         prev_speeds=list(self.prev_speeds_queue)[::-self.config.data_save_freq*self.config.sampling_rate]
         prev_speeds.reverse()
         prev_speeds=torch.tensor(prev_speeds, dtype=torch.float32).unsqueeze(0).cuda("cuda:0")
@@ -358,7 +358,7 @@ class CoILAgent(AutonomousAgent):
             with torch.no_grad():
                 pred_dict_memory = self._mem_extract.module.forward(
                     x=all_images[:-1].unsqueeze(0),
-                    speed=prev_speeds[:,:-1,...] if self.config.speed else None, target_point=end_point_location_ego_system,
+                    speed=None, target_point=end_point_location_ego_system,
                     prev_wp=vehicle_prev_positions,
                 )
                 pred_dict= self._policy.module.forward(
