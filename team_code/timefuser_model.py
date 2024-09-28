@@ -285,7 +285,7 @@ class TimeFuser(nn.Module):
             time_positional_embeddung=self.time_position_embedding(x).unsqueeze(0).unsqueeze(3).unsqueeze(4)
             time_positional_embeddung=time_positional_embeddung.expand(*x.shape)
             x=x+time_positional_embeddung
-            x=x.permute(0, 2,1,3,4).flatten(start_dim=2)
+            x=x.permute(0,1,3,4,2).flatten(start_dim=1,end_dim=3)
         if self.config.ego_velocity_prediction:
             downsampled_x=self.downsample_to_ego_velocity(x.permute(0,2,1).reshape(bs, -1,16,32))
             ego_velocity_prediction=self.ego_velocity_predictor(downsampled_x.flatten(start_dim=1))
