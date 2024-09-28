@@ -147,8 +147,7 @@ def main(args):
                 import random
                 import string
 
-                # Generate a random string of 5 characters (letters and digits)
-                experiment_string = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
+                experiment_string = ''.join(random.choices(string.ascii_letters, k=10))
                 generate_batch_script(
                     args,
                     seed,
