@@ -137,14 +137,18 @@ def main(args):
 
                 )
             else:
-                experiment_string,ablations_dict=generate_experiment_name(args, baseline_folder_name)
+                _,ablations_dict=generate_experiment_name(args, baseline_folder_name)
                 # in case we want to ablate prevnum we set it to the past 6 waypoints, because our baselines consider 6 previous frames
-                final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, experiment_string,f"repetition_{training_repetition}", args.setting)
+                final_log_dir=os.path.join(os.environ.get("WORK_DIR"), "_logs", baseline_folder_name, args.experiment_id,f"repetition_{training_repetition}", args.setting)
                 if os.path.isdir(final_log_dir):
                     checkpoint=get_latest_saved_checkpoint(final_log_dir)
                     if checkpoint==30:
                         continue
-                experiment_string=f"{experiment_string}_tr_{training_repetition}"
+                import random
+                import string
+
+                # Generate a random string of 5 characters (letters and digits)
+                experiment_string = ''.join(random.choices(string.ascii_letters + string.digits, k=5))
                 generate_batch_script(
                     args,
                     seed,
