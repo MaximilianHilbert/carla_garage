@@ -227,7 +227,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
     while not training_finished:
         num_running_jobs, max_num_parallel_jobs = get_num_jobs(code_root=code_root,job_name=experiment_name_stem, username=username)
         print(f"{num_running_jobs} jobs are running...")
-        time.sleep(1)
+        time.sleep(10)
 
         # resubmit unfinished jobs
         for k in list(meta_jobs.keys()):
@@ -264,7 +264,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                     resubmitted + 1,
                 )
                 num_running_jobs += 1
-            time.sleep(1)
+            time.sleep(10)
 
             if num_running_jobs == 0:
                 training_finished = True
