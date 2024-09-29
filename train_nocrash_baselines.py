@@ -56,7 +56,7 @@ def main(args):
     job_nr = 0
     already_placed_files = {}
     meta_jobs = {}
-    experiment_name_stem = "training"
+    experiment_name_stem = "train"
     for baseline, batch_size in zip(args.baseline_folder_names, args.batch_sizes):
         _,ablations_dict=generate_experiment_name(args, baseline)
         for repetition, seed in enumerate(seeds):
