@@ -231,7 +231,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
     while not training_finished:
         num_running_jobs, max_num_parallel_jobs = get_num_jobs(code_root=code_root,job_name=experiment_name_stem, username=username)
         print(f"{num_running_jobs} jobs are running...")
-        time.sleep(10)
+        time.sleep(1)
 
         # resubmit unfinished jobs
         for k in list(meta_jobs.keys()):
@@ -241,7 +241,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                 resubmitted,
             ) = meta_jobs[k]
             need_to_resubmit = False
-            if not job_finished and resubmitted < 5:
+            if not job_finished and resubmitted < 50:
                 # check whether job is running
                 if int(subprocess.check_output(f"squeue | grep {k} | wc -l", shell=True).decode("utf-8").strip()) == 0:
                     # check whether result file is finished?
@@ -271,9 +271,9 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                     job_file,
                     resubmitted + 1,
                 )
-                meta_jobs[k] = (True, None, None, None, 0)
+                meta_jobs[k] = (True, None, 0)
                 num_running_jobs += 1
-            time.sleep(10)
+            time.sleep(1)
 
             if num_running_jobs == 0:
                 training_finished = True
