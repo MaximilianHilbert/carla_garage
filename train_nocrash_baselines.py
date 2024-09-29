@@ -18,7 +18,7 @@ import pandas as pd
 #   os.environ['LD_LIBRARY_PATH'] += ':' + newlib
 
 
-def get_num_jobs(job_name, username):
+def get_num_jobs(code_root,job_name, username):
     len_usrn = len(username)
     num_running_jobs = int(
         subprocess.check_output(
@@ -28,7 +28,7 @@ def get_num_jobs(job_name, username):
         .decode("utf-8")
         .replace("\n", "")
     )
-    with open("max_num_jobs.txt", "r", encoding="utf-8") as f:
+    with open(os.path.join(code_root,"max_num_jobs.txt"), "r", encoding="utf-8") as f:
         max_num_parallel_jobs = int(f.read())
 
     return num_running_jobs, max_num_parallel_jobs
@@ -189,6 +189,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
             num_running_jobs,
             max_num_parallel_jobs,
         ) = get_num_jobs(
+            code_root=code_root,
             job_name=experiment_name_stem,
             username=username,
         )
@@ -197,7 +198,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
             (
                 num_running_jobs,
                 max_num_parallel_jobs,
-            ) = get_num_jobs(
+            ) = get_num_jobs(code_root=code_root,
                 job_name=experiment_name_stem,
                 username=username,
             )
