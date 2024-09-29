@@ -65,9 +65,7 @@ def main(args):
                 print(f"Training already finished for {model_dir}")
                 continue
             
-            train_filename = (baseline+"_"+
-            experiment_name_stem
-            + f"_e-{args.experiment_id}")
+            train_filename = f"{baseline}_{repetition}_{setting}_{args.experiment_id}"
             
             bash_save_dir = Path(
                 os.path.join(
@@ -103,7 +101,7 @@ def main(args):
             # Finds a free port
             if args.cluster=="tcml":
                 command = f"""#!/bin/sh
-#SBATCH --job-name={baseline}_{repetition}_{setting}_{args.experiment_id}
+#SBATCH --job-name={train_filename}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --time=0-72:00
@@ -145,7 +143,7 @@ torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
 
 
                 command = f"""#!/bin/sh
-#SBATCH --job-name={baseline}_{repetition}_{setting}_{args.experiment_id}
+#SBATCH --job-name={train_filename}
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --time=0-72:00
