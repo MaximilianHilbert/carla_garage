@@ -140,8 +140,6 @@ export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid thread
 torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --setting {args.setting} --lossweights {' '.join(map(str, args.lossweights))} --experiment-id {args.experiment_id} --seed {seed} --batch-size {batch_size} --number-of-workers 4 --baseline-folder-name {baseline} --training-repetition {repetition} \
 """+"--"+" ".join([f' --{key} {value}' for key, value in ablations_dict.items()])
             if args.cluster in ["galvani", "debug"]:
-
-
                 command = f"""#!/bin/sh
 #SBATCH --job-name={train_filename}
 #SBATCH --ntasks=1
@@ -182,47 +180,47 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
             with open(job_file, "w", encoding="utf-8") as rsh:
                 rsh.write(command)
 
-        # Wait until submitting new jobs that the #jobs are at below max
-        (
-            num_running_jobs,
-            max_num_parallel_jobs,
-        ) = get_num_jobs(
-            code_root=code_root,
-            job_name=experiment_name_stem,
-            username=username,
-        )
-        print(f"{num_running_jobs}/{max_num_parallel_jobs} jobs are running...")
-        while num_running_jobs >= max_num_parallel_jobs:
+            # Wait until submitting new jobs that the #jobs are at below max
             (
                 num_running_jobs,
                 max_num_parallel_jobs,
-            ) = get_num_jobs(code_root=code_root,
+            ) = get_num_jobs(
+                code_root=code_root,
                 job_name=experiment_name_stem,
                 username=username,
             )
-        time.sleep(0.05)
-        if train_filename not in already_placed_files.keys():
-            print(f"Submitting job {job_nr}: {job_file}")
-            _=subprocess.check_output(
-                    f"chmod u+x {job_file}",
-                    shell=True,
+            print(f"{num_running_jobs}/{max_num_parallel_jobs} jobs are running...")
+            while num_running_jobs >= max_num_parallel_jobs:
+                (
+                    num_running_jobs,
+                    max_num_parallel_jobs,
+                ) = get_num_jobs(code_root=code_root,
+                    job_name=experiment_name_stem,
+                    username=username,
                 )
-            jobid = (
-                subprocess.check_output(
-                    f"sbatch {job_file}",
-                    shell=True,
+            time.sleep(0.05)
+            if train_filename not in already_placed_files.keys():
+                print(f"Submitting job {job_nr}: {job_file}")
+                _=subprocess.check_output(
+                        f"chmod u+x {job_file}",
+                        shell=True,
+                    )
+                jobid = (
+                    subprocess.check_output(
+                        f"sbatch {job_file}",
+                        shell=True,
+                    )
+                    .decode("utf-8")
+                    .strip()
+                    .rsplit(" ", maxsplit=1)[-1]
                 )
-                .decode("utf-8")
-                .strip()
-                .rsplit(" ", maxsplit=1)[-1]
-            )
-            meta_jobs[jobid] = (
-                False,
-                job_file,
-                0,
-            )
-            already_placed_files[train_filename] = job_file
-            job_nr += 1
+                meta_jobs[jobid] = (
+                    False,
+                    job_file,
+                    0,
+                )
+                already_placed_files[train_filename] = job_file
+                job_nr += 1
 
    
     training_finished = False
