@@ -8,9 +8,7 @@
 export WORK_DIR=/mnt/lustre/work/geiger/gwb629/carla_garage
 export CONFIG_ROOT=${WORK_DIR}/coil_configuration
 export CARLA_ROOT=${WORK_DIR}/carla
-#export DATASET_ROOT=/mnt/lustre/work/geiger/gwb629/datasets/routewise_augmentation_rear_camera2024_08_10
 export DATASET_ROOT=/mnt/lustre/work/geiger/bjaeger25/old_repos/datasets/hb_dataset_v08_2023_05_10
-
 export LD_LIBRARY_PATH="/mnt/lustre/work/geiger/gwb629/conda/garage/lib":$LD_LIBRARY_PATH
 export TEAM_CODE=$WORK_DIR/team_code
 export CARLA_ROOT=${WORK_DIR}/carla
@@ -32,13 +30,9 @@ export PYTHONPATH=$PYTHONPATH:$CONFIG_ROOT
 export PYTHONPATH=$PYTHONPATH:${COIL_NETWORK}
 export PYTHONPATH=$PYTHONPATH:${TEAM_CODE}
 export PYTHONPATH=$PYTHONPATH:${WORK_DIR}
-#seeds must match repetition number
-# with rear cam
-# --baseline-folder-names bcso bcoh arp --batch-sizes 11 6 5
-#ohne rear cam
-#--baseline-folder-names bcso bcoh arp --batch-sizes 18 13 13
-python $WORK_DIR/train_nocrash_baselines.py --repetitions 3 \
- --seeds 10214 43534 53543 --bev 1 --detectboxes 1 --backbone resnet --augment 0 --rear-cam 0 \
+
+python $WORK_DIR/train_nocrash_baselines.py \
+ --bev 1 --detectboxes 1 --backbone resnet --augment 0 --rear-cam 0 \
  --baseline-folder-names bcso bcoh arp --batch-sizes 18 13 13 \
- --walltimes 72 72 72 --velocity-brake-prediction 1 --train-local 0 --tf_pp_rep 0 --experiment-id resnet_all_baselines \
+ --velocity-brake-prediction 1 --train-local 0 --tf_pp_rep 0 --experiment-id resnet_all_baselines \
  --cluster galvani
