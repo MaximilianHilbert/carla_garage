@@ -47,7 +47,7 @@ def main(args):
     else:
         partition = "2080-galvani"
         username = "gwb629"
-        code_root="/home/maximilian/Master"
+        code_root="/home/maximilian/Master/carla_garage"
     epochs = ["31"]
     seeds = [10214, 43534, 53543]
     dataset_root=os.environ.get("DATSET_ROOT")
@@ -205,7 +205,10 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
         time.sleep(0.05)
         if train_filename not in already_placed_files.keys():
             print(f"Submitting job {job_nr}: {job_file}")
-
+            _=subprocess.check_output(
+                    f"chmod u+x {job_file}",
+                    shell=True,
+                )
             jobid = (
                 subprocess.check_output(
                     f"sbatch {job_file}",
