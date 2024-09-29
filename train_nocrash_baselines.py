@@ -264,10 +264,10 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                     resubmitted + 1,
                 )
                 num_running_jobs += 1
-            time.sleep(10)
+        time.sleep(10)
 
-            if num_running_jobs == 0:
-                training_finished = True
+        if num_running_jobs == 0:
+            training_finished = True
                
 
     print("Training finished")
