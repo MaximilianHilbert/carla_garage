@@ -188,7 +188,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
             max_num_parallel_jobs,
         ) = get_num_jobs(
             code_root=code_root,
-            job_name=train_filename,
+            job_name=experiment_name_stem,
             username=username,
         )
         print(f"{num_running_jobs}/{max_num_parallel_jobs} jobs are running...")
@@ -197,7 +197,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                 num_running_jobs,
                 max_num_parallel_jobs,
             ) = get_num_jobs(code_root=code_root,
-                job_name=train_filename,
+                job_name=experiment_name_stem,
                 username=username,
             )
         time.sleep(0.05)
@@ -227,7 +227,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
    
     training_finished = False
     while not training_finished:
-        num_running_jobs, max_num_parallel_jobs = get_num_jobs(code_root=code_root,job_name=train_filename, username=username)
+        num_running_jobs, max_num_parallel_jobs = get_num_jobs(code_root=code_root,job_name=experiment_name_stem, username=username)
         print(f"{num_running_jobs} jobs are running...")
         time.sleep(1)
 
