@@ -138,7 +138,7 @@ conda activate garage
 export OMP_NUM_THREADS=24  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
 torchrun --nnodes=1 --nproc_per_node=4 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --setting {args.setting} --lossweights {' '.join(map(str, args.lossweights))} --experiment-id {args.experiment_id} --seed {seed} --batch-size {batch_size} --number-of-workers 4 --baseline-folder-name {baseline} --training-repetition {repetition} \
-"""+"--"+" ".join([f' --{key} {value}' for key, value in ablations_dict.items()])
+"""+" ".join([f' --{key} {value}' for key, value in ablations_dict.items()])
             if args.cluster in ["galvani", "debug"]:
                 command = f"""#!/bin/sh
 #SBATCH --job-name={train_filename}
@@ -175,7 +175,7 @@ conda activate /mnt/lustre/work/geiger/gwb629/conda/garage
 export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores threads
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
 torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --setting {args.setting} --lossweights {' '.join(map(str, args.lossweights))} --experiment-id {args.experiment_id} --seed {seed} --batch-size {batch_size} --number-of-workers 8 --baseline-folder-name {baseline} --training-repetition {repetition} \
-"""+"--"+" ".join([f' --{key} {value}' for key, value in ablations_dict.items()])
+"""+" ".join([f' --{key} {value}' for key, value in ablations_dict.items()])
             job_file=f"{bash_save_dir}/{train_filename}.sh"
             with open(job_file, "w", encoding="utf-8") as rsh:
                 rsh.write(command)
