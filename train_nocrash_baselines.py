@@ -242,20 +242,15 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
             ) = meta_jobs[k]
             need_to_resubmit = False
             if not job_finished and resubmitted < 50:
-                print("job not finished")
                 # check whether job is running
                 if int(subprocess.check_output(f"squeue | grep {k} | wc -l", shell=True).decode("utf-8").strip()) == 0:
-                    # check whether result file is finished?
+                    # check if model file is there
                     if os.path.exists(model_dir):
                         print(f"Training finished for {model_dir}")
+                        meta_jobs[k] = (True, None, 0)
                     else:        
                         need_to_resubmit = True
-                    if not need_to_resubmit:
-                        # delete old job
-                        print(f"Finished job {job_file}")
-                        meta_jobs[k] = (True, None, 0)
-                    else:
-                        need_to_resubmit = True
+                    
 
             if need_to_resubmit:
                 # print("Remove file: ", result_file)
