@@ -178,7 +178,7 @@ export OMP_NUM_THREADS=64  # Limits pytorch to spawn at most num cpus cores thre
 export OPENBLAS_NUM_THREADS=1  # Shuts off numpy multithreading, to avoid threads spawning other threads.
 torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_CODE/coil_train.py --setting {args.setting} --lossweights {' '.join(map(str, args.lossweights))} --experiment-id {args.experiment_id} --seed {seed} --batch-size {batch_size} --number-of-workers 8 --baseline-folder-name {baseline} --training-repetition {repetition} \
 """+"--"+" ".join([f' --{key} {value}' for key, value in ablations_dict.items()])
-        job_file=f"{bash_save_dir}/train_{train_filename}.sh"
+        job_file=f"{bash_save_dir}/{train_filename}.sh"
         with open(job_file, "w", encoding="utf-8") as rsh:
             rsh.write(command)
 
@@ -188,7 +188,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
             max_num_parallel_jobs,
         ) = get_num_jobs(
             code_root=code_root,
-            job_name=experiment_name_stem,
+            job_name=train_filename,
             username=username,
         )
         print(f"{num_running_jobs}/{max_num_parallel_jobs} jobs are running...")
@@ -197,7 +197,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                 num_running_jobs,
                 max_num_parallel_jobs,
             ) = get_num_jobs(code_root=code_root,
-                job_name=experiment_name_stem,
+                job_name=train_filename,
                 username=username,
             )
         time.sleep(0.05)
@@ -227,7 +227,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
    
     training_finished = False
     while not training_finished:
-        num_running_jobs, max_num_parallel_jobs = get_num_jobs(code_root=code_root,job_name=experiment_name_stem, username=username)
+        num_running_jobs, max_num_parallel_jobs = get_num_jobs(code_root=code_root,job_name=train_filename, username=username)
         print(f"{num_running_jobs} jobs are running...")
         time.sleep(1)
 
