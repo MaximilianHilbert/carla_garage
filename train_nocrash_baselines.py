@@ -221,8 +221,6 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
             meta_jobs[jobid] = (
                 False,
                 job_file,
-                expected_result_length,
-                result_file,
                 0,
             )
             already_placed_files[train_filename] = job_file
@@ -240,8 +238,6 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
             (
                 job_finished,
                 job_file,
-                expected_result_length,
-                result_file,
                 resubmitted,
             ) = meta_jobs[k]
             need_to_resubmit = False
@@ -249,16 +245,14 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                 # check whether job is running
                 if int(subprocess.check_output(f"squeue | grep {k} | wc -l", shell=True).decode("utf-8").strip()) == 0:
                     # check whether result file is finished?
-                    if os.path.exists(result_file):
-                        print("file exists")
-                        with open(result_file, "r", encoding="utf-8") as f_result:
-                            evaluation_data_lines = len(f_result.readlines()[1:])
-                            if evaluation_data_lines != expected_result_length:
-                                need_to_resubmit = True
-                        if not need_to_resubmit:
-                            # delete old job
-                            print(f"Finished job {job_file}")
-                            meta_jobs[k] = (True, None, None, None, 0)
+                    if os.path.exists(model_dir):
+                        print(f"Training finished for {model_dir}")
+                    else:        
+                        need_to_resubmit = True
+                    if not need_to_resubmit:
+                        # delete old job
+                        print(f"Finished job {job_file}")
+                        meta_jobs[k] = (True, None, None, None, 0)
                     else:
                         need_to_resubmit = True
 
@@ -275,8 +269,6 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                 meta_jobs[jobid] = (
                     False,
                     job_file,
-                    expected_result_length,
-                    result_file,
                     resubmitted + 1,
                 )
                 meta_jobs[k] = (True, None, None, None, 0)
