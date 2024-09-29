@@ -65,7 +65,7 @@ def main(args):
                 print(f"Training already finished for {model_dir}")
                 continue
             
-            train_filename = f"{baseline}_{repetition}_{setting}_{args.experiment_id}"
+            train_filename = f"train_{baseline}_{repetition}_{setting}_{args.experiment_id}"
             
             bash_save_dir = Path(
                 os.path.join(
