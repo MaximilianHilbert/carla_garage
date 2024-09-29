@@ -50,7 +50,7 @@ def main(args):
         code_root="/home/maximilian/Master/carla_garage"
     epochs = ["31"]
     seeds = [10214, 43534, 53543]
-    dataset_root=os.environ.get("DATSET_ROOT")
+    dataset_root=os.environ.get("DATASET_ROOT")
     log_dir = os.path.join(code_root, "_logs")
     setting="02_withheld"
     job_nr = 0
