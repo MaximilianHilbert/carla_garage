@@ -242,6 +242,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
             ) = meta_jobs[k]
             need_to_resubmit = False
             if not job_finished and resubmitted < 50:
+                print("job not finished")
                 # check whether job is running
                 if int(subprocess.check_output(f"squeue | grep {k} | wc -l", shell=True).decode("utf-8").strip()) == 0:
                     # check whether result file is finished?
