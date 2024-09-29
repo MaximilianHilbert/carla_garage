@@ -252,7 +252,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                     if not need_to_resubmit:
                         # delete old job
                         print(f"Finished job {job_file}")
-                        meta_jobs[k] = (True, None, None, None, 0)
+                        meta_jobs[k] = (True, None, 0)
                     else:
                         need_to_resubmit = True
 
@@ -271,7 +271,6 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                     job_file,
                     resubmitted + 1,
                 )
-                meta_jobs[k] = (True, None, 0)
                 num_running_jobs += 1
             time.sleep(1)
 
