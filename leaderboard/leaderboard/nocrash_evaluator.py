@@ -473,7 +473,7 @@ class NoCrashEvaluator(object):
         
         if self.config.img_seq_len<self.config.considered_images_incl_current:
             empties=np.concatenate([np.zeros_like(recorded_images[0])]*(self.config.considered_images_incl_current+1-self.config.img_seq_len), axis=1)
-            image_sequence=np.concatenate([empties, current_image], axis=1)
+            image_sequence=current_image
         else:
             prev_images.append(current_image)
             image_sequence=np.concatenate(prev_images, axis=1)
