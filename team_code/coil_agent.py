@@ -213,6 +213,7 @@ class CoILAgent(AutonomousAgent):
                         "id": "rgb_rear",
                         "sensor_tick": self.config.carla_fps,
                     })
+        return sensors_lst
     def __call__(self, sensor_list_names=None):
         """
         Execute the agent call, e.g. agent()
