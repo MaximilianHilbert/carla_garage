@@ -154,7 +154,7 @@ class CoILAgent(AutonomousAgent):
         self.ss_bev_manager = ObsManager(obs_config, self.config)
         self.ss_bev_manager.attach_ego_vehicle(self._vehicle, criteria_stop=None)
     def sensors(self):
-        return [
+        sensors_lst=[
             {
                 "type": "sensor.camera.rgb",
                 "x": self.config.camera_pos[0],
@@ -169,20 +169,6 @@ class CoILAgent(AutonomousAgent):
                 "id": "CentralRGB",
                 "sensor_tick": self.config.carla_fps,
             },
-                {
-                    "type": "sensor.camera.rgb",
-                    "x": self.config.camera_pos_rear[0],
-                    "y": self.config.camera_pos_rear[1],
-                    "z": self.config.camera_pos_rear[2],
-                    "roll": self.config.camera_rot_0_rear[0],
-                    "pitch": self.config.camera_rot_0_rear[1],
-                    "yaw": self.config.camera_rot_0_rear[2],
-                    "width": self.config.camera_width,
-                    "height": self.config.camera_height,
-                    "fov": self.config.camera_fov,
-                    "id": "rgb_rear",
-                    "sensor_tick": self.config.carla_fps,
-                },
             {
                 "type": "sensor.other.imu",
                 "x": 0.0,
@@ -211,7 +197,22 @@ class CoILAgent(AutonomousAgent):
                 "id": "speed",
             },
         ]
-
+        if hasattr(self.config, "rear_cam"):
+            if self.config.rear_cam:
+                sensors_lst.append(    {
+                        "type": "sensor.camera.rgb",
+                        "x": self.config.camera_pos_rear[0],
+                        "y": self.config.camera_pos_rear[1],
+                        "z": self.config.camera_pos_rear[2],
+                        "roll": self.config.camera_rot_0_rear[0],
+                        "pitch": self.config.camera_rot_0_rear[1],
+                        "yaw": self.config.camera_rot_0_rear[2],
+                        "width": self.config.camera_width,
+                        "height": self.config.camera_height,
+                        "fov": self.config.camera_fov,
+                        "id": "rgb_rear",
+                        "sensor_tick": self.config.carla_fps,
+                    })
     def __call__(self, sensor_list_names=None):
         """
         Execute the agent call, e.g. agent()
