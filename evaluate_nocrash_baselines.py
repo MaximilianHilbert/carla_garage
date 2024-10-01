@@ -20,7 +20,7 @@ def main(args):
     setattr(config, "video_width_single_cam", 750)
     setattr(config, "video_width_two_cam", 1920)
     setattr(config, "video_height", 1080)
-    
+    setattr(config, "considered_images_incl_current", 3)
     #to solve overconfident predictions
     config.target_speeds[2] = config.target_speeds[2] - 2.0
     config.target_speeds[3] = config.target_speeds[3] - 2.0
