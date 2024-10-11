@@ -245,7 +245,7 @@ torchrun --nnodes=1 --nproc_per_node=8 --rdzv_id=100 --rdzv_backend=c10d $TEAM_C
                     # check if model file is there
                     if os.path.exists(model_dir):
                         print(f"Training finished for {model_dir}")
-                        meta_jobs[k] = (True, None, 0)
+                        meta_jobs[k] = (True, None, None,0)
                         need_to_resubmit=False
                     else:        
                         need_to_resubmit = True
