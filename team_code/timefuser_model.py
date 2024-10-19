@@ -129,11 +129,11 @@ class TimeFuser(nn.Module):
                         )
                     )
         # positional embeddings with respect to themselves (between individual tokens of the same type)
-        if self.config.bev or self.config.detectboxes:
-            if self.config.tf_pp_rep:
-                self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len+1, self.channel_dimension))
-            else:
-                self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len, self.channel_dimension))
+
+        if self.config.tf_pp_rep:
+            self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len+1, self.channel_dimension))
+        else:
+            self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len, self.channel_dimension))
 
         self.wp_gru = GRUWaypointsPredictorTransFuser(config, pred_len=self.config.pred_len, hidden_size=self.config.gru_hidden_size,target_point_size=self.config.target_point_size)
         if self.config.tf_pp_rep:
@@ -143,7 +143,7 @@ class TimeFuser(nn.Module):
                                 self.channel_dimension,
                             )
                         )
-        if self.config.bev or self.config.detectboxes:
+        if self.config.bev or self.config.detectboxes or self.config.tf_pp_rep:
             self.bev_query=nn.Parameter(
                             torch.zeros(
                                 self.config.num_bev_query**2,
@@ -303,13 +303,13 @@ class TimeFuser(nn.Module):
             x=torch.cat((x,additional_inputs), axis=1).contiguous()
         x=x+self.sensor_fusion_embedding.repeat(bs,1,1)
         x=self.transformer_encoder(x)
-        if self.config.bev or self.config.detectboxes:
-            if self.config.tf_pp_rep:
-                queries=torch.cat((self.wp_query, self.bev_query, self.target_speed_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
-            else:
-                queries=torch.cat((self.wp_query, self.bev_query), axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
-        else:
-            queries=self.wp_query.repeat(bs,1,1)
+        queries_lst=[self.wp_query]
+        if self.config.bev or self.config.detectboxes or self.config.tf_pp_rep:
+            queries_lst.append(self.bev_query)
+        if self.config.tf_pp_rep:
+            queries_lst.append(self.target_speed_query)
+        queries=torch.cat(queries_lst, axis=0).repeat(bs,1,1)+self.output_token_pos_embedding.repeat(bs, 1,1)
+        
         all_tokens_output=self.transformer_decoder(queries, x)
         if self.config.tf_pp_rep:
             pred_target_speed = self.target_speed_network(all_tokens_output[:, -1,...])
@@ -359,11 +359,10 @@ class TimeFuser(nn.Module):
         losses={}
         main_loss = l1_loss(params["wp_predictions"], params["targets"])
         losses["wp_loss"]=main_loss
-        if (self.config.detectboxes and not self.config.freeze) or (self.config.freeze and (params["epoch"]>self.config.epochs_baselines-self.config.epochs_after_freeze)):
-            self.detailed_loss_weights={}
-            factor = 1.0 / sum(self.config.detailed_loss_weights.values())
-            for k in self.config.detailed_loss_weights:
-                self.detailed_loss_weights[k] = self.config.detailed_loss_weights[k] * factor
+        self.detailed_loss_weights={}
+        factor = 1.0 / sum(self.config.detailed_loss_weights.values())
+        for k in self.config.detailed_loss_weights:
+            self.detailed_loss_weights[k] = self.config.detailed_loss_weights[k] * factor
         if self.config.use_label_smoothing:
             label_smoothing =self.config.label_smoothing_alpha
         else:
@@ -384,12 +383,16 @@ class TimeFuser(nn.Module):
         if self.config.detectboxes:
             head_loss=self.head.loss(params["pred_bb"], 
                                      params["targets_bb"])
-            if self.config.tf_pp_rep:
-                loss_speed = nn.CrossEntropyLoss(weight=torch.tensor(self.config.target_speed_weights, dtype=torch.float32, device=params["device_id"]), label_smoothing=label_smoothing)
-                one_hot_vector=torch.zeros(self.config.batch_size,len(self.config.target_speed_weights), dtype=torch.float32, device=params["device_id"])
-                one_hot_vector.scatter_(1, params["target_speed_target"], 1)
-                target_speed_loss=loss_speed(params["pred_target_speed"], one_hot_vector)
-                head_loss["loss_target_speed"]=target_speed_loss
+        else:
+            head_loss={}
+        if self.config.tf_pp_rep:
+            loss_speed = nn.CrossEntropyLoss(weight=torch.tensor(self.config.target_speed_weights, dtype=torch.float32, device=params["device_id"]), label_smoothing=label_smoothing)
+            one_hot_vector=torch.zeros(self.config.batch_size,len(self.config.target_speed_weights), dtype=torch.float32, device=params["device_id"])
+            one_hot_vector.scatter_(1, params["target_speed_target"], 1)
+            target_speed_loss=loss_speed(params["pred_target_speed"], one_hot_vector)
+            head_loss["loss_target_speed"]=target_speed_loss
+
+
             sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
             for key, value in head_loss.items():
                 sub_loss += self.detailed_loss_weights[key] * value
