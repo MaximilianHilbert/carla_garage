@@ -117,6 +117,7 @@ class GlobalConfig:
         self.visualize_copycat=False
         self.subsampling=False
         self.rear_cam=False
+        self.predict_vectors=False
         self.pre_trained = True
         #closed loop
         self.hop_resolution=1.0 #for global plan in closed loop
