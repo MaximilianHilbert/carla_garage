@@ -12,12 +12,12 @@
 #uni pc
 
 
-export WORK_DIR=/home/maximilian-hilbert/carla_garage
-export CONFIG_ROOT=${WORK_DIR}/coil_configuration
-export TEAM_CODE=$WORK_DIR/team_code
-export CARLA_ROOT=${WORK_DIR}/carla
-export COIL_NETWORK=${WORK_DIR}/coil_network
-export DATASET_ROOT=/home/maximilian-hilbert/datasets/tf_dataset
+# export WORK_DIR=/home/maximilian-hilbert/carla_garage
+# export CONFIG_ROOT=${WORK_DIR}/coil_configuration
+# export TEAM_CODE=$WORK_DIR/team_code
+# export CARLA_ROOT=${WORK_DIR}/carla
+# export COIL_NETWORK=${WORK_DIR}/coil_network
+# export DATASET_ROOT=/home/maximilian-hilbert/datasets/tf_dataset
 #local
 # export WORK_DIR=/home/maximilian/Master/carla_garage
 # export CONFIG_ROOT=${WORK_DIR}/coil_configuration
@@ -34,12 +34,12 @@ export DATASET_ROOT=/home/maximilian-hilbert/datasets/tf_dataset
 # export TEAM_CODE=$WORK_DIR/team_code
 # export COIL_NETWORK=${WORK_DIR}/coil_network
 #tcml
-# export WORK_DIR=/home/hilbert/carla_garage
-# export CONFIG_ROOT=$WORK_DIR/coil_configuration
-# export CARLA_ROOT=$WORK_DIR/carla
-# export DATASET_ROOT=/home/hilbert/dataset_v08
-# export TEAM_CODE=$WORK_DIR/team_code
-# export COIL_NETWORK=${WORK_DIR}/coil_network
+export WORK_DIR=/home/hilbert/carla_garage
+export CONFIG_ROOT=$WORK_DIR/coil_configuration
+export CARLA_ROOT=$WORK_DIR/carla
+export DATASET_ROOT=/home/hilbert/datasets/triangular_augmentation_intensity_25_augmented_rear_camera2024_09_16
+export TEAM_CODE=$WORK_DIR/team_code
+export COIL_NETWORK=${WORK_DIR}/coil_network
 
 export CARLA_SERVER=$CARLA_ROOT/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI
@@ -51,9 +51,9 @@ export PYTHONPATH=$PYTHONPATH:$COIL_NETWORK
 export PYTHONPATH=$PYTHONPATH:$TEAM_CODE
 export PYTHONPATH=$PYTHONPATH:$WORK_DIR
 
-# source /home/hilbert/.bashrc
-# eval "$(conda shell.bash hook)"
-# conda activate garage
+source /home/hilbert/.bashrc
+eval "$(conda shell.bash hook)"
+conda activate garage
 
 # source ~/.bashrc
 # conda activate /mnt/qb/work/geiger/gwb629/conda/garage
