@@ -129,12 +129,10 @@ class TimeFuser(nn.Module):
                         )
                     )
         # positional embeddings with respect to themselves (between individual tokens of the same type)
-
-        if self.config.tf_pp_rep:
-            self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len+1, self.channel_dimension))
-        else:
-            self.output_token_pos_embedding = nn.Parameter(torch.zeros(self.config.num_bev_query**2+self.config.pred_len, self.channel_dimension))
-
+        shape_sum=self.config.pred_len+1 if self.config.tf_pp_rep else self.config.pred_len
+        if self.config.bev:
+            shape_sum+=self.config.num_bev_query**2
+        self.output_token_pos_embedding = nn.Parameter(torch.zeros(shape_sum, self.channel_dimension))
         self.wp_gru = GRUWaypointsPredictorTransFuser(config, pred_len=self.config.pred_len, hidden_size=self.config.gru_hidden_size,target_point_size=self.config.target_point_size)
         if self.config.tf_pp_rep:
             self.target_speed_query=nn.Parameter(
@@ -393,12 +391,11 @@ class TimeFuser(nn.Module):
             head_loss["loss_target_speed"]=target_speed_loss
 
 
-            sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
-            for key, value in head_loss.items():
-                sub_loss += self.detailed_loss_weights[key] * value
-            losses["detect_loss"]=sub_loss.squeeze()
-        else:
-            head_loss=None
+        sub_loss=torch.zeros((1,),dtype=torch.float32, device=params["device_id"])
+        for key, value in head_loss.items():
+            sub_loss += self.detailed_loss_weights[key] * value
+        losses["detect_loss"]=sub_loss.squeeze()
+        
         if self.config.ego_velocity_prediction:
             ego_velocity_loss=l1_loss(params["pred_ego_velocity"], params["ego_velocity"])
             losses["ego_velocity_loss"]=ego_velocity_loss
