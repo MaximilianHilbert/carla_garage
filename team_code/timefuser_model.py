@@ -130,7 +130,7 @@ class TimeFuser(nn.Module):
                     )
         # positional embeddings with respect to themselves (between individual tokens of the same type)
         shape_sum=self.config.pred_len+1 if self.config.tf_pp_rep else self.config.pred_len
-        if self.config.bev:
+        if self.config.bev or self.config.tf_pp_rep:
             shape_sum+=self.config.num_bev_query**2
         self.output_token_pos_embedding = nn.Parameter(torch.zeros(shape_sum, self.channel_dimension))
         self.wp_gru = GRUWaypointsPredictorTransFuser(config, pred_len=self.config.pred_len, hidden_size=self.config.gru_hidden_size,target_point_size=self.config.target_point_size)
