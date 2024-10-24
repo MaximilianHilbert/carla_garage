@@ -78,8 +78,10 @@ def extract_and_normalize_data(args, device_id, merged_config_object, data):
         additional_previous_wp_targets = torch.flatten(data["additional_waypoints_ego_system"].to(device_id), start_dim=1)
     else:
         additional_previous_wp_targets=None
-
-    bev_semantic_labels=data["bev_semantic"].to(torch.long).to(device_id)
+    if merged_config_object.bev:
+        bev_semantic_labels=data["bev_semantic"].to(torch.long).to(device_id)
+    else:
+        bev_semantic_labels=None
     if merged_config_object.detectboxes:
         
         bb=data["bounding_boxes"].to(device_id, dtype=torch.float32)
