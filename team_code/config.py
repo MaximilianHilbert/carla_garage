@@ -15,15 +15,15 @@ class GlobalConfig:
 
     # Weather azimuths used for data collection
     # Defined outside of init because carla objects can't be pickled
-    # weathers = {
-    #     "Clear": carla.WeatherParameters.ClearNoon,
-    #     "Cloudy": carla.WeatherParameters.CloudySunset,
-    #     "Wet": carla.WeatherParameters.WetSunset,
-    #     "MidRain": carla.WeatherParameters.MidRainSunset,
-    #     "WetCloudy": carla.WeatherParameters.WetCloudySunset,
-    #     "HardRain": carla.WeatherParameters.HardRainNoon,
-    #     "SoftRain": carla.WeatherParameters.SoftRainSunset,
-    # }
+    weathers = {
+        "Clear": carla.WeatherParameters.ClearNoon,
+        "Cloudy": carla.WeatherParameters.CloudySunset,
+        "Wet": carla.WeatherParameters.WetSunset,
+        "MidRain": carla.WeatherParameters.MidRainSunset,
+        "WetCloudy": carla.WeatherParameters.WetCloudySunset,
+        "HardRain": carla.WeatherParameters.HardRainNoon,
+        "SoftRain": carla.WeatherParameters.SoftRainSunset,
+    }
 
     def __init__(self):
         """base architecture configurations"""
@@ -69,8 +69,8 @@ class GlobalConfig:
         self.number_future_waypoints = 1
         self.closed_loop_previous_waypoint_predictions=5
         self.waypoint_weight_generation = False
-        self.epochs_baselines =3000
-        self.every_epoch =31
+        self.epochs_baselines =31
+        self.every_epoch =1
         self.epochs_after_freeze=15
         self.lidar_seq_len = 1
         self.rgb_input_channels=3
