@@ -1,7 +1,7 @@
 > **Temporal Imitation Learning in End-to-End Driving Models** <br>
 > Maximilian Hilbert, [Andreas Geiger](https://www.cvlibs.net/) <be>
-> [Slides, coming soon](LINK TO SLIDES)<br>
-> [Thesis, coming soon](LINK TO Thesis)<br>
+> [Slides, coming soon](LINK TO SLIDES)<be>
+> [Thesis, coming soon](LINK TO Thesis)<be>
 > This repo contains the code for the master's thesis **Temporal Imitation Learning in End-to-End Driving Models**, which is based on the Carla Garage Repository of our research group https://github.com/autonomousvision/carla_garage by [Bernhard Jaeger](https://kait0.github.io/)
 
 ## Contents
