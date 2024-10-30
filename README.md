@@ -7,7 +7,7 @@
 ## Contents
 1. [Abstract](#abstract)
 2. [Method](#method)
-3. [Key Findings](#key_findings)
+3. [Findings](#Findings)
 4. [Visualisations](#Visualisations)
 
 ## Abstract
@@ -19,7 +19,7 @@ The goal of this thesis is to build a testbed for reproducing known solutions to
   <img src="assets/TimeFuser.png" alt="TimeFuser" width="500"/>
 </p>
 
-## Key Findings
+## Findings
 ## Finding One - Temporally consistent augmentation strategy
 Training temporally infused end-to-end models are challenging due to the compounding errors problem during inference. To mitigate this issue one needs a temporally consistent (steering) augmentation strategy which i implemented using triangular perturbations[1]. One can see that this strategy greatly improves the driving task for all temporal and non-temporal baselines.
 <table>
