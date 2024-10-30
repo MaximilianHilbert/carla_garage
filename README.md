@@ -173,9 +173,9 @@ The single observation method developed in this thesis achieves perfect success 
     </tbody>
 </table>
 
-[1] Codevilla, F., Santana, E., Lopez, A., & Gaidon, A. (2019). Exploring the limitations of behavior cloning for autonomous driving
-[2] Wen, C., Lin, J., Qian, J., Gao, Y., & Jayaraman, D. (2021). Keyframe-Focused Visual Imitation Learning
-[3] Chuang, C.-C., Yang, D., Wen, C., & Gao, Y. (2022). Resolving Copycat Problems in Visual Imitation Learning via Residual Action Prediction
+[1] Codevilla, F., Santana, E., Lopez, A., & Gaidon, A. (2019). Exploring the limitations of behavior cloning for autonomous driving <br>
+[2] Wen, C., Lin, J., Qian, J., Gao, Y., & Jayaraman, D. (2021). Keyframe-Focused Visual Imitation Learning <br>
+[3] Chuang, C.-C., Yang, D., Wen, C., & Gao, Y. (2022). Resolving Copycat Problems in Visual Imitation Learning via Residual Action Prediction <br>
 
 ## Visualisations
 The following video showcases TimeFuser solving one route of Carla NoCrash Benchmark without any infractions using waypoint output representation and frame-based steering augmentation.
