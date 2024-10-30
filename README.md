@@ -93,57 +93,57 @@ This table demonstrates that video models, pre-trained on action recognition, si
     <tbody>
         <tr>
             <td rowspan="3">ARP (temporal, two-stream)</td>
-            <td>Resnet</td>
+            <td>Resnet (Image)</td>
             <td>0 &plusmn; 0</td>
             <td>45 &plusmn; 7</td>
             <td>55 &plusmn; 7</td>
         </tr>
         <tr>
-            <td>Swin</td>
+            <td>Swin (Video)</td>
             <td>5 &plusmn; 4</td>
             <td>39 &plusmn; 8</td>
             <td>56 &plusmn; 10</td>
         </tr>
         <tr>
-            <td>X3D</td>
+            <td>X3D (Video)</td>
             <td>3 &plusmn; 3</td>
             <td>39 &plusmn; 5</td>
             <td>59 &plusmn; 6</td>
         </tr>
         <tr>
             <td rowspan="3">BCOH (temporal, single-stream)</td>
-            <td>Resnet</td>
+            <td>Resnet (image)</td>
             <td>1 &plusmn; 2</td>
             <td>46 &plusmn; 13</td>
             <td>53 &plusmn; 11</td>
         </tr>
         <tr>
-            <td>Swin</td>
+            <td>Swin (Video)</td>
             <td>1 &plusmn; 2</td>
             <td>36 &plusmn; 10</td>
             <td>63 &plusmn; 10</td>
         </tr>
         <tr>
-            <td>X3D</td>
+            <td>X3D (Video)</td>
             <td>37 &plusmn; 28</td>
             <td>26 &plusmn; 14</td>
             <td>37 &plusmn; 16</td>
         </tr>
         <tr>
             <td rowspan="3">BCSO (non-temporal)</td>
-            <td>Resnet</td>
+            <td>Resnet (Image)</td>
             <td>5 &plusmn; 6</td>
             <td>23 &plusmn; 7</td>
             <td><strong>72</strong> &plusmn; 4</td>
         </tr>
         <tr>
-            <td>Swin</td>
+            <td>Swin (Video)</td>
             <td>2 &plusmn; 3</td>
             <td>38 &plusmn; 8</td>
             <td>60 &plusmn; 7</td>
         </tr>
         <tr>
-            <td>X3D</td>
+            <td>X3D (Video)</td>
             <td>13 &plusmn; 12</td>
             <td>47 &plusmn; 11</td>
             <td>40 &plusmn; 8</td>
