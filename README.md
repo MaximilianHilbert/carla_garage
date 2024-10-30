@@ -16,7 +16,7 @@ This thesis aims to revisit known solutions to temporally infused end-to-end aut
 ## Method
 The goal of this thesis is to build a testbed for reproducing known solutions to the copycat problem[1,2,3] as well as researching possible extensions concerning output representation, auxiliary tasks, temporally consistent augmentation strategies and video models as backbones and answer the question of whether temporal information is needed for completing the Nocrash Benchmark with a perfect success score.
 <p align="center">
-  <img src="assets/TimeFuser.png" alt="TimeFuser" width="500"/>
+  <img src="assets/timefuser_default_config.png" alt="TimeFuser" width="500"/>
 </p>
 
 ## Findings
