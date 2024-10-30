@@ -21,9 +21,9 @@ The goal of this thesis is to build a testbed for reproducing known solutions to
 
 ## Findings
 ## Finding One - Temporally consistent augmentation strategy
-Training temporally infused end-to-end models are challenging due to the compounding errors problem during inference. To mitigate this issue one needs a temporally consistent (steering) augmentation strategy which i implemented using triangular perturbations[1]. One can see that this strategy greatly improves the driving task for all temporal and non-temporal baselines.
+Training temporally infused end-to-end models are challenging due to the compounding errors problem during inference. To mitigate this issue one needs a temporally consistent (steering) augmentation strategy which I implemented using triangular perturbations. One can see that this strategy greatly improves the driving task for all temporal and non-temporal baselines.
 <table>
-    <caption><strong>Carla NoCrash Benchmark[1] - Town02 (Test) - Dense Traffic (hardest) - Triangular Perturbation</strong></caption>
+    <caption><strong>Carla NoCrash Benchmark - Town02 (Test) - Dense Traffic (hardest) - Triangular Perturbation</strong></caption>
     <thead>
         <tr>
             <th>Baseline</th>
