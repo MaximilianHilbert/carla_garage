@@ -417,7 +417,7 @@ class NoCrashEvaluator(object):
                                 acceleration_vectors_pred=accel_vecs if self.config.predict_vectors else None,
                                 pred_speed=torch.nn.functional.softmax(curr_pred[iteration]["pred_target_speed"], dim=1).squeeze().detach().cpu().numpy() if self.config.tf_pp_rep else None,
                                     target_point=target_point_i, pred_wp=pred_i["wp_predictions"].squeeze().detach().cpu().numpy(),
-                                    pred_bb=batch_of_bbs_pred,step=np.round(-1/self.config.carla_fps*(len(observations)-iteration),2),
+                                    pred_bb=batch_of_bbs_pred,step=iteration,
 
                                     pred_bev_semantic=pred_i["pred_bev_semantic"].squeeze().detach().cpu().numpy() if "pred_bev_semantic" in pred_i.keys() else None,
                                     road=road, parameters=None, pred_wp_prev=None, args=args)
