@@ -116,7 +116,7 @@ class ScenarioManager(object):
             root=os.path.join(os.environ.get("WORK_DIR"),"visualisation", "closed_loop",  self.scenario_class.agent.config.baseline_folder_name,
                     "debug", self.scenario_class.agent.config.eval_id)
             os.makedirs(root,exist_ok=True)
-            self.width_video= self.scenario_class.agent.video_width_two_cam if self.scenario_class.agent.config.rear_cam else  self.scenario_class.agent.config.video_width_single_cam
+            self.width_video= self.scenario_class.agent.config.video_width_two_cam if self.scenario_class.agent.config.rear_cam else  self.scenario_class.agent.config.video_width_single_cam
             self.height_video= self.scenario_class.agent.config.video_height
             self.video_writer = cv2.VideoWriter(os.path.join(root,f"{self.scenario.name}.avi"),cv2.VideoWriter_fourcc(*'MJPG'),fps, (self.width_video,self.height_video))
         
