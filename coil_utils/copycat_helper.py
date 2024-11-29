@@ -156,6 +156,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                 config.visualize_copycat=True
                 config.initialize(root_dir=os.environ.get("DATASET_ROOT"),
                                    setting=args.setting)
+                config.batch_size=1
                 if getattr(config, "freeze")==1:
                     continue
                 checkpoint_file = get_latest_saved_checkpoint(
@@ -178,8 +179,8 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                     mem_extract = TimeFuser("arp-memory", config)
                     mem_extract.to("cuda:0")
                     mem_extract = DDP(mem_extract, device_ids=["cuda:0"])
-                    del checkpoint["policy_state_dict"]["module.time_position_embedding"]
-                    del checkpoint["mem_extract_state_dict"]["module.time_position_embedding"]
+                    #del checkpoint["policy_state_dict"]["module.time_position_embedding"]
+                    #del checkpoint["mem_extract_state_dict"]["module.time_position_embedding"]
 
                     policy.load_state_dict(checkpoint["policy_state_dict"])
                     mem_extract.load_state_dict(checkpoint["mem_extract_state_dict"])
@@ -222,8 +223,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                 assert len(data_loader_val.dataset.images)!=0, "Selected validation dataset does not contain Town02 (validation) routes!"
                 for data,image in zip(tqdm(data_loader_val), data_loader_val.dataset.images):
                     image=str(image, encoding="utf-8").replace("\x00", "")
-                    all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=config, data=data)
-                    
+                    all_images, all_speeds, target_point, targets, previous_targets, additional_previous_waypoints, bev_semantic_labels, targets_bb,bb, vel_vecs, accel_vecs, target_speed_target=extract_and_normalize_data(args=args, device_id="cuda:0", merged_config_object=config, data=data)
                     if "arp" in config.baseline_folder_name:
                        
                         pred_dict_memory = mem_extract(x=all_images[:,:-1,...], speed=all_speeds[:,:-1,...] if all_speeds is not None else None, target_point=target_point, prev_wp=additional_previous_waypoints)
@@ -233,6 +233,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                             **pred_dict_memory,
                             "targets": mem_extract_targets,
                             "bev_targets": bev_semantic_labels,
+                            "target_speed_target":target_speed_target,
                             "targets_bb": targets_bb,
                             "device_id": "cuda:0",
                         }
@@ -244,6 +245,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                             **pred_dict,
                             "targets": targets,
                             "bev_targets": bev_semantic_labels,
+                            "target_speed_target":target_speed_target,
                             "targets_bb": targets_bb,
                             "device_id": "cuda:0",
                             
@@ -270,6 +272,7 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                             "bev_targets": bev_semantic_labels if config.bev else None,
                             "targets": targets,
                             "targets_bb": targets_bb,
+                            "target_speed_target":target_speed_target,
                             **reweight_params,
                             "device_id": "cuda:0",
                             
@@ -277,8 +280,8 @@ def evaluate_baselines_and_save_predictions(args, baseline_path):
                         model_loss,detailed_losses,head_losses= model.module.compute_loss(params=loss_function_params)
                         
                     #this is only a viable comparison, if the batch_size is set to 1, because it will be marginalized over the batch dimension before the loss is returned!
-                    cc_lst.append({"image": image, "pred":{key: value.squeeze().cpu().detach().numpy() for key, value in pred_dict.items() if not isinstance(value,tuple)},
-                                   "pred_bb":{key: value for key, value in pred_dict.items() if isinstance(value,tuple)},
+                    cc_lst.append({"image": image, "pred":{key: value.squeeze().cpu().detach().numpy() for key, value in pred_dict.items() if not isinstance(value,tuple) and not isinstance(value,dict)},
+                                   "pred_bb":pred_dict["pred_bb"],
                                                 "gt":targets.squeeze().cpu().detach().numpy(), "loss":detailed_losses["wp_loss"].cpu().detach().numpy(),
                                                 "detailed_loss": {key: value.cpu().detach().numpy() for key, value in detailed_losses.items()},
                                                 "head_loss": {key: value.cpu().detach().numpy() for key, value in head_losses.items()} if head_losses is not None else None,
