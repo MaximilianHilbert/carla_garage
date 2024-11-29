@@ -29,15 +29,21 @@ def load_model_and_checkpoint(config, root):
 
     if "arp" in config.baseline_folder_name:
         policy = TimeFuser("arp-policy", config)
+        policy.to("cuda:0")
+        policy = DDP(policy, device_ids=["cuda:0"])
         mem_extract = TimeFuser("arp-memory", config)
-        del checkpoint["policy_state_dict"]["module.time_position_embedding"]
-        del checkpoint["mem_extract_state_dict"]["module.time_position_embedding"]
+        mem_extract.to("cuda:0")
+        policy = DDP(mem_extract, device_ids=["cuda:0"])
+        #del checkpoint["policy_state_dict"]["module.time_position_embedding"]
+        #del checkpoint["mem_extract_state_dict"]["module.time_position_embedding"]
         policy.load_state_dict(checkpoint["policy_state_dict"])
         mem_extract.load_state_dict(checkpoint["mem_extract_state_dict"])
 
         return policy, mem_extract, checkpoint
     else:
         model = TimeFuser(config.baseline_folder_name, config, rank=0)
+        model.to("cuda:0")
+        model = DDP(model, device_ids=["cuda:0"])
         #del checkpoint["state_dict"]["module.time_position_embedding"]
         return model,None, checkpoint
 
@@ -46,12 +52,12 @@ def load_model_and_checkpoint(config, root):
 def initialize_data_loader(config, args):
     val_set = CARLA_Data(root=config.val_data, config=config, rank=0, baseline=config.baseline_folder_name)
     sampler_val = SequentialSampler(val_set)
-    val_set.set_correlation_weights(path=os.path.join(
-        os.environ.get("WORK_DIR"),
-        "keyframes",
-        "importance_weights",
-        "bcoh_weights_copycat_prev9_rep0_neurons300.npy",
-    ))
+    # val_set.set_correlation_weights(path=os.path.join(
+    #     os.environ.get("WORK_DIR"),
+    #     "keyframes",
+    #     "importance_weights",
+    #     "bcoh_weights_copycat_prev9_rep0_neurons300.npy",
+    # ))
     return torch.utils.data.DataLoader(
         val_set,
         batch_size=1,
@@ -137,7 +143,7 @@ def process_data_sample(data_loader_position, data, image_path, keyframe_correla
 
 def get_batch_of_bbs_pred(config, predictions_lst, current_index, model):
     if config.detectboxes:
-        return model.convert_features_to_bb_metric(predictions_lst[current_index]["pred_bb"]["pred_bb"])
+        return model.module.convert_features_to_bb_metric(predictions_lst[current_index]["pred_bb"])
     return None
 
 
@@ -288,7 +294,7 @@ def main(args):
                 config = pickle.load(f)
             config.number_previous_waypoints = 1
             config.visualize_copycat = True
-            
+            config.batch_size=1
             set_not_included_ablation_args(config)
             ablations_dict=get_ablations_dict()
             current_ablations_dict={}
